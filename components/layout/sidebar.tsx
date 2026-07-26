@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -12,6 +13,8 @@ import {
   Smartphone,
   BarChart3,
   Settings,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 const navItems = [
@@ -27,12 +30,32 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const saved = localStorage.getItem("media_creative_sidebar_collapsed");
+    if (saved === "true") {
+      setIsCollapsed(true);
+    }
+  }, []);
+
+  function toggleCollapse() {
+    setIsCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("media_creative_sidebar_collapsed", String(next));
+      return next;
+    });
+  }
+
+  const sidebarWidth = isCollapsed ? 72 : 256;
 
   return (
     <aside
       style={{
-        width: "256px",
-        minWidth: "256px",
+        width: `${sidebarWidth}px`,
+        minWidth: `${sidebarWidth}px`,
         background: "var(--sidebar-bg)",
         backdropFilter: "blur(24px)",
         borderRight: "1px solid var(--border)",
@@ -42,45 +65,105 @@ export default function Sidebar() {
         top: 0,
         height: "100vh",
         overflowY: "auto",
-        transition: "background 200ms ease, border-color 200ms ease",
+        overflowX: "hidden",
+        transition: "width 250ms cubic-bezier(0.4, 0, 0.2, 1), min-width 250ms cubic-bezier(0.4, 0, 0.2, 1), background 200ms ease, border-color 200ms ease",
       }}
     >
-      {/* Logo */}
+      {/* Header & Logo */}
       <div
         style={{
-          padding: "20px 20px 18px",
+          padding: isCollapsed ? "16px 10px" : "18px 18px",
           borderBottom: "1px solid var(--border)",
           display: "flex",
-          flexDirection: "column",
-          gap: "6px",
+          alignItems: "center",
+          justifyContent: isCollapsed ? "center" : "space-between",
+          gap: "8px",
+          flexDirection: isCollapsed ? "column" : "row",
+          transition: "padding 250ms ease",
         }}
       >
-        <Image
-          src="/logo.png"
-          alt="Media Creative Logo"
-          width={160}
-          height={50}
-          style={{ objectFit: "contain", width: "150px", height: "auto" }}
-          priority
-        />
-        <div
-          style={{
-            fontSize: "0.68rem",
-            color: "var(--accent-cyan)",
-            fontWeight: 600,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-          }}
-        >
-          Control Center
-        </div>
+        {!isCollapsed && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, overflow: "hidden" }}>
+            <Image
+              src="/logo.png"
+              alt="Media Creative Logo"
+              width={140}
+              height={44}
+              style={{ objectFit: "contain", width: "135px", height: "auto" }}
+              priority
+            />
+            <div
+              style={{
+                fontSize: "0.65rem",
+                color: "var(--accent-cyan)",
+                fontWeight: 700,
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Control Center
+            </div>
+          </div>
+        )}
+
+        {isCollapsed && (
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            <Image
+              src="/icon.png"
+              alt="Media Creative"
+              width={34}
+              height={34}
+              style={{ objectFit: "contain", borderRadius: 8 }}
+              priority
+            />
+          </div>
+        )}
+
+        {/* Toggle Button */}
+        {mounted && (
+          <button
+            onClick={toggleCollapse}
+            title={isCollapsed ? "Expand Sidebar (Perluas Layar Kerja)" : "Collapse Sidebar (Kecilkan Sidebar)"}
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 8,
+              border: "1px solid var(--border)",
+              background: "var(--bg-glass)",
+              color: "var(--text-secondary)",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              transition: "all 150ms ease",
+              marginTop: isCollapsed ? 6 : 0,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--accent-cyan-dim)";
+              e.currentTarget.style.color = "var(--accent-cyan)";
+              e.currentTarget.style.borderColor = "var(--border-accent)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "var(--bg-glass)";
+              e.currentTarget.style.color = "var(--text-secondary)";
+              e.currentTarget.style.borderColor = "var(--border)";
+            }}
+          >
+            {isCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
+          </button>
+        )}
       </div>
 
-      {/* Nav */}
-      <nav style={{ padding: "12px 10px", flex: 1 }}>
-        <div style={{ fontSize: "0.65rem", fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.08em", textTransform: "uppercase", padding: "8px 10px 6px" }}>
-          Menu
-        </div>
+      {/* Nav Menu */}
+      <nav style={{ padding: isCollapsed ? "12px 6px" : "12px 10px", flex: 1, transition: "padding 250ms ease" }}>
+        {!isCollapsed && (
+          <div style={{ fontSize: "0.65rem", fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.08em", textTransform: "uppercase", padding: "8px 10px 6px" }}>
+            Menu
+          </div>
+        )}
+
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive =
@@ -91,20 +174,24 @@ export default function Sidebar() {
             <Link
               key={item.name}
               href={item.href}
+              title={isCollapsed ? item.name : undefined}
               style={{
                 display: "flex",
                 alignItems: "center",
+                justifyContent: isCollapsed ? "center" : "flex-start",
                 gap: 10,
-                padding: "10px 12px",
+                padding: isCollapsed ? "12px 0" : "10px 12px",
                 borderRadius: 12,
-                marginBottom: 2,
+                marginBottom: 4,
                 fontSize: "0.875rem",
                 fontWeight: isActive ? 600 : 400,
                 color: isActive ? "var(--accent-cyan)" : "var(--text-secondary)",
                 background: isActive
                   ? "var(--accent-cyan-dim)"
                   : "transparent",
-                borderLeft: isActive
+                borderLeft: isCollapsed
+                  ? "none"
+                  : isActive
                   ? "2px solid var(--accent-cyan)"
                   : "2px solid transparent",
                 textDecoration: "none",
@@ -125,26 +212,33 @@ export default function Sidebar() {
               }}
             >
               <Icon
-                size={17}
+                size={18}
                 style={{ flexShrink: 0, opacity: isActive ? 1 : 0.7 }}
               />
-              {item.name}
+              {!isCollapsed && (
+                <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {item.name}
+                </span>
+              )}
             </Link>
           );
         })}
       </nav>
 
       {/* Footer */}
-      <div
-        style={{
-          padding: "16px 20px",
-          borderTop: "1px solid rgba(255,255,255,0.06)",
-          fontSize: "0.7rem",
-          color: "rgba(139,163,199,0.4)",
-        }}
-      >
-        © 2026 Media Creative
-      </div>
+      {!isCollapsed && (
+        <div
+          style={{
+            padding: "16px 20px",
+            borderTop: "1px solid rgba(255,255,255,0.06)",
+            fontSize: "0.7rem",
+            color: "rgba(139,163,199,0.4)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          © 2026 Media Creative
+        </div>
+      )}
     </aside>
   );
 }
