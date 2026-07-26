@@ -305,8 +305,8 @@ export function InvoiceSheet({
             </div>
 
             {/* SMALLER REAL USER SIGNATURE */}
-            <div style={{ marginTop: 0 }}>
-              <div style={{ marginBottom: 2 }}>
+            <div style={{ marginTop: 0, display: "flex", flexDirection: "column", alignItems: "center", width: "95px" }}>
+              <div style={{ marginBottom: 2, display: "flex", justifyContent: "center" }}>
                 <Image
                   src="/signature.png"
                   alt="Authorized Signature"
@@ -316,7 +316,7 @@ export function InvoiceSheet({
                   priority
                 />
               </div>
-              <div style={{ fontSize: "0.8rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2 }}>
+              <div style={{ fontSize: "0.8rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, textAlign: "center" }}>
                 Mulyadi
               </div>
             </div>
