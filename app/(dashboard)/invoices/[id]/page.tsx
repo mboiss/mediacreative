@@ -481,7 +481,7 @@ export default function InvoiceDetailPage() {
       <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
 
       {/* BACK BUTTON */}
-      <div className="animate-fade-in">
+      <div className="animate-fade-in no-print">
         <Link href="/invoices">
           <button className="btn btn-ghost" style={{ padding: "7px 14px", fontSize: "0.8rem" }}>
             <ArrowLeft size={13} />
@@ -490,9 +490,9 @@ export default function InvoiceDetailPage() {
         </Link>
       </div>
 
-      {/* HEADER */}
+      {/* HEADER CARD (Hidden during print) */}
       <div
-        className="animate-fade-in-up"
+        className="animate-fade-in-up no-print"
         style={{
           background: "var(--bg-glass)",
           border: "1px solid var(--border)",
