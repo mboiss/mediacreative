@@ -24,6 +24,7 @@ import {
   Share2,
   MessageSquare,
   Copy,
+  Download,
 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -200,6 +201,47 @@ export default function InvoiceDetailPage() {
     navigator.clipboard.writeText(url);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
+  }
+
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+
+  async function handleDownloadPdf() {
+    if (!invoice) return;
+    setDownloadingPdf(true);
+
+    try {
+      const element = document.querySelector(".printable-invoice") as HTMLElement;
+      if (!element) {
+        alert("Invoice element not found.");
+        setDownloadingPdf(false);
+        return;
+      }
+
+      if (!(window as any).html2pdf) {
+        await new Promise<void>((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error("Failed to load PDF engine"));
+          document.body.appendChild(script);
+        });
+      }
+
+      const opt = {
+        margin: [4, 4, 4, 4],
+        filename: `Invoice_${invoice.invoice_number}.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      };
+
+      await (window as any).html2pdf().set(opt).from(element).save();
+    } catch (err) {
+      console.error("PDF generation failed:", err);
+      window.print();
+    } finally {
+      setDownloadingPdf(false);
+    }
   }
 
   const loadInvoice = useCallback(async () => {
@@ -507,6 +549,22 @@ export default function InvoiceDetailPage() {
             >
               <Printer size={14} />
               Print
+            </button>
+
+            {/* Direct Download PDF Button */}
+            <button
+              className="btn btn-primary"
+              onClick={handleDownloadPdf}
+              disabled={downloadingPdf}
+              style={{ fontSize: "0.85rem", gap: 6, padding: "8px 14px" }}
+              title="Download Invoice sebagai file PDF"
+            >
+              {downloadingPdf ? (
+                <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+              ) : (
+                <Download size={14} />
+              )}
+              {downloadingPdf ? "Generating PDF..." : "Download PDF"}
             </button>
 
             {/* WhatsApp Direct Share */}
