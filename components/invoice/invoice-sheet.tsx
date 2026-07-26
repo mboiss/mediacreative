@@ -172,12 +172,19 @@ export function InvoiceSheet({
           </div>
 
           {client ? (
-            <div style={{ fontSize: "0.83rem", lineHeight: 1.4 }}>
-              <div style={{ fontWeight: 800, color: "#0f172a" }}>
-                {client.full_name || "—"}
+            <div style={{ fontSize: "0.85rem", lineHeight: 1.4 }}>
+              <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
+                <span style={{ fontWeight: 800, color: "#0f172a" }}>
+                  {client.full_name || "—"}
+                </span>
+                {client.company && (
+                  <span style={{ fontWeight: 600, color: "#0284c7" }}>
+                    - {client.company}
+                  </span>
+                )}
               </div>
               {client.address && (
-                <div style={{ color: "#475569", marginTop: 2, whiteSpace: "pre-line" }}>
+                <div style={{ color: "#475569", marginTop: 3, whiteSpace: "pre-line" }}>
                   {client.address}
                 </div>
               )}
@@ -309,11 +316,8 @@ export function InvoiceSheet({
                   priority
                 />
               </div>
-              <div style={{ fontSize: "0.72rem", fontWeight: 700, color: "#0f172a", lineHeight: 1.2 }}>
-                Media Creative
-              </div>
-              <div style={{ fontSize: "0.62rem", color: "#64748b", fontWeight: 500 }}>
-                Authorized Signature
+              <div style={{ fontSize: "0.8rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2 }}>
+                Mulyadi
               </div>
             </div>
           </div>
