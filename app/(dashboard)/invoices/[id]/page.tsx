@@ -184,13 +184,14 @@ export default function InvoiceDetailPage() {
   function handleSendEmail(overrideEmail?: string) {
     if (!invoice) return;
     const email = overrideEmail || invoice.clients?.email || manualEmail || "";
-    const clientName = invoice.clients?.full_name || "Client";
+    const clientName = invoice.clients?.full_name || "Valued Client";
     const formattedAmount = formatCurrency(invoice.total_amount ?? subtotal);
+    const formattedDate = formatDate(invoice.invoice_date);
     const formattedDueDate = formatDate(invoice.due_date);
     const invoiceUrl = getPublicInvoiceUrl();
 
-    const subject = `Invoice ${invoice.invoice_number} - Media Creative`;
-    const body = `Hello ${clientName},\n\nPlease find the details for your invoice from Media Creative below:\n\n- Invoice No   : ${invoice.invoice_number}\n- Total Amount : ${formattedAmount}\n- Due Date     : ${formattedDueDate}\n\nYou can view and download your invoice online at:\n${invoiceUrl}\n\nPayment Transfer Details:\nBank BCA Acc No. 0402434901 A/n : Mulyadi\n\nThank you for your business.\n\nBest regards,\nMedia Creative Control Center`;
+    const subject = `Invoice ${invoice.invoice_number} from Media Creative`;
+    const body = `Dear ${clientName},\n\nThank you for choosing Media Creative!\n\nWe have issued Invoice #${invoice.invoice_number} for your recent order. Below are the summary details:\n\n==========================================\nINVOICE SUMMARY\n==========================================\nInvoice Number : ${invoice.invoice_number}\nTotal Amount   : ${formattedAmount}\nIssue Date     : ${formattedDate}\nDue Date       : ${formattedDueDate}\n==========================================\n\nONLINE INVOICE & PDF DOWNLOAD:\nYou can view, print, or download your official PDF invoice anytime using the link below:\n${invoiceUrl}\n\nPAYMENT TRANSFER DETAILS:\nPlease transfer your payment to the following bank account:\n- Bank         : BCA\n- Account No   : 0402434901\n- Account Name : Mulyadi\n\nIf you have any questions or require further assistance, please feel free to reach out to us.\n\nBest regards,\nMedia Creative`;
 
     const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.location.href = mailtoUrl;
