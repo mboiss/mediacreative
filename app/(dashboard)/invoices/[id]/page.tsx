@@ -150,9 +150,9 @@ export default function InvoiceDetailPage() {
 
   const getPublicInvoiceUrl = useCallback(() => {
     if (typeof window !== "undefined") {
-      return `${window.location.origin}/invoices/${id}`;
+      return `${window.location.origin}/view-invoice/${id}`;
     }
-    return `https://mediacreative.vercel.app/invoices/${id}`;
+    return `https://mediacreative.vercel.app/view-invoice/${id}`;
   }, [id]);
 
   function formatWhatsAppPhone(phoneStr?: string) {
@@ -167,12 +167,12 @@ export default function InvoiceDetailPage() {
   function handleSendWhatsApp(overridePhone?: string) {
     if (!invoice) return;
     const phone = overridePhone || formatWhatsAppPhone(invoice.clients?.phone || manualPhone);
-    const clientName = invoice.clients?.full_name || "Pelanggan";
+    const clientName = invoice.clients?.full_name || "Client";
     const formattedAmount = formatCurrency(invoice.total_amount ?? subtotal);
     const formattedDueDate = formatDate(invoice.due_date);
     const invoiceUrl = getPublicInvoiceUrl();
 
-    const text = `Halo *${clientName}*,\n\nBerikut rincian invoice Anda dari *Media Creative*:\n📄 *No. Invoice:* ${invoice.invoice_number}\n💰 *Total:* ${formattedAmount}\n📅 *Jatuh Tempo:* ${formattedDueDate}\n\n🔗 *Lihat & Download Invoice:* \n${invoiceUrl}\n\n*Instruksi Pembayaran:*\nBank BCA Acc No. 0402434901 A/n : Mulyadi\n\nTerima kasih atas kerja samanya! 🙏`;
+    const text = `Hello *${clientName}*,\n\nHere are the details for your invoice from *Media Creative*:\n📄 *Invoice No:* ${invoice.invoice_number}\n💰 *Total Amount:* ${formattedAmount}\n📅 *Due Date:* ${formattedDueDate}\n\n🔗 *View & Download Invoice Online:* \n${invoiceUrl}\n\n*Payment Transfer Details:*\nBank BCA Acc No. 0402434901 A/n : Mulyadi\n\nThank you for your business! 🙏`;
 
     const waUrl = phone 
       ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
@@ -184,13 +184,13 @@ export default function InvoiceDetailPage() {
   function handleSendEmail(overrideEmail?: string) {
     if (!invoice) return;
     const email = overrideEmail || invoice.clients?.email || manualEmail || "";
-    const clientName = invoice.clients?.full_name || "Pelanggan";
+    const clientName = invoice.clients?.full_name || "Client";
     const formattedAmount = formatCurrency(invoice.total_amount ?? subtotal);
     const formattedDueDate = formatDate(invoice.due_date);
     const invoiceUrl = getPublicInvoiceUrl();
 
     const subject = `Invoice ${invoice.invoice_number} - Media Creative`;
-    const body = `Halo ${clientName},\n\nBerikut kami kirimkan rincian invoice untuk Anda dari Media Creative:\n\n- No. Invoice : ${invoice.invoice_number}\n- Total       : ${formattedAmount}\n- Due Date    : ${formattedDueDate}\n\nAnda dapat melihat dan mengunduh invoice online melalui tautan berikut:\n${invoiceUrl}\n\nInstruksi Pembayaran:\nBank BCA Acc No. 0402434901 A/n : Mulyadi\n\nTerima kasih atas kerja samanya.\n\nHormat kami,\nMedia Creative Control Center`;
+    const body = `Hello ${clientName},\n\nPlease find the details for your invoice from Media Creative below:\n\n- Invoice No   : ${invoice.invoice_number}\n- Total Amount : ${formattedAmount}\n- Due Date     : ${formattedDueDate}\n\nYou can view and download your invoice online at:\n${invoiceUrl}\n\nPayment Transfer Details:\nBank BCA Acc No. 0402434901 A/n : Mulyadi\n\nThank you for your business.\n\nBest regards,\nMedia Creative Control Center`;
 
     const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.location.href = mailtoUrl;
