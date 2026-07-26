@@ -47,8 +47,7 @@ export default async function LoginPage({
               <Input
                 name="email"
                 type="email"
-                placeholder="admin@mediacreative.com"
-                defaultValue="admin@mediacreative.com"
+                placeholder="nama@email.com"
                 required
                 className="bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus:border-cyan-500"
               />
@@ -69,12 +68,6 @@ export default async function LoginPage({
               Sign In
             </Button>
           </form>
-
-          <div className="mt-6 rounded-xl border border-white/5 bg-white/5 p-3 text-xs text-slate-400 space-y-1">
-            <p className="font-semibold text-slate-200">🔑 Kredensial Login Default:</p>
-            <p><span className="text-slate-300 font-mono">Email:</span> admin@mediacreative.com</p>
-            <p><span className="text-slate-300 font-mono">Password:</span> admin123456</p>
-          </div>
         </CardContent>
       </Card>
     </div>
