@@ -10,7 +10,7 @@ const routeLabels: Record<string, string> = {
   "/clients": "Clients",
   "/products": "Products",
   "/invoices": "Invoices",
-  "/rentals": "Rentals",
+  "/rentals": "Modem Wifi",
   "/esim": "eSIM",
   "/reports": "Reports",
   "/settings": "Settings",

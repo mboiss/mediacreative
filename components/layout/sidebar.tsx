@@ -17,10 +17,10 @@ import {
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Clients", href: "/clients", icon: Users },
-  { name: "Products", href: "/products", icon: Package },
-  { name: "Invoices", href: "/invoices", icon: FileText },
   { name: "Modem Wifi", href: "/rentals", icon: Wifi },
   { name: "eSIM", href: "/esim", icon: Smartphone },
+  { name: "Products", href: "/products", icon: Package },
+  { name: "Invoices", href: "/invoices", icon: FileText },
   { name: "Reports", href: "/reports", icon: BarChart3 },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
