@@ -495,3 +495,54 @@ html.light .data-table thead {
     display: none !important;
   }
 }
+
+/* ============================================
+   MOBILE RESPONSIVE STYLES
+   ============================================ */
+@media (max-width: 768px) {
+  /* Main Container Padding */
+  main {
+    padding: 16px 12px !important;
+  }
+
+  /* Topbar Hamburger Button */
+  .mobile-menu-btn {
+    display: flex !important;
+  }
+
+  /* Hide Clock on Mobile to Save Header Space */
+  .topbar-clock {
+    display: none !important;
+  }
+
+  /* Page Header Cards Padding */
+  .page-header {
+    padding: 18px 16px !important;
+    border-radius: var(--radius-lg) !important;
+    margin-bottom: 20px !important;
+  }
+
+  /* Make Tables Swipable on Mobile */
+  .table-responsive,
+  .data-table {
+    display: block !important;
+    width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Make Modals Touch-Friendly */
+  .modal-box {
+    padding: 20px !important;
+    border-radius: var(--radius-lg) !important;
+    max-width: 100% !important;
+  }
+
+  /* Touch-friendly Input and Button Min-Heights */
+  .form-input,
+  .btn,
+  select {
+    min-height: 44px !important;
+    font-size: 0.9rem !important;
+  }
+}
