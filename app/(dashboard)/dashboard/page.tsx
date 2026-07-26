@@ -11,6 +11,8 @@ import {
   ArrowRight,
   Plus,
   Loader2,
+  Sparkles,
+  RotateCw,
 } from "lucide-react";
 
 type KPIData = {
@@ -19,6 +21,41 @@ type KPIData = {
   totalRevenue: number;
   pendingAmount: number;
 };
+
+const MOTIVATIONAL_QUOTES = [
+  {
+    quote: "Kesuksesan bisnis bukan tentang seberapa cepat Anda memulai, melainkan seberapa konsisten Anda melayani.",
+    author: "Media Creative Wisdom",
+  },
+  {
+    quote: "Focus on building great relationships with your clients; sustainable growth will naturally follow.",
+    author: "Business Excellence",
+  },
+  {
+    quote: "Setiap invoice yang Anda terbitkan adalah bukti nyata kerja keras dan pertumbuhan usaha Anda.",
+    author: "Media Creative Control Center",
+  },
+  {
+    quote: "Kualitas pelayanan hari ini adalah fondasi reputasi terbaik bisnis Anda di masa depan.",
+    author: "Growth Mindset",
+  },
+  {
+    quote: "Great things in business are never done by one person. They're done by a team of dedicated people.",
+    author: "Steve Jobs",
+  },
+  {
+    quote: "Peluang besar selalu hadir di balik penyelesaian masalah-masalah kecil dengan penuh integritas.",
+    author: "Inspiring Growth",
+  },
+  {
+    quote: "Inovasi dan pelayanan terbaik adalah pembeda utama antara bisnis biasa dan bisnis luar biasa.",
+    author: "Leadership Motto",
+  },
+  {
+    quote: "Disiplin dan konsistensi harian adalah kunci utama mengubah visi besar menjadi kenyataan.",
+    author: "Entrepreneur Guide",
+  },
+];
 
 function formatCurrency(amount: number) {
   if (amount >= 1_000_000) {
@@ -37,8 +74,12 @@ const quickLinks = [
 export default function DashboardPage() {
   const [kpi, setKpi] = useState<KPIData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [quoteIndex, setQuoteIndex] = useState(0);
 
   useEffect(() => {
+    const randomIndex = Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length);
+    setQuoteIndex(randomIndex);
+
     fetch("/api/dashboard")
       .then((r) => r.json())
       .then((data) => {
@@ -50,6 +91,12 @@ export default function DashboardPage() {
         setLoading(false);
       });
   }, []);
+
+  function nextQuote() {
+    setQuoteIndex((prev) => (prev + 1) % MOTIVATIONAL_QUOTES.length);
+  }
+
+  const currentQuote = MOTIVATIONAL_QUOTES[quoteIndex];
 
   const cards = [
     {
@@ -140,6 +187,67 @@ export default function DashboardPage() {
             Here's what's happening with your business today.
           </p>
         </div>
+
+        {/* RANDOM MOTIVATIONAL QUOTE CARD */}
+        <div
+          className="quote-card-container"
+          style={{
+            flex: 1,
+            minWidth: 260,
+            maxWidth: 440,
+            background: "rgba(0, 212, 255, 0.05)",
+            border: "1px solid rgba(0, 212, 255, 0.18)",
+            borderRadius: 16,
+            padding: "12px 18px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            position: "relative",
+            backdropFilter: "blur(12px)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.72rem", fontWeight: 700, color: "var(--accent-cyan)", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+              <Sparkles size={13} /> Motivation & Insight
+            </div>
+            <button
+              onClick={nextQuote}
+              title="Acak Kata Motivasi Bisnis"
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "var(--text-muted)",
+                cursor: "pointer",
+                padding: "2px 4px",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: "0.7rem",
+                borderRadius: 6,
+                transition: "all 150ms ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = "var(--accent-cyan)";
+                e.currentTarget.style.background = "rgba(0,212,255,0.1)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = "var(--text-muted)";
+                e.currentTarget.style.background = "transparent";
+              }}
+            >
+              <RotateCw size={12} />
+              <span>Acak</span>
+            </button>
+          </div>
+
+          <p style={{ fontSize: "0.82rem", color: "var(--text-primary)", fontStyle: "italic", margin: 0, lineHeight: 1.45 }}>
+            "{currentQuote.quote}"
+          </p>
+          <span style={{ fontSize: "0.7rem", color: "var(--accent-cyan)", textAlign: "right", fontWeight: 600 }}>
+            — {currentQuote.author}
+          </span>
+        </div>
+
         <div>
           <Image
             src="/logo.png"
