@@ -21,6 +21,9 @@ import {
   Edit2,
   X,
   Printer,
+  Share2,
+  MessageSquare,
+  Copy,
 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -137,6 +140,67 @@ export default function InvoiceDetailPage() {
 
   // Deletions
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
+
+  // Share & Communication State
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [manualPhone, setManualPhone] = useState("");
+  const [manualEmail, setManualEmail] = useState("");
+
+  const getPublicInvoiceUrl = useCallback(() => {
+    if (typeof window !== "undefined") {
+      return `${window.location.origin}/invoices/${id}`;
+    }
+    return `https://mediacreative.vercel.app/invoices/${id}`;
+  }, [id]);
+
+  function formatWhatsAppPhone(phoneStr?: string) {
+    if (!phoneStr) return "";
+    let cleaned = phoneStr.replace(/\D/g, "");
+    if (cleaned.startsWith("0")) {
+      cleaned = "62" + cleaned.slice(1);
+    }
+    return cleaned;
+  }
+
+  function handleSendWhatsApp(overridePhone?: string) {
+    if (!invoice) return;
+    const phone = overridePhone || formatWhatsAppPhone(invoice.clients?.phone || manualPhone);
+    const clientName = invoice.clients?.full_name || "Pelanggan";
+    const formattedAmount = formatCurrency(invoice.total_amount ?? subtotal);
+    const formattedDueDate = formatDate(invoice.due_date);
+    const invoiceUrl = getPublicInvoiceUrl();
+
+    const text = `Halo *${clientName}*,\n\nBerikut rincian invoice Anda dari *Media Creative*:\n📄 *No. Invoice:* ${invoice.invoice_number}\n💰 *Total:* ${formattedAmount}\n📅 *Jatuh Tempo:* ${formattedDueDate}\n\n🔗 *Lihat & Download Invoice:* \n${invoiceUrl}\n\n*Instruksi Pembayaran:*\nBank BCA Acc No. 0402434901 A/n : Mulyadi\n\nTerima kasih atas kerja samanya! 🙏`;
+
+    const waUrl = phone 
+      ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
+
+    window.open(waUrl, "_blank");
+  }
+
+  function handleSendEmail(overrideEmail?: string) {
+    if (!invoice) return;
+    const email = overrideEmail || invoice.clients?.email || manualEmail || "";
+    const clientName = invoice.clients?.full_name || "Pelanggan";
+    const formattedAmount = formatCurrency(invoice.total_amount ?? subtotal);
+    const formattedDueDate = formatDate(invoice.due_date);
+    const invoiceUrl = getPublicInvoiceUrl();
+
+    const subject = `Invoice ${invoice.invoice_number} - Media Creative`;
+    const body = `Halo ${clientName},\n\nBerikut kami kirimkan rincian invoice untuk Anda dari Media Creative:\n\n- No. Invoice : ${invoice.invoice_number}\n- Total       : ${formattedAmount}\n- Due Date    : ${formattedDueDate}\n\nAnda dapat melihat dan mengunduh invoice online melalui tautan berikut:\n${invoiceUrl}\n\nInstruksi Pembayaran:\nBank BCA Acc No. 0402434901 A/n : Mulyadi\n\nTerima kasih atas kerja samanya.\n\nHormat kami,\nMedia Creative Control Center`;
+
+    const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = mailtoUrl;
+  }
+
+  function copyInvoiceLink() {
+    const url = getPublicInvoiceUrl();
+    navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  }
 
   const loadInvoice = useCallback(async () => {
     try {
@@ -443,6 +507,67 @@ export default function InvoiceDetailPage() {
             >
               <Printer size={14} />
               Print
+            </button>
+
+            {/* WhatsApp Direct Share */}
+            <button
+              className="btn"
+              onClick={() => {
+                if (invoice.clients?.phone) {
+                  handleSendWhatsApp();
+                } else {
+                  setManualPhone("");
+                  setShowShareModal(true);
+                }
+              }}
+              style={{
+                fontSize: "0.85rem",
+                gap: 6,
+                background: "#25D366",
+                color: "#ffffff",
+                border: "none",
+                fontWeight: 600,
+              }}
+              title="Kirim Invoice via WhatsApp"
+            >
+              <MessageSquare size={14} />
+              WhatsApp
+            </button>
+
+            {/* Email Direct Share */}
+            <button
+              className="btn"
+              onClick={() => {
+                if (invoice.clients?.email) {
+                  handleSendEmail();
+                } else {
+                  setManualEmail("");
+                  setShowShareModal(true);
+                }
+              }}
+              style={{
+                fontSize: "0.85rem",
+                gap: 6,
+                background: "#0284c7",
+                color: "#ffffff",
+                border: "none",
+                fontWeight: 600,
+              }}
+              title="Kirim Invoice via Email"
+            >
+              <Mail size={14} />
+              Email
+            </button>
+
+            {/* Share / Copy Link Modal Button */}
+            <button
+              className="btn btn-ghost"
+              onClick={() => setShowShareModal(true)}
+              style={{ fontSize: "0.85rem", gap: 6 }}
+              title="Opsi Berbagi & Copy Link"
+            >
+              <Share2 size={14} />
+              Share
             </button>
 
             {invoice.status !== "Cancelled" && nextStatus && (
@@ -775,6 +900,79 @@ export default function InvoiceDetailPage() {
             </button>
           </div>
         </form>
+      </Modal>
+
+      {/* SHARE / SEND INVOICE MODAL */}
+      <Modal isOpen={showShareModal} onClose={() => setShowShareModal(false)} title="Share Invoice via WhatsApp / Email">
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {/* Public Link Card */}
+          <div style={{ background: "var(--bg-glass-hover)", border: "1px solid var(--border)", borderRadius: 12, padding: "14px 16px" }}>
+            <label className="form-label" style={{ marginBottom: 6 }}>Direct Invoice Online Link</label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                className="form-input"
+                readOnly
+                value={getPublicInvoiceUrl()}
+                style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
+              />
+              <button
+                className="btn btn-primary"
+                onClick={copyInvoiceLink}
+                style={{ padding: "8px 14px", fontSize: "0.8rem", whiteSpace: "nowrap" }}
+              >
+                {copiedLink ? <Check size={14} /> : <Copy size={14} />}
+                {copiedLink ? "Copied!" : "Copy Link"}
+              </button>
+            </div>
+          </div>
+
+          {/* Quick WhatsApp Action */}
+          <div style={{ background: "rgba(37, 211, 102, 0.08)", border: "1px solid rgba(37, 211, 102, 0.2)", borderRadius: 12, padding: "14px 16px" }}>
+            <label className="form-label" style={{ color: "#25D366", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+              <MessageSquare size={14} /> Kirim via WhatsApp
+            </label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                className="form-input"
+                placeholder="Nomor WhatsApp (misal: 08123456789)..."
+                defaultValue={invoice?.clients?.phone || ""}
+                onChange={(e) => setManualPhone(e.target.value)}
+                style={{ fontSize: "0.85rem" }}
+              />
+              <button
+                className="btn"
+                onClick={() => handleSendWhatsApp(manualPhone ? formatWhatsAppPhone(manualPhone) : undefined)}
+                style={{ background: "#25D366", color: "#fff", border: "none", fontWeight: 700, padding: "8px 16px", whiteSpace: "nowrap" }}
+              >
+                Kirim WA
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Email Action */}
+          <div style={{ background: "rgba(2, 132, 199, 0.08)", border: "1px solid rgba(2, 132, 199, 0.2)", borderRadius: 12, padding: "14px 16px" }}>
+            <label className="form-label" style={{ color: "#0284c7", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+              <Mail size={14} /> Kirim via Email
+            </label>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                className="form-input"
+                type="email"
+                placeholder="Email tujuan..."
+                defaultValue={invoice?.clients?.email || ""}
+                onChange={(e) => setManualEmail(e.target.value)}
+                style={{ fontSize: "0.85rem" }}
+              />
+              <button
+                className="btn"
+                onClick={() => handleSendEmail(manualEmail || undefined)}
+                style={{ background: "#0284c7", color: "#fff", border: "none", fontWeight: 700, padding: "8px 16px", whiteSpace: "nowrap" }}
+              >
+                Kirim Email
+              </button>
+            </div>
+          </div>
+        </div>
       </Modal>
     </div>
   );
