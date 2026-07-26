@@ -230,8 +230,14 @@ export default function InvoiceDetailPage() {
       const opt = {
         margin: [4, 4, 4, 4],
         filename: `Invoice_${invoice.invoice_number}.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
+        image: { type: "jpeg", quality: 1.0 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: "#ffffff",
+          logging: false,
+        },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
       };
 

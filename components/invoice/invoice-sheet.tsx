@@ -98,13 +98,16 @@ export function InvoiceSheet({
           {/* LOGO & BRANDING */}
           <div>
             <div>
-              <Image
+              {/* Standard img tag for 100% accurate PDF rendering without html2canvas cropping */}
+              <img
                 src="/logo.png"
                 alt="Media Creative Logo"
-                width={140}
-                height={48}
-                style={{ objectFit: "contain", width: "140px", height: "auto", display: "block" }}
-                priority
+                style={{
+                  width: "160px",
+                  height: "auto",
+                  maxHeight: "65px",
+                  display: "block",
+                }}
               />
             </div>
           </div>
@@ -304,19 +307,21 @@ export function InvoiceSheet({
               )}
             </div>
 
-            {/* SMALLER REAL USER SIGNATURE */}
-            <div style={{ marginTop: 0, display: "flex", flexDirection: "column", alignItems: "center", width: "95px" }}>
-              <div style={{ marginBottom: 2, display: "flex", justifyContent: "center" }}>
-                <Image
+            {/* REAL USER SIGNATURE */}
+            <div style={{ marginTop: 4, display: "flex", flexDirection: "column", alignItems: "center", width: "120px" }}>
+              <div style={{ marginBottom: 4, display: "flex", justifyContent: "center", width: "100%" }}>
+                <img
                   src="/signature.png"
                   alt="Authorized Signature"
-                  width={90}
-                  height={40}
-                  style={{ objectFit: "contain", width: "85px", height: "auto", mixBlendMode: "multiply", display: "block" }}
-                  priority
+                  style={{
+                    width: "100px",
+                    height: "auto",
+                    maxHeight: "55px",
+                    display: "block",
+                  }}
                 />
               </div>
-              <div style={{ fontSize: "0.8rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, textAlign: "center" }}>
+              <div style={{ fontSize: "0.82rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, textAlign: "center", width: "100%" }}>
                 Mulyadi
               </div>
             </div>
