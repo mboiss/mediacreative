@@ -98,15 +98,14 @@ export function InvoiceSheet({
           {/* LOGO & BRANDING */}
           <div>
             <div>
-              {/* Standard img tag for 100% accurate PDF rendering without html2canvas cropping */}
               <img
                 src="/logo.png"
                 alt="Media Creative Logo"
                 style={{
-                  width: "160px",
+                  width: "135px",
                   height: "auto",
-                  maxHeight: "65px",
                   display: "block",
+                  objectFit: "contain",
                 }}
               />
             </div>
