@@ -71,7 +71,7 @@ export default function NewInvoicePage() {
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [dueDate, setDueDate] = useState(() => {
     const d = new Date();
-    d.setDate(d.getDate() + 14);
+    d.setDate(d.getDate() + 3);
     return d.toISOString().split("T")[0];
   });
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>([]);
@@ -487,6 +487,7 @@ export default function NewInvoicePage() {
               <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 600 }}>Quick Presets:</span>
               {[
                 { label: "On Receipt", days: 0 },
+                { label: "+3 Days", days: 3 },
                 { label: "+7 Days", days: 7 },
                 { label: "+14 Days", days: 14 },
                 { label: "+30 Days", days: 30 },
