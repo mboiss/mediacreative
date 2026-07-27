@@ -5335,7 +5335,7 @@ export default function ModemWifiPage() {
             <div style={{ gridColumn: "1 / -1" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                 <label className="form-label" style={{ margin: 0 }}>
-                  Select Assigned Modems from Inventory {tourForm.status === "Upcoming" ? <span style={{ color: "#f59e0b", fontWeight: 600 }}>(Opsional untuk tour Upcoming - bisa dikosongkan)</span> : "*"} ({tourForm.selectedModemSsids.length} selected)
+                  Select Assigned Modems from Inventory ({tourForm.selectedModemSsids.length} selected)
                 </label>
                 <span style={{ fontSize: "0.72rem", color: "var(--accent-cyan)", fontWeight: 600 }}>
                   Click to select / unselect
