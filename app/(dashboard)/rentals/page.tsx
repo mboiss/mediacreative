@@ -51,6 +51,7 @@ export type TourRentalLog = {
   modems: string;
   invoice_status: "Paid" | "Unpaid" | "Pending";
   remark?: string;
+  notes?: string;
   device_pax?: Record<string, string>; // e.g. { "MC1": "Miss Julia Aimée", "MC2": "Miss Kimberley" }
 };
 
@@ -3602,6 +3603,7 @@ export default function ModemWifiPage() {
     selectedModemSsids: [] as string[],
     devicePaxMap: {} as Record<string, string>, // PER-MODEM PAX NAME MAP e.g. { "MC1": "Miss Julia" }
     remark: "",
+    notes: "",
   });
 
   useEffect(() => {
@@ -3709,6 +3711,7 @@ export default function ModemWifiPage() {
       selectedModemSsids: [],
       devicePaxMap: {},
       remark: "",
+      notes: "",
     });
     setShowTourModal(true);
   }
@@ -3739,6 +3742,7 @@ export default function ModemWifiPage() {
       selectedModemSsids: assignedCodes,
       devicePaxMap: paxMap,
       remark: tour.remark || "",
+      notes: tour.notes || "",
     });
     setShowTourModal(true);
   }
@@ -3783,8 +3787,8 @@ export default function ModemWifiPage() {
       alert("Please fill in Tourcode and Tour Leader.");
       return;
     }
-    if (tourForm.selectedModemSsids.length === 0) {
-      alert("Please select at least 1 modem from the inventory list.");
+    if (tourForm.status !== "Upcoming" && tourForm.selectedModemSsids.length === 0) {
+      alert("Silakan pilih setidaknya 1 modem untuk tour dengan status Running.");
       return;
     }
 
@@ -3813,6 +3817,7 @@ export default function ModemWifiPage() {
       modems: modemLabels,
       invoice_status: tourForm.invoice_status,
       remark: combinedPaxRemark || undefined,
+      notes: tourForm.notes.trim() || undefined,
       device_pax: tourForm.devicePaxMap,
     };
 
@@ -3930,6 +3935,21 @@ export default function ModemWifiPage() {
     );
   }
 
+  function updateTourNotes(tourcode: string, newNotes: string) {
+    setTourLogs((prev) =>
+      prev.map((t) => {
+        if (t.tourcode === tourcode) {
+          const updated = { ...t, notes: newNotes || undefined };
+          if (selectedTourDetail?.tourcode === tourcode) {
+            setSelectedTourDetail(updated);
+          }
+          return updated;
+        }
+        return t;
+      })
+    );
+  }
+
   function toggleTourStatus(tourcode: string) {
     const tour = tourLogs.find((t) => t.tourcode === tourcode);
     if (!tour) return;
@@ -3990,7 +4010,8 @@ export default function ModemWifiPage() {
         t.tl.toLowerCase().includes(q) ||
         t.location.toLowerCase().includes(q) ||
         t.modems.toLowerCase().includes(q) ||
-        (t.remark ?? "").toLowerCase().includes(q);
+        (t.remark ?? "").toLowerCase().includes(q) ||
+        (t.notes ?? "").toLowerCase().includes(q);
 
       const matchTourStatus = tourStatusFilter === "All" || t.status === tourStatusFilter;
       const matchInvoiceStatus = invoiceStatusFilter === "All" || t.invoice_status === invoiceStatusFilter;
@@ -4563,30 +4584,54 @@ export default function ModemWifiPage() {
                 {filteredTours.map((t) => (
                   <tr key={t.tourcode}>
                     <td>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedTourDetail(t)}
-                        style={{
-                          background: "transparent",
-                          border: "none",
-                          padding: 0,
-                          cursor: "pointer",
-                          fontWeight: 800,
-                          color: "var(--accent-cyan)",
-                          fontFamily: "monospace",
-                          fontSize: "0.9rem",
-                          textDecoration: "underline",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
-                        title="Click to open Tour Details popup"
-                      >
-                        {t.tourcode}
-                        <ExternalLink size={11} />
-                      </button>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTourDetail(t)}
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            padding: 0,
+                            cursor: "pointer",
+                            fontWeight: 800,
+                            color: "var(--accent-cyan)",
+                            fontFamily: "monospace",
+                            fontSize: "0.9rem",
+                            textDecoration: "underline",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4,
+                          }}
+                          title="Click to open Tour Details popup"
+                        >
+                          {t.tourcode}
+                          <ExternalLink size={11} />
+                        </button>
+
+                        {t.notes && (
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 3,
+                              fontSize: "0.68rem",
+                              fontWeight: 700,
+                              padding: "2px 6px",
+                              borderRadius: 6,
+                              background: "rgba(245, 158, 11, 0.18)",
+                              color: "#f59e0b",
+                              border: "1px solid rgba(245, 158, 11, 0.35)",
+                              cursor: "pointer",
+                            }}
+                            onClick={() => setSelectedTourDetail(t)}
+                            title={`Catatan Tour: ${t.notes}`}
+                          >
+                            <FileText size={11} /> Note
+                          </span>
+                        )}
+                      </div>
                       <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
-                        {t.qty} modem{t.qty > 1 ? "s" : ""}
+                        {t.qty > 0 ? `${t.qty} modem${t.qty > 1 ? "s" : ""}` : "No modems"}
                       </div>
                     </td>
                     <td>
@@ -4628,20 +4673,37 @@ export default function ModemWifiPage() {
                       </div>
                     </td>
                     <td>
-                      <span
-                        style={{
-                          fontFamily: "monospace",
-                          fontWeight: 700,
-                          fontSize: "0.78rem",
-                          background: "var(--accent-cyan-dim)",
-                          color: "var(--text-primary)",
-                          padding: "3px 8px",
-                          borderRadius: 6,
-                          border: "1px solid var(--border)",
-                        }}
-                      >
-                        {t.modems}
-                      </span>
+                      {t.modems && t.modems.trim().length > 0 ? (
+                        <span
+                          style={{
+                            fontFamily: "monospace",
+                            fontWeight: 700,
+                            fontSize: "0.78rem",
+                            background: "var(--accent-cyan-dim)",
+                            color: "var(--text-primary)",
+                            padding: "3px 8px",
+                            borderRadius: 6,
+                            border: "1px solid var(--border)",
+                          }}
+                        >
+                          {t.modems}
+                        </span>
+                      ) : (
+                        <span
+                          style={{
+                            fontFamily: "sans-serif",
+                            fontSize: "0.74rem",
+                            color: "var(--text-muted)",
+                            fontStyle: "italic",
+                            background: "rgba(148,163,184,0.1)",
+                            padding: "3px 8px",
+                            borderRadius: 6,
+                            border: "1px dashed rgba(148,163,184,0.3)",
+                          }}
+                        >
+                          Unassigned
+                        </span>
+                      )}
                     </td>
 
                     {/* TOUR STATUS INTERACTIVE SELECTOR */}
@@ -4734,6 +4796,33 @@ export default function ModemWifiPage() {
                       <div style={{ fontSize: "0.76rem", color: "var(--text-secondary)" }}>
                         {t.remark || "—"}
                       </div>
+                      {t.notes && (
+                        <div
+                          style={{
+                            fontSize: "0.72rem",
+                            fontWeight: 600,
+                            color: "#f59e0b",
+                            marginTop: 3,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                            background: "rgba(245, 158, 11, 0.1)",
+                            padding: "2px 6px",
+                            borderRadius: 6,
+                            border: "1px solid rgba(245, 158, 11, 0.25)",
+                            maxWidth: 240,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            cursor: "pointer",
+                          }}
+                          onClick={() => setSelectedTourDetail(t)}
+                          title={`Notes: ${t.notes}`}
+                        >
+                          <FileText size={11} style={{ flexShrink: 0 }} />
+                          <span>{t.notes}</span>
+                        </div>
+                      )}
                     </td>
                     <td style={{ textAlign: "right" }}>
                       <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
@@ -4907,6 +4996,70 @@ export default function ModemWifiPage() {
               </div>
             </div>
 
+            {/* FIELD NOTES SECTION IN TOUR DETAILS POPUP */}
+            <div
+              style={{
+                padding: "12px 14px",
+                borderRadius: 12,
+                background: "rgba(245, 158, 11, 0.05)",
+                border: "1px solid rgba(245, 158, 11, 0.25)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "0.82rem",
+                  fontWeight: 700,
+                  color: "#f59e0b",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <FileText size={15} />
+                  <span>Tour Field Note / Catatan Khusus</span>
+                </div>
+                {selectedTourDetail.notes && (
+                  <span
+                    style={{
+                      fontSize: "0.68rem",
+                      fontWeight: 700,
+                      padding: "1px 6px",
+                      borderRadius: 6,
+                      background: "rgba(245, 158, 11, 0.2)",
+                      color: "#f59e0b",
+                      border: "1px solid rgba(245, 158, 11, 0.4)",
+                    }}
+                  >
+                    ✓ Note Active
+                  </span>
+                )}
+              </div>
+              <textarea
+                className="form-input"
+                rows={2}
+                style={{
+                  fontSize: "0.82rem",
+                  padding: "8px 10px",
+                  borderRadius: 8,
+                  resize: "vertical",
+                  background: "var(--bg-glass)",
+                  borderColor: selectedTourDetail.notes ? "rgba(245, 158, 11, 0.4)" : "var(--border)",
+                  color: "var(--text-primary)",
+                  lineHeight: 1.4,
+                }}
+                placeholder="Ketik catatan khusus / field note untuk tour ini (misal: perlu tambahan charger, instruksi penyerahan modem, info lokasi)..."
+                value={selectedTourDetail.notes || ""}
+                onChange={(e) => updateTourNotes(selectedTourDetail.tourcode, e.target.value)}
+              />
+              <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>💡 Catatan tersimpan otomatis dan akan memunculkan indikator note di daftar tour.</span>
+              </div>
+            </div>
+
             {/* ASSIGNED MODEM UNITS CARD WITH PER-MODEM PAX DISPLAY & COPY MODEM NAME BUTTON */}
             <div>
               <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-primary)", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
@@ -4914,133 +5067,153 @@ export default function ModemWifiPage() {
                 Assigned Modem Units ({selectedTourDetail.qty} Units)
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {selectedTourDetail.modems.split(",").map((rawLabel) => {
-                  const label = rawLabel.trim();
-                  const matchingModem = modems.find(
-                    (m) => m.ssid.replace("Media Creative ", "MC") === label || m.ssid === label
-                  );
+              {selectedTourDetail.modems && selectedTourDetail.modems.trim().length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {selectedTourDetail.modems.split(",").map((rawLabel) => {
+                    const label = rawLabel.trim();
+                    if (!label) return null;
+                    const matchingModem = modems.find(
+                      (m) => m.ssid.replace("Media Creative ", "MC") === label || m.ssid === label
+                    );
 
-                  // Extract per-modem pax name
-                  const paxName = selectedTourDetail.device_pax ? selectedTourDetail.device_pax[label] : undefined;
-                  const modemFullName = matchingModem ? `${matchingModem.device_name} (${matchingModem.ssid})` : label;
-                  const deviceOnlyName = matchingModem ? matchingModem.device_name : label;
-                  const nameCopyKey = `name-${label}`;
+                    // Extract per-modem pax name
+                    const paxName = selectedTourDetail.device_pax ? selectedTourDetail.device_pax[label] : undefined;
+                    const modemFullName = matchingModem ? `${matchingModem.device_name} (${matchingModem.ssid})` : label;
+                    const deviceOnlyName = matchingModem ? matchingModem.device_name : label;
+                    const nameCopyKey = `name-${label}`;
 
-                  return (
-                    <div
-                      key={label}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        padding: "10px 14px",
-                        borderRadius: 12,
-                        background: "var(--bg-glass)",
-                        border: "1px solid var(--border)",
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <span
-                          style={{
-                            fontFamily: "monospace",
-                            fontWeight: 800,
-                            fontSize: "0.85rem",
-                            background: "var(--accent-cyan-dim)",
-                            color: "var(--accent-cyan)",
-                            padding: "3px 8px",
-                            borderRadius: 6,
-                            border: "1px solid var(--accent-cyan)",
-                          }}
-                        >
-                          {label}
-                        </span>
-                        <div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                            <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-primary)" }}>
-                              {modemFullName}
-                            </div>
-                            {matchingModem && (
-                              <button
-                                type="button"
-                                onClick={() => handleCopy(deviceOnlyName, nameCopyKey)}
-                                style={{
-                                  background: "rgba(0, 212, 255, 0.08)",
-                                  border: "1px solid rgba(0, 212, 255, 0.3)",
-                                  color: copiedId === nameCopyKey ? "var(--accent-emerald)" : "var(--accent-cyan)",
-                                  cursor: "pointer",
-                                  padding: "2px 7px",
-                                  borderRadius: 6,
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: 4,
-                                  fontSize: "0.7rem",
-                                  fontWeight: 600,
-                                }}
-                                title={`Copy ${deviceOnlyName} to clipboard for MyOrbit app`}
-                              >
-                                {copiedId === nameCopyKey ? (
-                                  <>
-                                    <Check size={12} style={{ color: "#10b981" }} />
-                                    <span style={{ color: "#10b981" }}>Copied {deviceOnlyName}!</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Copy size={12} />
-                                    <span>Copy {deviceOnlyName}</span>
-                                  </>
-                                )}
-                              </button>
-                            )}
-                          </div>
-                          {paxName ? (
-                            <div style={{ fontSize: "0.76rem", fontWeight: 700, color: "var(--accent-cyan)", display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
-                              <User size={12} /> Guest Pax: {paxName}
-                            </div>
-                          ) : matchingModem ? (
-                            <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)", fontFamily: "monospace" }}>
-                              SIM: {matchingModem.number}
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      {matchingModem && (
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    return (
+                      <div
+                        key={label}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "10px 14px",
+                          borderRadius: 12,
+                          background: "var(--bg-glass)",
+                          border: "1px solid var(--border)",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                           <span
                             style={{
                               fontFamily: "monospace",
-                              fontWeight: 700,
-                              fontSize: "0.78rem",
-                              background: "rgba(0,0,0,0.3)",
-                              color: "var(--text-primary)",
+                              fontWeight: 800,
+                              fontSize: "0.85rem",
+                              background: "var(--accent-cyan-dim)",
+                              color: "var(--accent-cyan)",
                               padding: "3px 8px",
                               borderRadius: 6,
-                              border: "1px solid var(--border)",
+                              border: "1px solid var(--accent-cyan)",
                             }}
                           >
-                            {matchingModem.password}
+                            {label}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(matchingModem.password, matchingModem.id)}
-                            style={{
-                              background: "transparent",
-                              border: "none",
-                              color: copiedId === matchingModem.id ? "var(--accent-emerald)" : "var(--text-muted)",
-                              cursor: "pointer",
-                              padding: 4,
-                            }}
-                            title="Copy WiFi Password"
-                          >
-                            {copiedId === matchingModem.id ? <Check size={14} /> : <Copy size={14} />}
-                          </button>
+                          <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                              <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-primary)" }}>
+                                {modemFullName}
+                              </div>
+                              {matchingModem && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopy(deviceOnlyName, nameCopyKey)}
+                                  style={{
+                                    background: "rgba(0, 212, 255, 0.08)",
+                                    border: "1px solid rgba(0, 212, 255, 0.3)",
+                                    color: copiedId === nameCopyKey ? "var(--accent-emerald)" : "var(--accent-cyan)",
+                                    cursor: "pointer",
+                                    padding: "2px 7px",
+                                    borderRadius: 6,
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 4,
+                                    fontSize: "0.7rem",
+                                    fontWeight: 600,
+                                  }}
+                                  title={`Copy ${deviceOnlyName} to clipboard for MyOrbit app`}
+                                >
+                                  {copiedId === nameCopyKey ? (
+                                    <>
+                                      <Check size={12} style={{ color: "#10b981" }} />
+                                      <span style={{ color: "#10b981" }}>Copied {deviceOnlyName}!</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy size={12} />
+                                      <span>Copy {deviceOnlyName}</span>
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                            {paxName ? (
+                              <div style={{ fontSize: "0.76rem", fontWeight: 700, color: "var(--accent-cyan)", display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
+                                <User size={12} /> Guest Pax: {paxName}
+                              </div>
+                            ) : matchingModem ? (
+                              <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)", fontFamily: "monospace" }}>
+                                SIM: {matchingModem.number}
+                              </div>
+                            ) : null}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+
+                        {matchingModem && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span
+                              style={{
+                                fontFamily: "monospace",
+                                fontWeight: 700,
+                                fontSize: "0.78rem",
+                                background: "rgba(0,0,0,0.3)",
+                                color: "var(--text-primary)",
+                                padding: "3px 8px",
+                                borderRadius: 6,
+                                border: "1px solid var(--border)",
+                              }}
+                            >
+                              {matchingModem.password}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(matchingModem.password, matchingModem.id)}
+                              style={{
+                                background: "transparent",
+                                border: "none",
+                                color: copiedId === matchingModem.id ? "var(--accent-emerald)" : "var(--text-muted)",
+                                cursor: "pointer",
+                                padding: 4,
+                              }}
+                              title="Copy WiFi Password"
+                            >
+                              {copiedId === matchingModem.id ? <Check size={14} /> : <Copy size={14} />}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    fontSize: "0.8rem",
+                    color: "var(--text-muted)",
+                    padding: "12px 14px",
+                    borderRadius: 10,
+                    background: "rgba(245,158,11,0.06)",
+                    border: "1px dashed rgba(245,158,11,0.3)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <Info size={16} style={{ color: "#f59e0b", flexShrink: 0 }} />
+                  <span>Belum ada unit modem yang dipilih untuk tour ini. Anda dapat memilih modem kapan saja melalui "Edit Tour Details".</span>
+                </div>
+              )}
             </div>
 
             <div className="divider" style={{ margin: "4px 0" }} />
@@ -5162,7 +5335,7 @@ export default function ModemWifiPage() {
             <div style={{ gridColumn: "1 / -1" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                 <label className="form-label" style={{ margin: 0 }}>
-                  Select Assigned Modems from Inventory * ({tourForm.selectedModemSsids.length} selected)
+                  Select Assigned Modems from Inventory {tourForm.status === "Upcoming" ? <span style={{ color: "#f59e0b", fontWeight: 600 }}>(Opsional untuk tour Upcoming - bisa dikosongkan)</span> : "*"} ({tourForm.selectedModemSsids.length} selected)
                 </label>
                 <span style={{ fontSize: "0.72rem", color: "var(--accent-cyan)", fontWeight: 600 }}>
                   Click to select / unselect
@@ -5329,6 +5502,21 @@ export default function ModemWifiPage() {
                 <option value="Pending">Pending</option>
                 <option value="Unpaid">Unpaid</option>
               </select>
+            </div>
+
+            <div>
+              <label className="form-label" style={{ display: "flex", alignItems: "center", gap: 6, color: "#f59e0b" }}>
+                <FileText size={14} />
+                Field Note / Tour Notes
+              </label>
+              <textarea
+                className="form-input"
+                rows={2}
+                placeholder="Ketik catatan khusus / field note jika ada hal yang perlu dicatat..."
+                value={tourForm.notes}
+                onChange={(e) => setTourForm({ ...tourForm, notes: e.target.value })}
+                style={{ resize: "vertical" }}
+              />
             </div>
           </div>
 
