@@ -4613,10 +4613,8 @@ export default function ModemWifiPage() {
                             style={{
                               display: "inline-flex",
                               alignItems: "center",
-                              gap: 3,
-                              fontSize: "0.68rem",
-                              fontWeight: 700,
-                              padding: "2px 6px",
+                              justifyContent: "center",
+                              padding: "3px",
                               borderRadius: 6,
                               background: "rgba(245, 158, 11, 0.18)",
                               color: "#f59e0b",
@@ -4624,9 +4622,9 @@ export default function ModemWifiPage() {
                               cursor: "pointer",
                             }}
                             onClick={() => setSelectedTourDetail(t)}
-                            title={`Catatan Tour: ${t.notes}`}
+                            title="Tour has notes (Click to view in Tour Details)"
                           >
-                            <FileText size={11} /> Note
+                            <FileText size={12} />
                           </span>
                         )}
                       </div>
@@ -4796,33 +4794,6 @@ export default function ModemWifiPage() {
                       <div style={{ fontSize: "0.76rem", color: "var(--text-secondary)" }}>
                         {t.remark || "—"}
                       </div>
-                      {t.notes && (
-                        <div
-                          style={{
-                            fontSize: "0.72rem",
-                            fontWeight: 600,
-                            color: "#f59e0b",
-                            marginTop: 3,
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 4,
-                            background: "rgba(245, 158, 11, 0.1)",
-                            padding: "2px 6px",
-                            borderRadius: 6,
-                            border: "1px solid rgba(245, 158, 11, 0.25)",
-                            maxWidth: 240,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                            cursor: "pointer",
-                          }}
-                          onClick={() => setSelectedTourDetail(t)}
-                          title={`Notes: ${t.notes}`}
-                        >
-                          <FileText size={11} style={{ flexShrink: 0 }} />
-                          <span>{t.notes}</span>
-                        </div>
-                      )}
                     </td>
                     <td style={{ textAlign: "right" }}>
                       <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
