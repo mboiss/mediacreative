@@ -1,6 +1,6 @@
 "use client";
 
-import { Moon, Sun, Menu } from "lucide-react";
+import { Moon, Sun, Menu, Clock } from "lucide-react";
 import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -29,26 +29,36 @@ function getRouteLabel(pathname: string): string {
 export default function Topbar() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
-  const [time, setTime] = useState("");
+  const [dateStr, setDateStr] = useState("");
+  const [digitalTime, setDigitalTime] = useState("");
+  const [ampm, setAmpm] = useState("");
   const pathname = usePathname();
 
   useEffect(() => {
     setMounted(true);
     const updateTime = () => {
       const now = new Date();
-      const dateStr = now.toLocaleDateString("id-ID", {
-        weekday: "long",
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      });
-      const timeStr = now.toLocaleTimeString("id-ID", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      });
-      setTime(`${dateStr} • ${timeStr}`);
+      
+      // English Date: Mon, Jul 27, 2026
+      const weekday = now.toLocaleDateString("en-US", { weekday: "short" });
+      const month = now.toLocaleDateString("en-US", { month: "short" });
+      const day = now.getDate();
+      const year = now.getFullYear();
+      setDateStr(`${weekday}, ${day} ${month} ${year}`);
+
+      // 12-hour Time format with AM/PM
+      let hours = now.getHours();
+      const minutes = String(now.getMinutes()).padStart(2, "0");
+      const seconds = String(now.getSeconds()).padStart(2, "0");
+      const period = hours >= 12 ? "PM" : "AM";
+      hours = hours % 12;
+      hours = hours ? hours : 12; // 0 becomes 12
+      const formattedHours = String(hours).padStart(2, "0");
+
+      setDigitalTime(`${formattedHours}:${minutes}:${seconds}`);
+      setAmpm(period);
     };
+    
     updateTime();
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
@@ -117,24 +127,80 @@ export default function Topbar() {
       </div>
 
       {/* Right: controls */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        {/* Clock */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        {/* Cool Futuristic Clock */}
         {mounted && (
           <div
-            className="topbar-clock"
+            className="topbar-clock-container"
             style={{
-              padding: "5px 10px",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "4px 12px",
               background: "var(--bg-glass)",
-              borderRadius: 8,
+              borderRadius: 10,
               border: "1px solid var(--border)",
-              fontSize: "0.78rem",
-              fontWeight: 600,
-              color: "var(--text-secondary)",
-              letterSpacing: "0.04em",
-              fontVariantNumeric: "tabular-nums",
+              backdropFilter: "blur(12px)",
+              boxShadow: "0 2px 10px rgba(0, 0, 0, 0.05)",
             }}
           >
-            {time}
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: "50%",
+                  backgroundColor: "#10b981",
+                  boxShadow: "0 0 8px #10b981",
+                  display: "inline-block",
+                }}
+              />
+              <Clock size={14} style={{ color: "#00d4ff" }} />
+            </div>
+
+            <span
+              style={{
+                fontSize: "0.78rem",
+                fontWeight: 600,
+                color: "var(--text-secondary)",
+                letterSpacing: "0.02em",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {dateStr}
+            </span>
+
+            <span style={{ width: 1, height: 14, background: "var(--border)", opacity: 0.6 }} />
+
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span
+                style={{
+                  fontSize: "0.82rem",
+                  fontWeight: 700,
+                  color: "var(--text-primary)",
+                  letterSpacing: "0.06em",
+                  fontVariantNumeric: "tabular-nums",
+                  fontFamily: "monospace",
+                }}
+              >
+                {digitalTime}
+              </span>
+              <span
+                style={{
+                  fontSize: "0.62rem",
+                  fontWeight: 800,
+                  padding: "1px 5px",
+                  borderRadius: 4,
+                  background: "rgba(0, 212, 255, 0.12)",
+                  color: "#00d4ff",
+                  border: "1px solid rgba(0, 212, 255, 0.25)",
+                  letterSpacing: "0.05em",
+                  textTransform: "uppercase",
+                }}
+              >
+                {ampm}
+              </span>
+            </div>
           </div>
         )}
 
