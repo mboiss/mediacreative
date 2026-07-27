@@ -3554,11 +3554,27 @@ export default function ModemWifiPage() {
   const [selectedTourDetail, setSelectedTourDetail] = useState<TourRentalLog | null>(null);
 
   const [editingModem, setEditingModem] = useState<ModemItem | null>(null);
+  const [editingTourCode, setEditingTourCode] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   useEffect(() => {
     setTourLeaders(getTourLeaders());
   }, [showTourModal]);
+
+  // Date converter helper for <input type="date" />
+  function formatDateForInput(dateStr?: string): string {
+    if (!dateStr) return new Date().toISOString().split("T")[0];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+    const timestamp = parseTourDate(dateStr);
+    if (timestamp > 0) {
+      const d = new Date(timestamp);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    }
+    return new Date().toISOString().split("T")[0];
+  }
 
   // Form State: Add/Edit Modem Device
   const [form, setForm] = useState({
@@ -3676,6 +3692,7 @@ export default function ModemWifiPage() {
 
   // Open New Tour Rental Modal
   function handleOpenNewTour() {
+    setEditingTourCode(null);
     const randomNum = Math.floor(260800 + Math.random() * 99);
     setTourForm({
       tourcode: "KIB" + randomNum,
@@ -3696,12 +3713,43 @@ export default function ModemWifiPage() {
     setShowTourModal(true);
   }
 
+  // Open Edit Existing Tour Modal
+  function handleOpenEditTour(tour: TourRentalLog) {
+    setEditingTourCode(tour.tourcode);
+    const assignedCodes = tour.modems
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const paxMap: Record<string, string> = tour.device_pax ? { ...tour.device_pax } : {};
+    assignedCodes.forEach((code) => {
+      if (!(code in paxMap)) {
+        paxMap[code] = "";
+      }
+    });
+
+    setTourForm({
+      tourcode: tour.tourcode,
+      start_date: formatDateForInput(tour.start_date),
+      end_date: formatDateForInput(tour.end_date),
+      location: tour.location,
+      tl: tour.tl,
+      status: tour.status,
+      invoice_status: tour.invoice_status,
+      selectedModemSsids: assignedCodes,
+      devicePaxMap: paxMap,
+      remark: tour.remark || "",
+    });
+    setShowTourModal(true);
+  }
+
   function toggleModemSelectionInTour(ssidLabel: string) {
     const matchingModem = modems.find(
       (m) => m.ssid.replace("Media Creative ", "MC") === ssidLabel || m.ssid === ssidLabel
     );
     const assignedTour = matchingModem ? getAssignedTourForModem(matchingModem) : undefined;
-    const isAvailable = matchingModem ? matchingModem.status === "Available" && !assignedTour : true;
+    const isAssignedToThisTour = editingTourCode && assignedTour?.tourcode === editingTourCode;
+    const isAvailable = (matchingModem ? matchingModem.status === "Available" && !assignedTour : true) || !!isAssignedToThisTour;
     const isCurrentlySelected = tourForm.selectedModemSsids.includes(ssidLabel);
 
     if (!isAvailable && !isCurrentlySelected) {
@@ -3753,7 +3801,7 @@ export default function ModemWifiPage() {
       .map(([mCode, pax]) => `${pax.trim()}`);
     const combinedPaxRemark = paxList.join(", ") || tourForm.remark.trim();
 
-    const newTour: TourRentalLog = {
+    const updatedTour: TourRentalLog = {
       tourcode: tourForm.tourcode.trim(),
       start_date: tourForm.start_date,
       end_date: tourForm.end_date,
@@ -3768,24 +3816,63 @@ export default function ModemWifiPage() {
       device_pax: tourForm.devicePaxMap,
     };
 
-    setTourLogs([newTour, ...tourLogs]);
+    if (editingTourCode) {
+      const oldTour = tourLogs.find((t) => t.tourcode === editingTourCode);
+      const oldAssignedModems = oldTour ? oldTour.modems.split(",").map((s) => s.trim()) : [];
+      const newAssignedModems = tourForm.selectedModemSsids;
 
-    // AUTOMATIC INVENTORY SYNC: Update selected modems to "Rented"
-    setModems((prevModems) =>
-      prevModems.map((m) => {
-        const mcCode = m.ssid.replace("Media Creative ", "MC");
-        if (tourForm.selectedModemSsids.includes(mcCode) || tourForm.selectedModemSsids.includes(m.ssid)) {
-          return {
-            ...m,
-            status: "Rented",
-            remark: `${tourForm.tourcode} (TL: ${tourForm.tl})`,
-          };
-        }
-        return m;
-      })
-    );
+      setTourLogs((prev) =>
+        prev.map((t) => (t.tourcode === editingTourCode ? updatedTour : t))
+      );
+
+      // AUTOMATIC INVENTORY SYNC: Update modems
+      setModems((prevModems) =>
+        prevModems.map((m) => {
+          const mcCode = m.ssid.replace("Media Creative ", "MC");
+          const wasInOld = oldAssignedModems.includes(mcCode) || oldAssignedModems.includes(m.ssid);
+          const isInNew = newAssignedModems.includes(mcCode) || newAssignedModems.includes(m.ssid);
+
+          if (isInNew) {
+            return {
+              ...m,
+              status: updatedTour.status === "Finish" || updatedTour.status === "Cancel" ? "Available" : "Rented",
+              remark: updatedTour.status === "Finish" || updatedTour.status === "Cancel" ? undefined : `${updatedTour.tourcode} (TL: ${updatedTour.tl})`,
+            };
+          } else if (wasInOld && !isInNew) {
+            return {
+              ...m,
+              status: "Available",
+              remark: undefined,
+            };
+          }
+          return m;
+        })
+      );
+
+      if (selectedTourDetail?.tourcode === editingTourCode) {
+        setSelectedTourDetail(updatedTour);
+      }
+    } else {
+      setTourLogs([updatedTour, ...tourLogs]);
+
+      // AUTOMATIC INVENTORY SYNC: Update selected modems to "Rented"
+      setModems((prevModems) =>
+        prevModems.map((m) => {
+          const mcCode = m.ssid.replace("Media Creative ", "MC");
+          if (tourForm.selectedModemSsids.includes(mcCode) || tourForm.selectedModemSsids.includes(m.ssid)) {
+            return {
+              ...m,
+              status: updatedTour.status === "Finish" || updatedTour.status === "Cancel" ? "Available" : "Rented",
+              remark: updatedTour.status === "Finish" || updatedTour.status === "Cancel" ? undefined : `${updatedTour.tourcode} (TL: ${updatedTour.tl})`,
+            };
+          }
+          return m;
+        })
+      );
+    }
 
     setShowTourModal(false);
+    setEditingTourCode(null);
     setActiveTab("tours");
   }
 
@@ -4659,6 +4746,14 @@ export default function ModemWifiPage() {
                           <Eye size={13} />
                         </button>
                         <button
+                          className="btn btn-ghost"
+                          style={{ padding: "4px 8px", color: "var(--accent-cyan)" }}
+                          onClick={() => handleOpenEditTour(t)}
+                          title="Edit Tour Details"
+                        >
+                          <Edit2 size={13} />
+                        </button>
+                        <button
                           className={t.status === "Finish" ? "btn btn-ghost" : "btn btn-success"}
                           style={{ padding: "4px 8px", fontSize: "0.72rem" }}
                           onClick={() => toggleTourStatus(t.tourcode)}
@@ -4812,7 +4907,7 @@ export default function ModemWifiPage() {
               </div>
             </div>
 
-            {/* ASSIGNED MODEM UNITS CARD WITH PER-MODEM PAX DISPLAY */}
+            {/* ASSIGNED MODEM UNITS CARD WITH PER-MODEM PAX DISPLAY & COPY MODEM NAME BUTTON */}
             <div>
               <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-primary)", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
                 <Wifi size={15} style={{ color: "var(--accent-cyan)" }} />
@@ -4828,6 +4923,8 @@ export default function ModemWifiPage() {
 
                   // Extract per-modem pax name
                   const paxName = selectedTourDetail.device_pax ? selectedTourDetail.device_pax[label] : undefined;
+                  const modemFullName = matchingModem ? `${matchingModem.device_name} (${matchingModem.ssid})` : label;
+                  const nameCopyKey = `name-${label}`;
 
                   return (
                     <div
@@ -4858,8 +4955,42 @@ export default function ModemWifiPage() {
                           {label}
                         </span>
                         <div>
-                          <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-primary)" }}>
-                            {matchingModem ? matchingModem.device_name : label} ({matchingModem ? matchingModem.ssid : label})
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                            <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--text-primary)" }}>
+                              {modemFullName}
+                            </div>
+                            {matchingModem && (
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(modemFullName, nameCopyKey)}
+                                style={{
+                                  background: "rgba(0, 212, 255, 0.08)",
+                                  border: "1px solid rgba(0, 212, 255, 0.3)",
+                                  color: copiedId === nameCopyKey ? "var(--accent-emerald)" : "var(--accent-cyan)",
+                                  cursor: "pointer",
+                                  padding: "2px 7px",
+                                  borderRadius: 6,
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 4,
+                                  fontSize: "0.7rem",
+                                  fontWeight: 600,
+                                }}
+                                title="Copy Modem Name / SSID"
+                              >
+                                {copiedId === nameCopyKey ? (
+                                  <>
+                                    <Check size={12} style={{ color: "#10b981" }} />
+                                    <span style={{ color: "#10b981" }}>Copied!</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy size={12} />
+                                    <span>Copy Name</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
                           </div>
                           {paxName ? (
                             <div style={{ fontSize: "0.76rem", fontWeight: 700, color: "var(--accent-cyan)", display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
@@ -4915,15 +5046,27 @@ export default function ModemWifiPage() {
 
             {/* MODAL FOOTER */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <button
-                type="button"
-                className={selectedTourDetail.status === "Finish" ? "btn btn-ghost" : "btn btn-success"}
-                style={{ fontSize: "0.8rem" }}
-                onClick={() => toggleTourStatus(selectedTourDetail.tourcode)}
-              >
-                <CheckCircle2 size={14} />
-                {selectedTourDetail.status === "Finish" ? "Re-open Tour" : "Mark Tour Finished (Free Modems)"}
-              </button>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <button
+                  type="button"
+                  className={selectedTourDetail.status === "Finish" ? "btn btn-ghost" : "btn btn-success"}
+                  style={{ fontSize: "0.8rem" }}
+                  onClick={() => toggleTourStatus(selectedTourDetail.tourcode)}
+                >
+                  <CheckCircle2 size={14} />
+                  {selectedTourDetail.status === "Finish" ? "Re-open Tour" : "Mark Tour Finished (Free Modems)"}
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ fontSize: "0.8rem" }}
+                  onClick={() => handleOpenEditTour(selectedTourDetail)}
+                >
+                  <Edit2 size={14} />
+                  Edit Tour Details
+                </button>
+              </div>
 
               <button type="button" className="btn btn-ghost" onClick={() => setSelectedTourDetail(null)}>
                 Close
@@ -4933,11 +5076,11 @@ export default function ModemWifiPage() {
         </Modal>
       )}
 
-      {/* MODAL 1: NEW TOUR / RENTAL ORDER */}
+      {/* MODAL 1: NEW / EDIT TOUR RENTAL ORDER */}
       <Modal
         isOpen={showTourModal}
         onClose={() => setShowTourModal(false)}
-        title="Create New Tour / Modem Rental Order"
+        title={editingTourCode ? `Edit Tour Details — ${editingTourCode}` : "Create New Tour / Modem Rental Order"}
       >
         <form onSubmit={handleSaveNewTour} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
@@ -5043,7 +5186,8 @@ export default function ModemWifiPage() {
                   const mcCode = m.ssid.replace("Media Creative ", "MC");
                   const isSelected = tourForm.selectedModemSsids.includes(mcCode);
                   const assignedTour = getAssignedTourForModem(m);
-                  const isAvailable = m.status === "Available" && !assignedTour;
+                  const isAssignedToThisTour = editingTourCode && assignedTour?.tourcode === editingTourCode;
+                  const isAvailable = (m.status === "Available" && !assignedTour) || !!isAssignedToThisTour;
 
                   return (
                     <button
@@ -5194,7 +5338,8 @@ export default function ModemWifiPage() {
               Cancel
             </button>
             <button type="submit" className="btn btn-primary">
-              <Plus size={14} /> Create Tour Rental Order
+              {editingTourCode ? <Edit2 size={14} /> : <Plus size={14} />}
+              {editingTourCode ? "Save Tour Changes" : "Create Tour Rental Order"}
             </button>
           </div>
         </form>
