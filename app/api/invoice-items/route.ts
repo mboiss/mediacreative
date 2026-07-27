@@ -40,14 +40,51 @@ export async function POST(request: Request) {
   const quantity = Number(body.quantity) || 0;
   const unitPrice = Number(body.unit_price) || 0;
   const total = quantity * unitPrice;
+  const description = (body.description || "").trim();
+
+  let productId = body.product_id || null;
+
+  if (!productId && description) {
+    try {
+      const { data: existing } = await supabase
+        .from("products")
+        .select("id")
+        .ilike("product_name", description)
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        productId = existing[0].id;
+      } else {
+        const code = "PRD-" + Math.floor(1000 + Math.random() * 9000);
+        const { data: created } = await supabase
+          .from("products")
+          .insert([
+            {
+              product_code: code,
+              product_name: description,
+              category: "Invoice Item",
+              price: unitPrice,
+              cost: 0,
+              stock: -1,
+              description: "Auto-created from Invoice Item",
+            },
+          ])
+          .select("id")
+          .single();
+        if (created) productId = created.id;
+      }
+    } catch (e) {
+      console.error("Error auto-creating product in invoice-items route:", e);
+    }
+  }
 
   const { data, error } = await supabase
     .from("invoice_items")
     .insert([
       {
         invoice_id: body.invoice_id,
-        product_id: body.product_id || null,
-        description: body.description || null,
+        product_id: productId,
+        description: description || null,
         quantity,
         unit_price: unitPrice,
         total,

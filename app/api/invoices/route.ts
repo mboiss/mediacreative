@@ -61,6 +61,54 @@ export async function GET() {
   return NextResponse.json(formatted);
 }
 
+/**
+ * Helper to ensure an item description exists as a product in the catalog.
+ * If not present, automatically creates a new product catalog item.
+ */
+async function ensureProductExists(description: string, unitPrice: number): Promise<string | null> {
+  const trimmed = (description || "").trim();
+  if (!trimmed) return null;
+
+  try {
+    const { data: existing } = await supabase
+      .from("products")
+      .select("id")
+      .ilike("product_name", trimmed)
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      return existing[0].id;
+    }
+
+    const code = "PRD-" + Math.floor(1000 + Math.random() * 9000);
+    const { data: created, error } = await supabase
+      .from("products")
+      .insert([
+        {
+          product_code: code,
+          product_name: trimmed,
+          category: "Invoice Item",
+          price: Number(unitPrice) || 0,
+          cost: 0,
+          stock: -1, // Unlimited stock / Service flexible item
+          description: "Auto-created from Invoice",
+        },
+      ])
+      .select("id")
+      .single();
+
+    if (error || !created) {
+      console.error("Failed to auto-create product from invoice item:", error);
+      return null;
+    }
+
+    return created.id;
+  } catch (err) {
+    console.error("Error in ensureProductExists:", err);
+    return null;
+  }
+}
+
 export async function POST(request: Request) {
   const body = await request.json();
 
@@ -90,23 +138,29 @@ export async function POST(request: Request) {
     );
   }
 
-  // 2. Insert items into invoice_items if provided
+  // 2. Insert items into invoice_items if provided and auto-register in Products catalog
   let calculatedTotal = 0;
   if (items.length > 0) {
-    const itemRows = items.map((it: { product_id?: string; description?: string; quantity?: number; unit_price?: number }) => {
+    const itemRows = [];
+
+    for (const it of items) {
       const q = Number(it.quantity) || 1;
       const p = Number(it.unit_price) || 0;
       const t = q * p;
       calculatedTotal += t;
-      return {
+
+      const desc = it.description || "Line Item";
+      const productId = it.product_id || (await ensureProductExists(desc, p));
+
+      itemRows.push({
         invoice_id: invoiceData.id,
-        product_id: it.product_id || null,
-        description: it.description || "Line Item",
+        product_id: productId,
+        description: desc,
         quantity: q,
         unit_price: p,
         total: t,
-      };
-    });
+      });
+    }
 
     if (body.tax_percent) {
       calculatedTotal += calculatedTotal * (Number(body.tax_percent) / 100);
