@@ -95,7 +95,7 @@ export default function ClientsPage() {
   }
 
   async function deleteClient(id: string) {
-    if (!confirm("Are you sure you want to delete this client?")) return;
+    if (!confirm("Apakah Anda yakin ingin menghapus client ini?")) return;
     setDeletingId(id);
     try {
       const res = await fetch("/api/clients", {
@@ -103,9 +103,16 @@ export default function ClientsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
-      if (res.ok) await loadClients();
+      if (res.ok) {
+        setClients((prev) => prev.filter((c) => c.id !== id));
+        await loadClients();
+      } else {
+        const err = await res.json();
+        alert("Gagal menghapus client: " + (err.error || "Terjadi kesalahan server"));
+      }
     } catch (err) {
       console.error(err);
+      alert("Terjadi kesalahan koneksi saat menghapus client.");
     } finally {
       setDeletingId(null);
     }

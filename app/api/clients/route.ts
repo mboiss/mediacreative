@@ -111,6 +111,29 @@ export async function DELETE(request: Request) {
   try {
     const { id } = await request.json();
 
+    if (!id) {
+      return NextResponse.json({ error: "Client ID is required" }, { status: 400 });
+    }
+
+    // Delete associated invoices & invoice_items to prevent foreign key constraint block
+    const { data: invoices } = await supabase
+      .from("invoices")
+      .select("id")
+      .eq("client_id", id);
+
+    if (invoices && invoices.length > 0) {
+      const invoiceIds = invoices.map((inv) => inv.id);
+      await supabase
+        .from("invoice_items")
+        .delete()
+        .in("invoice_id", invoiceIds);
+
+      await supabase
+        .from("invoices")
+        .delete()
+        .eq("client_id", id);
+    }
+
     const { error } = await supabase
       .from("clients")
       .delete()
@@ -126,9 +149,9 @@ export async function DELETE(request: Request) {
     return NextResponse.json({
       success: true,
     });
-  } catch (err) {
+  } catch (err: any) {
     return NextResponse.json(
-      { error: "Delete failed" },
+      { error: err?.message || "Delete failed" },
       { status: 500 }
     );
   }
