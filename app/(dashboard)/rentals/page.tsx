@@ -5020,7 +5020,7 @@ export default function ModemWifiPage() {
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <FileText size={15} />
-                  <span>Tour Field Note / Catatan Khusus</span>
+                  <span>NOTES</span>
                 </div>
                 {selectedTourDetail.notes && (
                   <span
@@ -5507,7 +5507,7 @@ export default function ModemWifiPage() {
             <div>
               <label className="form-label" style={{ display: "flex", alignItems: "center", gap: 6, color: "#f59e0b" }}>
                 <FileText size={14} />
-                Field Note / Tour Notes
+                NOTES
               </label>
               <textarea
                 className="form-input"
