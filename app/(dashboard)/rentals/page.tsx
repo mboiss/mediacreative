@@ -4924,6 +4924,7 @@ export default function ModemWifiPage() {
                   // Extract per-modem pax name
                   const paxName = selectedTourDetail.device_pax ? selectedTourDetail.device_pax[label] : undefined;
                   const modemFullName = matchingModem ? `${matchingModem.device_name} (${matchingModem.ssid})` : label;
+                  const deviceOnlyName = matchingModem ? matchingModem.device_name : label;
                   const nameCopyKey = `name-${label}`;
 
                   return (
@@ -4962,7 +4963,7 @@ export default function ModemWifiPage() {
                             {matchingModem && (
                               <button
                                 type="button"
-                                onClick={() => handleCopy(modemFullName, nameCopyKey)}
+                                onClick={() => handleCopy(deviceOnlyName, nameCopyKey)}
                                 style={{
                                   background: "rgba(0, 212, 255, 0.08)",
                                   border: "1px solid rgba(0, 212, 255, 0.3)",
@@ -4976,17 +4977,17 @@ export default function ModemWifiPage() {
                                   fontSize: "0.7rem",
                                   fontWeight: 600,
                                 }}
-                                title="Copy Modem Name / SSID"
+                                title={`Copy ${deviceOnlyName} to clipboard for MyOrbit app`}
                               >
                                 {copiedId === nameCopyKey ? (
                                   <>
                                     <Check size={12} style={{ color: "#10b981" }} />
-                                    <span style={{ color: "#10b981" }}>Copied!</span>
+                                    <span style={{ color: "#10b981" }}>Copied {deviceOnlyName}!</span>
                                   </>
                                 ) : (
                                   <>
                                     <Copy size={12} />
-                                    <span>Copy Name</span>
+                                    <span>Copy {deviceOnlyName}</span>
                                   </>
                                 )}
                               </button>
