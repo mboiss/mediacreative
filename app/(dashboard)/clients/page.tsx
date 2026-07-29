@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
-import { Search, Plus, Trash2, Users, Loader2, X, Edit2, Mail, Phone, Building } from "lucide-react";
+import { Search, Plus, Trash2, Users, Loader2, X, Edit2, Mail, Phone, Building, Download } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useToast } from "@/components/ui/toast";
+import { exportToCSV } from "@/lib/export-utils";
 
 type Client = {
   id: string;
@@ -24,6 +26,7 @@ const EMPTY_FORM = {
 };
 
 export default function ClientsPage() {
+  const toast = useToast();
   const [clients, setClients] = useState<Client[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -82,13 +85,18 @@ export default function ClientsPage() {
         setForm({ ...EMPTY_FORM });
         setEditingClient(null);
         setShowModal(false);
+        toast.success(
+          isEdit ? "Client Updated" : "Client Added",
+          `Client ${form.full_name} saved successfully`
+        );
         await loadClients();
       } else {
         const err = await res.json();
-        alert("Error: " + (err.error || `Failed to ${isEdit ? "update" : "add"} client`));
+        toast.error("Error Saving Client", err.error || "Operation failed");
       }
     } catch (err) {
       console.error(err);
+      toast.error("Network Error", "Could not connect to server");
     } finally {
       setSaving(false);
     }
@@ -105,17 +113,29 @@ export default function ClientsPage() {
       });
       if (res.ok) {
         setClients((prev) => prev.filter((c) => c.id !== id));
+        toast.success("Client Deleted", "Client removed from database");
         await loadClients();
       } else {
         const err = await res.json();
-        alert("Gagal menghapus client: " + (err.error || "Terjadi kesalahan server"));
+        toast.error("Delete Failed", err.error || "Server error");
       }
     } catch (err) {
       console.error(err);
-      alert("Terjadi kesalahan koneksi saat menghapus client.");
+      toast.error("Connection Error", "Failed to delete client");
     } finally {
       setDeletingId(null);
     }
+  }
+
+  function handleExport() {
+    exportToCSV("clients_export", clients, [
+      { key: "full_name", label: "Full Name" },
+      { key: "company", label: "Company" },
+      { key: "email", label: "Email" },
+      { key: "phone", label: "Phone" },
+      { key: "address", label: "Address" },
+    ]);
+    toast.info("Exporting Data", "CSV file download started");
   }
 
   const filtered = clients.filter(
@@ -139,10 +159,16 @@ export default function ClientsPage() {
             {clients.length} client{clients.length !== 1 ? "s" : ""} in your database
           </p>
         </div>
-        <button className="btn btn-primary" onClick={openCreateModal}>
-          <Plus size={16} />
-          Add Client
-        </button>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="btn btn-ghost" onClick={handleExport} title="Export CSV file">
+            <Download size={15} />
+            Export CSV
+          </button>
+          <button className="btn btn-primary" onClick={openCreateModal}>
+            <Plus size={16} />
+            Add Client
+          </button>
+        </div>
       </div>
 
       {/* SEARCH */}

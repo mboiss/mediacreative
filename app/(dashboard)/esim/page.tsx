@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Smartphone,
   Plus,
@@ -15,9 +15,12 @@ import {
   Copy,
   Check,
   ShieldCheck,
+  Download,
 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useToast } from "@/components/ui/toast";
+import { exportToCSV } from "@/lib/export-utils";
 
 type EsimProfile = {
   id: string;
@@ -84,15 +87,9 @@ function formatDate(dateStr: string) {
 }
 
 export default function EsimPage() {
-  const [profiles, setProfiles] = useState<EsimProfile[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("media_creative_esim");
-      if (saved) {
-        try { return JSON.parse(saved); } catch (e) { /* ignore */ }
-      }
-    }
-    return INITIAL_PROFILES;
-  });
+  const toast = useToast();
+  const [profiles, setProfiles] = useState<EsimProfile[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -109,18 +106,31 @@ export default function EsimPage() {
     validity_days: "30",
   });
 
-  useEffect(() => {
-    localStorage.setItem("media_creative_esim", JSON.stringify(profiles));
-  }, [profiles]);
+  const loadProfiles = useCallback(async () => {
+    try {
+      const res = await fetch("/api/esim");
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) setProfiles(data);
+      }
+    } catch (err) {
+      console.error("Failed to load eSIM profiles:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  function handleCreateEsim(e: React.FormEvent) {
+  useEffect(() => {
+    loadProfiles();
+  }, [loadProfiles]);
+
+  async function handleCreateEsim(e: React.FormEvent) {
     e.preventDefault();
     const randomIccid = "8988211004" + Math.floor(1000000000 + Math.random() * 9000000000) + "F";
     const expDate = new Date();
     expDate.setDate(expDate.getDate() + Number(form.validity_days || 30));
 
-    const newProfile: EsimProfile = {
-      id: "esim-" + Date.now().toString().slice(-4),
+    const newProfile = {
       iccid: randomIccid,
       package_name: form.package_name,
       region: form.region,
@@ -132,27 +142,71 @@ export default function EsimPage() {
       expiry_date: expDate.toISOString().split("T")[0],
     };
 
-    setProfiles([newProfile, ...profiles]);
-    setShowCreateModal(false);
-    setForm({
-      user_name: "",
-      package_name: "Global Ultra 5G (50GB)",
-      region: "Global (120+ Countries)",
-      data_gb: "50",
-      price: "650000",
-      validity_days: "30",
-    });
+    try {
+      const res = await fetch("/api/esim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newProfile),
+      });
+      if (res.ok) {
+        setShowCreateModal(false);
+        setForm({
+          user_name: "",
+          package_name: "Global Ultra 5G (50GB)",
+          region: "Global (120+ Countries)",
+          data_gb: "50",
+          price: "650000",
+          validity_days: "30",
+        });
+        toast.success("eSIM Provisioned", `Profile assigned to ${newProfile.user_name}`);
+        await loadProfiles();
+      } else {
+        toast.error("Provisioning Failed", "Could not save eSIM to database");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Network Error", "Failed to create eSIM");
+    }
   }
 
-  function deleteProfile(id: string) {
+  async function deleteProfile(id: string) {
     if (!confirm("Are you sure you want to remove this eSIM profile?")) return;
-    setProfiles((prev) => prev.filter((p) => p.id !== id));
+    try {
+      const res = await fetch("/api/esim", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (res.ok) {
+        setProfiles((prev) => prev.filter((p) => p.id !== id));
+        toast.success("eSIM Profile Removed", "Profile deleted permanently");
+      } else {
+        toast.error("Delete Failed", "Could not remove profile from database");
+      }
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   function copyActivationCode(code: string) {
     navigator.clipboard.writeText(code);
     setCopiedCode(true);
+    toast.info("Copied", "Activation code copied to clipboard");
     setTimeout(() => setCopiedCode(false), 2000);
+  }
+
+  function handleExport() {
+    exportToCSV("esim_profiles_export", profiles, [
+      { key: "user_name", label: "User / Assignee" },
+      { key: "iccid", label: "ICCID" },
+      { key: "package_name", label: "Package" },
+      { key: "region", label: "Region" },
+      { key: "data_gb", label: "Data (GB)" },
+      { key: "price", label: "Price (IDR)" },
+      { key: "status", label: "Status" },
+      { key: "expiry_date", label: "Expiry Date" },
+    ]);
+    toast.info("Exporting Data", "CSV file download started");
   }
 
   const filtered = profiles.filter((p) => {
@@ -180,10 +234,16 @@ export default function EsimPage() {
             Instant eSIM profile provision, ICCID tracking, and QR code activation.
           </p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
-          <Plus size={16} />
-          Provision eSIM
-        </button>
+        <div style={{ display: "flex", gap: 10 }}>
+          <button className="btn btn-ghost" onClick={handleExport} title="Export CSV file">
+            <Download size={15} />
+            Export CSV
+          </button>
+          <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+            <Plus size={16} />
+            Provision eSIM
+          </button>
+        </div>
       </div>
 
       {/* KPI STRIP */}

@@ -5,7 +5,7 @@ export type TourLeader = {
   notes?: string;
 };
 
-const DEFAULT_TOUR_LEADERS: TourLeader[] = [
+export const DEFAULT_TOUR_LEADERS: TourLeader[] = [
   { id: "tl-1", name: "Komang Sudira" },
   { id: "tl-2", name: "Empong Kuswoyo" },
   { id: "tl-3", name: "Pendot" },
@@ -27,6 +27,19 @@ const DEFAULT_TOUR_LEADERS: TourLeader[] = [
 
 const STORAGE_KEY = "media_creative_tour_leaders";
 
+export async function fetchTourLeaders(): Promise<TourLeader[]> {
+  try {
+    const res = await fetch("/api/tour-leaders");
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+  } catch (err) {
+    console.error("Failed to fetch tour leaders from API:", err);
+  }
+  return getTourLeaders();
+}
+
 export function getTourLeaders(): TourLeader[] {
   if (typeof window === "undefined") return DEFAULT_TOUR_LEADERS;
   try {
@@ -36,7 +49,7 @@ export function getTourLeaders(): TourLeader[] {
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
   } catch (e) {
-    console.error("Failed to load tour leaders:", e);
+    console.error("Failed to load tour leaders from localStorage:", e);
   }
   return DEFAULT_TOUR_LEADERS;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Wifi,
   Plus,
@@ -23,11 +23,17 @@ import {
   Eye,
   Info,
   ExternalLink,
+  Share2,
+  Download,
+  CheckSquare,
+  MessageCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { Modal } from "@/components/ui/modal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getTourLeaders, TourLeader } from "@/lib/tour-leaders";
+import { useToast } from "@/components/ui/toast";
+import { exportToCSV } from "@/lib/export-utils";
 
 export type ModemItem = {
   id: string;
@@ -3510,57 +3516,134 @@ const MASTER_TOUR_LOGS: TourRentalLog[] = [
 ];
 
 export default function ModemWifiPage() {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<"inventory" | "tours">("tours");
 
-  const [modems, setModems] = useState<ModemItem[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("media_creative_modem_wifi_v2");
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        } catch (e) {
-          /* ignore */
-        }
-      }
-    }
-    return INITIAL_MODEMS;
-  });
-
-  const [tourLogs, setTourLogs] = useState<TourRentalLog[]>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("media_creative_tour_logs_v2");
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed) && parsed.length >= 200) return parsed;
-        } catch (e) {
-          /* ignore */
-        }
-      }
-    }
-    return MASTER_TOUR_LOGS;
-  });
+  const [modems, setModems] = useState<ModemItem[]>([]);
+  const [tourLogs, setTourLogs] = useState<TourRentalLog[]>([]);
+  const [tourLeaders, setTourLeaders] = useState<TourLeader[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const [tourStatusFilter, setTourStatusFilter] = useState<string>("All");
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>("All");
   const [dateSortOrder, setDateSortOrder] = useState<"newest" | "oldest">("newest");
-  const [tourLeaders, setTourLeaders] = useState<TourLeader[]>([]);
 
   // Modals
   const [showModal, setShowModal] = useState(false);
   const [showTourModal, setShowTourModal] = useState(false);
   const [selectedTourDetail, setSelectedTourDetail] = useState<TourRentalLog | null>(null);
 
+  // Return Checklist Modal State
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [pendingReturnTourCode, setPendingReturnTourCode] = useState<string | null>(null);
+  const [returnChecklist, setReturnChecklist] = useState({
+    modemDevice: true,
+    usbCable: true,
+    pouchBag: true,
+    simCardIntact: true,
+    notes: "",
+  });
+
   const [editingModem, setEditingModem] = useState<ModemItem | null>(null);
   const [editingTourCode, setEditingTourCode] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  const loadData = useCallback(async () => {
+    try {
+      const [modemsRes, toursRes, leadersRes] = await Promise.all([
+        fetch("/api/modems"),
+        fetch("/api/tour-rentals"),
+        fetch("/api/tour-leaders"),
+      ]);
+
+      if (modemsRes.ok) {
+        const mData = await modemsRes.json();
+        if (Array.isArray(mData)) setModems(mData);
+      }
+      if (toursRes.ok) {
+        const tData = await toursRes.json();
+        if (Array.isArray(tData)) setTourLogs(tData);
+      }
+      if (leadersRes.ok) {
+        const lData = await leadersRes.json();
+        if (Array.isArray(lData)) setTourLeaders(lData);
+      }
+    } catch (err) {
+      console.error("Failed to load rental data from API:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    setTourLeaders(getTourLeaders());
-  }, [showTourModal]);
+    loadData();
+  }, [loadData]);
+
+  // 1-CLICK WHATSAPP DISPATCHER
+  function handleWhatsAppShare(tour: TourRentalLog) {
+    const assignedList = tour.modems.split(",").map((s) => s.trim()).filter(Boolean);
+
+    // Build modem wifi details text
+    const modemDetails = assignedList
+      .map((mcCode) => {
+        const match = modems.find(
+          (m) => m.ssid.replace("Media Creative ", "MC") === mcCode || m.ssid === mcCode
+        );
+        const paxName = tour.device_pax?.[mcCode] || "Guest";
+        if (match) {
+          return `📱 *${match.ssid}* (${match.device_name})\n🔑 Pass: \`${match.password}\`\n📞 SIM: ${match.number}\n👤 Pax: ${paxName}`;
+        }
+        return `📱 *Modem ${mcCode}*\n👤 Pax: ${paxName}`;
+      })
+      .join("\n\n");
+
+    const message = `*MEDIA CREATIVE - TOUR MODEM RENTAL DETAILS*\n` +
+      `━━━━━━━━━━━━━━━━━━━━━\n` +
+      `🏷️ *Tourcode:* ${tour.tourcode}\n` +
+      `👤 *Tour Leader:* ${tour.tl}\n` +
+      `📅 *Period:* ${tour.start_date} s/d ${tour.end_date} (${tour.days} Days)\n` +
+      `📍 *Location:* ${tour.location}\n` +
+      `📦 *Qty Modems:* ${tour.qty} Unit(s)\n` +
+      `━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `*DATA MODEM WIFI:*\n${modemDetails || "Modem belum ditugaskan"}\n\n` +
+      `*Catatan:* Harap pastikan modem & charger selalu dijaga selama tour berlangsung. Terima kasih! 🙏`;
+
+    const encoded = encodeURIComponent(message);
+    window.open(`https://api.whatsapp.com/send?text=${encoded}`, "_blank");
+    toast.success("WhatsApp Dispatcher", `Order detail for ${tour.tourcode} ready to send via WhatsApp`);
+  }
+
+  // EXPORT CSV UTILITY
+  function handleExportModems() {
+    exportToCSV("modem_inventory_export", modems, [
+      { key: "ssid", label: "SSID / Name" },
+      { key: "device_name", label: "Device Name" },
+      { key: "number", label: "SIM Number" },
+      { key: "password", label: "Password" },
+      { key: "status", label: "Status" },
+      { key: "remark", label: "Remark" },
+    ]);
+    toast.info("Exporting Modems", "CSV download started");
+  }
+
+  function handleExportTours() {
+    exportToCSV("tour_rental_logs_export", tourLogs, [
+      { key: "tourcode", label: "Tour Code" },
+      { key: "tl", label: "Tour Leader" },
+      { key: "start_date", label: "Start Date" },
+      { key: "end_date", label: "End Date" },
+      { key: "days", label: "Days" },
+      { key: "qty", label: "Qty Modems" },
+      { key: "modems", label: "Assigned Modems" },
+      { key: "location", label: "Location" },
+      { key: "status", label: "Status" },
+      { key: "invoice_status", label: "Invoice Status" },
+      { key: "remark", label: "Pax / Remark" },
+    ]);
+    toast.info("Exporting Tour Logs", "CSV download started");
+  }
 
   // Date converter helper for <input type="date" />
   function formatDateForInput(dateStr?: string): string {
@@ -3606,14 +3689,6 @@ export default function ModemWifiPage() {
     notes: "",
   });
 
-  useEffect(() => {
-    localStorage.setItem("media_creative_modem_wifi_v2", JSON.stringify(modems));
-  }, [modems]);
-
-  useEffect(() => {
-    localStorage.setItem("media_creative_tour_logs_v2", JSON.stringify(tourLogs));
-  }, [tourLogs]);
-
   // Lookup helper: Find tour assigned to a modem
   function getAssignedTourForModem(modem: ModemItem): TourRentalLog | undefined {
     const mcCode = modem.ssid.replace("Media Creative ", "MC");
@@ -3654,42 +3729,54 @@ export default function ModemWifiPage() {
     setShowModal(true);
   }
 
-  function handleSubmitDevice(e: React.FormEvent) {
+  async function handleSubmitDevice(e: React.FormEvent) {
     e.preventDefault();
     if (!form.device_name.trim() || !form.number.trim() || !form.ssid.trim()) {
       alert("Please fill in required fields.");
       return;
     }
 
-    if (editingModem) {
-      setModems((prev) =>
-        prev.map((item) =>
-          item.id === editingModem.id
-            ? {
-                ...item,
-                device_name: form.device_name.trim(),
-                number: form.number.trim(),
-                ssid: form.ssid.trim(),
-                password: form.password.trim(),
-                status: form.status,
-                remark: form.remark.trim() || undefined,
-              }
-            : item
-        )
-      );
-    } else {
-      const newModem: ModemItem = {
-        id: "modem-" + Date.now(),
-        device_name: form.device_name.trim(),
-        number: form.number.trim(),
-        ssid: form.ssid.trim(),
-        password: form.password.trim(),
-        status: form.status,
-        remark: form.remark.trim() || undefined,
-      };
-      setModems([newModem, ...modems]);
+    const payload = {
+      device_name: form.device_name.trim(),
+      number: form.number.trim(),
+      ssid: form.ssid.trim(),
+      password: form.password.trim(),
+      status: form.status,
+      remark: form.remark.trim() || undefined,
+    };
+
+    try {
+      if (editingModem) {
+        const res = await fetch("/api/modems", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: editingModem.id, ...payload }),
+        });
+        if (res.ok) {
+          setShowModal(false);
+          toast.success("Modem Updated", `Device ${payload.ssid} updated successfully`);
+          await loadData();
+        } else {
+          toast.error("Update Failed", "Could not update modem device");
+        }
+      } else {
+        const res = await fetch("/api/modems", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: "modem-" + Date.now(), ...payload }),
+        });
+        if (res.ok) {
+          setShowModal(false);
+          toast.success("Modem Device Saved", `New modem ${payload.ssid} added`);
+          await loadData();
+        } else {
+          toast.error("Save Failed", "Could not save modem device to database");
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Network Error", "Failed to save modem device");
     }
-    setShowModal(false);
   }
 
   // Open New Tour Rental Modal
@@ -3781,14 +3868,14 @@ export default function ModemWifiPage() {
     });
   }
 
-  function handleSaveNewTour(e: React.FormEvent) {
+  async function handleSaveNewTour(e: React.FormEvent) {
     e.preventDefault();
     if (!tourForm.tourcode.trim() || !tourForm.tl.trim()) {
-      alert("Please fill in Tourcode and Tour Leader.");
+      toast.warning("Incomplete Form", "Please fill in Tourcode and Tour Leader");
       return;
     }
     if (tourForm.status !== "Upcoming" && tourForm.selectedModemSsids.length === 0) {
-      alert("Silakan pilih setidaknya 1 modem untuk tour dengan status Running.");
+      toast.warning("Modem Selection Required", "Silakan pilih setidaknya 1 modem untuk tour Running");
       return;
     }
 
@@ -3799,13 +3886,12 @@ export default function ModemWifiPage() {
 
     const modemLabels = tourForm.selectedModemSsids.join(", ");
 
-    // Combined pax remark string
     const paxList = Object.entries(tourForm.devicePaxMap)
       .filter(([_, pax]) => pax.trim().length > 0)
       .map(([mCode, pax]) => `${pax.trim()}`);
     const combinedPaxRemark = paxList.join(", ") || tourForm.remark.trim();
 
-    const updatedTour: TourRentalLog = {
+    const updatedTour = {
       tourcode: tourForm.tourcode.trim(),
       start_date: tourForm.start_date,
       end_date: tourForm.end_date,
@@ -3821,133 +3907,85 @@ export default function ModemWifiPage() {
       device_pax: tourForm.devicePaxMap,
     };
 
-    if (editingTourCode) {
-      const oldTour = tourLogs.find((t) => t.tourcode === editingTourCode);
-      const oldAssignedModems = oldTour ? oldTour.modems.split(",").map((s) => s.trim()) : [];
-      const newAssignedModems = tourForm.selectedModemSsids;
+    try {
+      const isEdit = !!editingTourCode;
+      const res = await fetch("/api/tour-rentals", {
+        method: isEdit ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedTour),
+      });
 
-      setTourLogs((prev) =>
-        prev.map((t) => (t.tourcode === editingTourCode ? updatedTour : t))
-      );
-
-      // AUTOMATIC INVENTORY SYNC: Update modems
-      setModems((prevModems) =>
-        prevModems.map((m) => {
-          const mcCode = m.ssid.replace("Media Creative ", "MC");
-          const wasInOld = oldAssignedModems.includes(mcCode) || oldAssignedModems.includes(m.ssid);
-          const isInNew = newAssignedModems.includes(mcCode) || newAssignedModems.includes(m.ssid);
-
-          if (isInNew) {
-            return {
-              ...m,
-              status: updatedTour.status === "Finish" || updatedTour.status === "Cancel" ? "Available" : "Rented",
-              remark: updatedTour.status === "Finish" || updatedTour.status === "Cancel" ? undefined : `${updatedTour.tourcode} (TL: ${updatedTour.tl})`,
-            };
-          } else if (wasInOld && !isInNew) {
-            return {
-              ...m,
-              status: "Available",
-              remark: undefined,
-            };
-          }
-          return m;
-        })
-      );
-
-      if (selectedTourDetail?.tourcode === editingTourCode) {
-        setSelectedTourDetail(updatedTour);
+      if (res.ok) {
+        setShowTourModal(false);
+        setEditingTourCode(null);
+        setActiveTab("tours");
+        toast.success(
+          isEdit ? "Tour Order Updated" : "New Tour Created",
+          `Tour ${updatedTour.tourcode} (${updatedTour.tl}) saved`
+        );
+        await loadData();
+      } else {
+        toast.error("Save Failed", "Failed to save tour rental order");
       }
-    } else {
-      setTourLogs([updatedTour, ...tourLogs]);
-
-      // AUTOMATIC INVENTORY SYNC: Update selected modems to "Rented"
-      setModems((prevModems) =>
-        prevModems.map((m) => {
-          const mcCode = m.ssid.replace("Media Creative ", "MC");
-          if (tourForm.selectedModemSsids.includes(mcCode) || tourForm.selectedModemSsids.includes(m.ssid)) {
-            return {
-              ...m,
-              status: updatedTour.status === "Finish" || updatedTour.status === "Cancel" ? "Available" : "Rented",
-              remark: updatedTour.status === "Finish" || updatedTour.status === "Cancel" ? undefined : `${updatedTour.tourcode} (TL: ${updatedTour.tl})`,
-            };
-          }
-          return m;
-        })
-      );
+    } catch (err) {
+      console.error(err);
+      toast.error("Network Error", "Error saving tour rental order");
     }
-
-    setShowTourModal(false);
-    setEditingTourCode(null);
-    setActiveTab("tours");
   }
 
-  function updateTourStatus(tourcode: string, newStatus: TourRentalLog["status"]) {
-    setTourLogs((prev) =>
-      prev.map((t) => {
-        if (t.tourcode === tourcode) {
-          if (newStatus === "Finish" || newStatus === "Cancel") {
-            const assignedList = t.modems.split(",").map((s) => s.trim());
-            setModems((prevM) =>
-              prevM.map((m) => {
-                const mcCode = m.ssid.replace("Media Creative ", "MC");
-                if (assignedList.includes(mcCode) || assignedList.includes(m.ssid) || (m.remark && m.remark.includes(tourcode))) {
-                  return { ...m, status: "Available", remark: undefined };
-                }
-                return m;
-              })
-            );
-          } else if (newStatus === "Running") {
-            const assignedList = t.modems.split(",").map((s) => s.trim());
-            setModems((prevM) =>
-              prevM.map((m) => {
-                const mcCode = m.ssid.replace("Media Creative ", "MC");
-                if (assignedList.includes(mcCode) || assignedList.includes(m.ssid)) {
-                  return { ...m, status: "Rented", remark: `${t.tourcode} (TL: ${t.tl})` };
-                }
-                return m;
-              })
-            );
-          }
-
-          const updated = { ...t, status: newStatus };
-          if (selectedTourDetail?.tourcode === tourcode) {
-            setSelectedTourDetail(updated);
-          }
-          return updated;
+  async function updateTourStatus(tourcode: string, newStatus: TourRentalLog["status"]) {
+    try {
+      const res = await fetch("/api/tour-rentals", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tourcode, status: newStatus }),
+      });
+      if (res.ok) {
+        toast.success("Status Updated", `Tour ${tourcode} status changed to ${newStatus}`);
+        await loadData();
+        if (selectedTourDetail?.tourcode === tourcode) {
+          setSelectedTourDetail((prev) => (prev ? { ...prev, status: newStatus } : null));
         }
-        return t;
-      })
-    );
+      }
+    } catch (err) {
+      console.error(err);
+    }
   }
 
-  function updateTourInvoiceStatus(tourcode: string, newInvoiceStatus: TourRentalLog["invoice_status"]) {
-    setTourLogs((prev) =>
-      prev.map((t) => {
-        if (t.tourcode === tourcode) {
-          const updated = { ...t, invoice_status: newInvoiceStatus };
-          if (selectedTourDetail?.tourcode === tourcode) {
-            setSelectedTourDetail(updated);
-          }
-          return updated;
+  async function updateTourInvoiceStatus(tourcode: string, newInvoiceStatus: TourRentalLog["invoice_status"]) {
+    try {
+      const res = await fetch("/api/tour-rentals", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tourcode, invoice_status: newInvoiceStatus }),
+      });
+      if (res.ok) {
+        await loadData();
+        if (selectedTourDetail?.tourcode === tourcode) {
+          setSelectedTourDetail((prev) => (prev ? { ...prev, invoice_status: newInvoiceStatus } : null));
         }
-        return t;
-      })
-    );
+      }
+    } catch (err) {
+      console.error(err);
+    }
   }
 
-  function updateTourNotes(tourcode: string, newNotes: string) {
-    setTourLogs((prev) =>
-      prev.map((t) => {
-        if (t.tourcode === tourcode) {
-          const updated = { ...t, notes: newNotes || undefined };
-          if (selectedTourDetail?.tourcode === tourcode) {
-            setSelectedTourDetail(updated);
-          }
-          return updated;
+  async function updateTourNotes(tourcode: string, newNotes: string) {
+    try {
+      const res = await fetch("/api/tour-rentals", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tourcode, notes: newNotes }),
+      });
+      if (res.ok) {
+        await loadData();
+        if (selectedTourDetail?.tourcode === tourcode) {
+          setSelectedTourDetail((prev) => (prev ? { ...prev, notes: newNotes } : null));
         }
-        return t;
-      })
-    );
+      }
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   function toggleTourStatus(tourcode: string) {
@@ -3958,30 +3996,61 @@ export default function ModemWifiPage() {
     updateTourStatus(tourcode, nextStatus);
   }
 
-  function handleDeleteTour(tourcode: string) {
+  async function handleDeleteTour(tourcode: string) {
     if (!confirm(`Are you sure you want to delete tour ${tourcode}?`)) return;
-    setTourLogs((prev) => prev.filter((t) => t.tourcode !== tourcode));
-    if (selectedTourDetail?.tourcode === tourcode) {
-      setSelectedTourDetail(null);
+    try {
+      const res = await fetch("/api/tour-rentals", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tourcode }),
+      });
+      if (res.ok) {
+        setTourLogs((prev) => prev.filter((t) => t.tourcode !== tourcode));
+        if (selectedTourDetail?.tourcode === tourcode) {
+          setSelectedTourDetail(null);
+        }
+      }
+    } catch (err) {
+      console.error(err);
     }
   }
 
-  function toggleDeviceStatus(id: string) {
-    setModems((prev) =>
-      prev.map((item) => {
-        if (item.id === id) {
-          const nextStatus: ModemItem["status"] =
-            item.status === "Available" ? "Rented" : item.status === "Rented" ? "Maintenance" : "Available";
-          return { ...item, status: nextStatus };
-        }
-        return item;
-      })
-    );
+  async function toggleDeviceStatus(id: string) {
+    const item = modems.find((m) => m.id === id);
+    if (!item) return;
+    const nextStatus: ModemItem["status"] =
+      item.status === "Available" ? "Rented" : item.status === "Rented" ? "Maintenance" : "Available";
+
+    try {
+      const res = await fetch("/api/modems", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: nextStatus }),
+      });
+      if (res.ok) {
+        await loadData();
+      }
+    } catch (err) {
+      console.error(err);
+    }
   }
 
-  function handleDeleteDevice(id: string) {
+  async function handleDeleteDevice(id: string) {
     if (!confirm("Are you sure you want to delete this Modem Wifi device?")) return;
-    setModems((prev) => prev.filter((m) => m.id !== id));
+    try {
+      const res = await fetch("/api/modems", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      if (res.ok) {
+        setModems((prev) => prev.filter((m) => m.id !== id));
+      } else {
+        alert("Failed to delete modem device from database");
+      }
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   function handleCopy(text: string, id: string) {
@@ -4074,6 +4143,10 @@ export default function ModemWifiPage() {
 
         {/* ACTION BUTTONS */}
         <div style={{ display: "flex", gap: 10 }}>
+          <button className="btn btn-ghost" onClick={activeTab === "tours" ? handleExportTours : handleExportModems} title="Export CSV file">
+            <Download size={15} />
+            Export {activeTab === "tours" ? "Tours" : "Modems"} CSV
+          </button>
           <button className="btn btn-primary" onClick={handleOpenNewTour} style={{ gap: 6 }}>
             <Plus size={16} />
             New Tour / Rental Order
@@ -4804,6 +4877,14 @@ export default function ModemWifiPage() {
                           title="View Details"
                         >
                           <Eye size={13} />
+                        </button>
+                        <button
+                          className="btn btn-ghost"
+                          style={{ padding: "4px 8px", color: "#25D366" }}
+                          onClick={() => handleWhatsAppShare(t)}
+                          title="Send Order Info via WhatsApp"
+                        >
+                          <Share2 size={13} />
                         </button>
                         <button
                           className="btn btn-ghost"

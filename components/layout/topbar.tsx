@@ -4,6 +4,7 @@ import { Moon, Sun, Menu, Clock } from "lucide-react";
 import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import UserMenu from "./UserMenu";
 
 const routeLabels: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -227,25 +228,8 @@ export default function Topbar() {
           </button>
         )}
 
-        {/* Avatar */}
-        <div
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: "50%",
-            background: "linear-gradient(135deg, #00d4ff, #7c3aed)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "0.75rem",
-            fontWeight: 700,
-            color: "white",
-            cursor: "pointer",
-            boxShadow: "0 2px 8px rgba(0, 212, 255, 0.2)",
-          }}
-        >
-          A
-        </div>
+        {/* User Account Menu */}
+        <UserMenu />
       </div>
     </header>
   );

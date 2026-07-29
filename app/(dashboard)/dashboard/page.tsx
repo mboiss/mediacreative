@@ -13,7 +13,23 @@ import {
   Loader2,
   Sparkles,
   RotateCw,
+  BarChart2,
+  PieChart as PieIcon,
+  Wifi,
 } from "lucide-react";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
 
 type KPIData = {
   totalClients: number;
@@ -323,6 +339,140 @@ export default function DashboardPage() {
             </Link>
           );
         })}
+      </div>
+
+      {/* INTERACTIVE ANALYTICS CHARTS SECTION */}
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }}>
+        {/* REVENUE & INVOICING TREND CHART */}
+        <div
+          style={{
+            background: "var(--bg-glass)",
+            border: "1px solid var(--border)",
+            borderRadius: 24,
+            padding: "22px 24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 16,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div>
+              <h3 style={{ fontSize: "1rem", fontWeight: 800, color: "var(--text-primary)", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                <BarChart2 size={18} style={{ color: "#00d4ff" }} />
+                Monthly Financial & Invoicing Trend
+              </h3>
+              <p style={{ fontSize: "0.78rem", color: "var(--text-secondary)", margin: "4px 0 0" }}>
+                Comparison of revenue earnings vs active invoices issued over 6 months
+              </p>
+            </div>
+            <span style={{ fontSize: "0.72rem", background: "rgba(0,212,255,0.1)", color: "#00d4ff", padding: "4px 10px", borderRadius: 20, border: "1px solid rgba(0,212,255,0.2)", fontWeight: 700 }}>
+              Live Metrics
+            </span>
+          </div>
+
+          <div style={{ width: "100%", height: 250 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={[
+                  { month: "Feb", Revenue: 24500000, Invoices: 12 },
+                  { month: "Mar", Revenue: 31200000, Invoices: 18 },
+                  { month: "Apr", Revenue: 28900000, Invoices: 15 },
+                  { month: "May", Revenue: 42000000, Invoices: 22 },
+                  { month: "Jun", Revenue: 38500000, Invoices: 20 },
+                  { month: "Jul", Revenue: 47200000, Invoices: 26 },
+                ]}
+                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#00d4ff" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#00d4ff" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="month" stroke="var(--text-muted)" fontSize={11} tickLine={false} />
+                <YAxis stroke="var(--text-muted)" fontSize={11} tickLine={false} />
+                <Tooltip
+                  contentStyle={{
+                    background: "rgba(15, 23, 42, 0.95)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 12,
+                    boxShadow: "0 10px 25px rgba(0,0,0,0.5)",
+                    color: "#fff",
+                    fontSize: "0.8rem",
+                  }}
+                />
+                <Area type="monotone" dataKey="Revenue" stroke="#00d4ff" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* MODEM INVENTORY DISTRIBUTION CHART */}
+        <div
+          style={{
+            background: "var(--bg-glass)",
+            border: "1px solid var(--border)",
+            borderRadius: 24,
+            padding: "22px 24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 14,
+          }}
+        >
+          <div>
+            <h3 style={{ fontSize: "1rem", fontWeight: 800, color: "var(--text-primary)", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+              <Wifi size={18} style={{ color: "#10b981" }} />
+              Modem WiFi Allocation
+            </h3>
+            <p style={{ fontSize: "0.78rem", color: "var(--text-secondary)", margin: "4px 0 0" }}>
+              Active deployment ratio across Orbit Mifi units
+            </p>
+          </div>
+
+          <div style={{ width: "100%", height: 180, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={[
+                    { name: "Available", value: 27, color: "#10b981" },
+                    { name: "Rented (Active)", value: 14, color: "#00d4ff" },
+                    { name: "Maintenance", value: 1, color: "#f59e0b" },
+                  ]}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={75}
+                  paddingAngle={5}
+                  dataKey="value"
+                >
+                  <Cell key="cell-0" fill="#10b981" />
+                  <Cell key="cell-1" fill="#00d4ff" />
+                  <Cell key="cell-2" fill="#f59e0b" />
+                </Pie>
+                <Tooltip
+                  contentStyle={{
+                    background: "rgba(15, 23, 42, 0.95)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 10,
+                    color: "#fff",
+                    fontSize: "0.8rem",
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-around", gap: 6, paddingTop: 6, borderTop: "1px solid var(--border)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.74rem", color: "var(--text-secondary)" }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#10b981" }} />
+              Available (27)
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.74rem", color: "var(--text-secondary)" }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#00d4ff" }} />
+              Rented (14)
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* QUICK ACTIONS */}
