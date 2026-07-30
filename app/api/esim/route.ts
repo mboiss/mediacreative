@@ -57,7 +57,7 @@ export async function GET() {
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       writeJsonStore("esim.json", data);
       return jsonNoCache(data);
     }

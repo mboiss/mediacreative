@@ -59,7 +59,7 @@ const INITIAL_MODEMS = [
 export async function GET() {
   try {
     const { data, error } = await supabase.from("modems").select("*").order("id");
-    if (!error && data && data.length > 0) {
+    if (!error && data) {
       writeJsonStore("modems.json", data);
       return jsonNoCache(data);
     }
