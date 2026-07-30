@@ -54,3 +54,30 @@ CREATE TABLE IF NOT EXISTS public.esim_profiles (
   expiry_date TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- 5. PAYMENT ACCOUNTS TABLE
+CREATE TABLE IF NOT EXISTS public.payment_accounts (
+  id TEXT PRIMARY KEY,
+  bank_name TEXT NOT NULL,
+  account_number TEXT NOT NULL,
+  account_holder TEXT NOT NULL,
+  is_default BOOLEAN DEFAULT false,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 6. APP SETTINGS TABLE
+CREATE TABLE IF NOT EXISTS public.app_settings (
+  id TEXT PRIMARY KEY DEFAULT 'default',
+  company_name TEXT,
+  email TEXT,
+  phone TEXT,
+  address TEXT,
+  tax_id TEXT,
+  invoice_prefix TEXT,
+  tax_rate TEXT,
+  currency TEXT,
+  payment_terms_days TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+

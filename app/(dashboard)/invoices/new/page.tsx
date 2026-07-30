@@ -29,9 +29,11 @@ import { Modal } from "@/components/ui/modal";
 import { InvoiceSheet } from "@/components/invoice/invoice-sheet";
 import {
   getPaymentAccounts,
+  fetchPaymentAccounts,
   formatAccountTransferText,
   PaymentAccount,
 } from "@/lib/payment-accounts";
+import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 
 type Client = {
   id: string;
@@ -96,28 +98,33 @@ export default function NewInvoicePage() {
 
   // Load clients, products, payment accounts, and tour logs
   const loadData = useCallback(async () => {
+    setLoadingData(true);
     try {
-      const [cRes, pRes] = await Promise.all([
-        fetch("/api/clients"),
-        fetch("/api/products"),
+      const ts = Date.now();
+      const [cRes, pRes, tRes, accsData] = await Promise.all([
+        fetch(`/api/clients?_t=${ts}`, { cache: "no-store", headers: { Pragma: "no-cache" } }),
+        fetch(`/api/products?_t=${ts}`, { cache: "no-store", headers: { Pragma: "no-cache" } }),
+        fetch(`/api/tour-rentals?_t=${ts}`, { cache: "no-store", headers: { Pragma: "no-cache" } }),
+        fetchPaymentAccounts(),
       ]);
-      const cData = await cRes.json();
-      const pData = await pRes.json();
-      if (Array.isArray(cData)) setClients(cData);
-      if (Array.isArray(pData)) setProducts(pData);
 
-      const accs = getPaymentAccounts();
-      setPaymentAccounts(accs);
-      const defaultAcc = accs.find((a) => a.is_default) || accs[0];
-      if (defaultAcc) {
-        setNotes(formatAccountTransferText(defaultAcc));
+      if (cRes.ok) {
+        const cData = await cRes.json();
+        if (Array.isArray(cData)) setClients(cData);
+      }
+      if (pRes.ok) {
+        const pData = await pRes.json();
+        if (Array.isArray(pData)) setProducts(pData);
+      }
+      if (tRes.ok) {
+        const tData = await tRes.json();
+        if (Array.isArray(tData)) setTourLogs(tData);
       }
 
-      if (typeof window !== "undefined") {
-        const savedTours = localStorage.getItem("media_creative_tour_logs");
-        if (savedTours) {
-          try { setTourLogs(JSON.parse(savedTours)); } catch (e) {}
-        }
+      setPaymentAccounts(accsData);
+      const defaultAcc = accsData.find((a) => a.is_default) || accsData[0];
+      if (defaultAcc) {
+        setNotes((prev) => prev || formatAccountTransferText(defaultAcc));
       }
     } catch (err) {
       console.error("Failed to load initial data:", err);
@@ -129,6 +136,9 @@ export default function NewInvoicePage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Enable Real-time sync across devices
+  useRealtimeSync(loadData, { tables: ["clients", "products", "tour_rental_logs", "payment_accounts"] });
 
   // Selected client object & Live Filter
   const filteredClients = clients.filter((c) => {

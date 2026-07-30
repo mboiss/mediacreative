@@ -7,6 +7,7 @@ import { Modal } from "@/components/ui/modal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
 import { exportToCSV } from "@/lib/export-utils";
+import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 
 type Client = {
   id: string;
@@ -38,7 +39,7 @@ export default function ClientsPage() {
 
   const loadClients = useCallback(async () => {
     try {
-      const res = await fetch("/api/clients");
+      const res = await fetch(`/api/clients?_t=${Date.now()}`, { cache: "no-store", headers: { Pragma: "no-cache" } });
       if (!res.ok) return;
       const data = await res.json();
       if (Array.isArray(data)) setClients(data);
@@ -52,6 +53,9 @@ export default function ClientsPage() {
   useEffect(() => {
     loadClients();
   }, [loadClients]);
+
+  // Enable Real-time sync across devices
+  useRealtimeSync(loadClients, { tables: ["clients"] });
 
   function openCreateModal() {
     setEditingClient(null);

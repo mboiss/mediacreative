@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 import {
   Users,
   FileText,
@@ -92,11 +93,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [quoteIndex, setQuoteIndex] = useState(0);
 
-  useEffect(() => {
-    const randomIndex = Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length);
-    setQuoteIndex(randomIndex);
-
-    fetch("/api/dashboard")
+  const loadDashboardData = useCallback(() => {
+    fetch(`/api/dashboard?_t=${Date.now()}`, { cache: "no-store", headers: { Pragma: "no-cache" } })
       .then((r) => r.json())
       .then((data) => {
         setKpi(data);
@@ -107,6 +105,15 @@ export default function DashboardPage() {
         setLoading(false);
       });
   }, []);
+
+  useEffect(() => {
+    const randomIndex = Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length);
+    setQuoteIndex(randomIndex);
+    loadDashboardData();
+  }, [loadDashboardData]);
+
+  // Enable Real-time sync across devices
+  useRealtimeSync(loadDashboardData, { tables: ["invoices", "clients", "modems", "tour_rental_logs"] });
 
   function nextQuote() {
     setQuoteIndex((prev) => (prev + 1) % MOTIVATIONAL_QUOTES.length);

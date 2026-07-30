@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Building,
   Save,
@@ -27,6 +27,8 @@ import {
   TourLeader,
 } from "@/lib/tour-leaders";
 
+import { useRealtimeSync } from "@/hooks/use-realtime-sync";
+
 type SettingsForm = {
   company_name: string;
   email: string;
@@ -52,27 +54,59 @@ const DEFAULT_SETTINGS: SettingsForm = {
 };
 
 export default function SettingsPage() {
-  const [form, setForm] = useState<SettingsForm>(() => {
-    if (typeof window !== "undefined") {
-      const saved = localStorage.getItem("media_creative_settings");
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (e) {
-          /* ignore */
-        }
-      }
-    }
-    return DEFAULT_SETTINGS;
-  });
-
+  const [form, setForm] = useState<SettingsForm>(DEFAULT_SETTINGS);
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>([]);
   const [tourLeaders, setTourLeaders] = useState<TourLeader[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadData = useCallback(async () => {
+    try {
+      const ts = Date.now();
+      const [sRes, pRes, tRes] = await Promise.all([
+        fetch(`/api/settings?_t=${ts}`, { cache: "no-store", headers: { Pragma: "no-cache" } }),
+        fetch(`/api/payment-accounts?_t=${ts}`, { cache: "no-store", headers: { Pragma: "no-cache" } }),
+        fetch(`/api/tour-leaders?_t=${ts}`, { cache: "no-store", headers: { Pragma: "no-cache" } }),
+      ]);
+
+      if (sRes.ok) {
+        const sData = await sRes.json();
+        if (sData && sData.company_name) {
+          setForm({
+            company_name: sData.company_name || DEFAULT_SETTINGS.company_name,
+            email: sData.email || DEFAULT_SETTINGS.email,
+            phone: sData.phone || DEFAULT_SETTINGS.phone,
+            address: sData.address || DEFAULT_SETTINGS.address,
+            tax_id: sData.tax_id || DEFAULT_SETTINGS.tax_id,
+            invoice_prefix: sData.invoice_prefix || DEFAULT_SETTINGS.invoice_prefix,
+            tax_rate: sData.tax_rate || DEFAULT_SETTINGS.tax_rate,
+            currency: sData.currency || DEFAULT_SETTINGS.currency,
+            payment_terms_days: sData.payment_terms_days || DEFAULT_SETTINGS.payment_terms_days,
+          });
+        }
+      }
+
+      if (pRes.ok) {
+        const pData = await pRes.json();
+        if (Array.isArray(pData)) setPaymentAccounts(pData);
+      }
+
+      if (tRes.ok) {
+        const tData = await tRes.json();
+        if (Array.isArray(tData)) setTourLeaders(tData);
+      }
+    } catch (err) {
+      console.error("Failed to load settings data:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    setPaymentAccounts(getPaymentAccounts());
-    setTourLeaders(getTourLeaders());
-  }, []);
+    loadData();
+  }, [loadData]);
+
+  // Enable Real-time sync across devices
+  useRealtimeSync(loadData, { tables: ["app_settings", "payment_accounts", "tour_leaders"] });
 
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -96,19 +130,30 @@ export default function SettingsPage() {
     notes: "",
   });
 
-  function handleSave(e: React.FormEvent) {
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
     setSavedSuccess(false);
 
-    setTimeout(() => {
-      localStorage.setItem("media_creative_settings", JSON.stringify(form));
-      savePaymentAccounts(paymentAccounts);
-      saveTourLeaders(tourLeaders);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (res.ok) {
+        localStorage.setItem("media_creative_settings", JSON.stringify(form));
+        setSavedSuccess(true);
+        setTimeout(() => setSavedSuccess(false), 3000);
+        await loadData();
+      } else {
+        alert("Gagal menyimpan pengaturan ke server.");
+      }
+    } catch (err) {
+      console.error("Failed to save settings:", err);
+    } finally {
       setSaving(false);
-      setSavedSuccess(true);
-      setTimeout(() => setSavedSuccess(false), 3000);
-    }, 400);
+    }
   }
 
   // --- Payment Accounts Handlers ---
@@ -129,57 +174,62 @@ export default function SettingsPage() {
     setShowAccountModal(true);
   }
 
-  function handleSaveAccount(e: React.FormEvent) {
+  async function handleSaveAccount(e: React.FormEvent) {
     e.preventDefault();
     if (!accountForm.bank_name || !accountForm.account_number || !accountForm.account_holder) {
       alert("Please fill in required bank account fields.");
       return;
     }
 
-    let updated: PaymentAccount[];
-    if (editingAccount) {
-      updated = paymentAccounts.map((acc) =>
-        acc.id === editingAccount.id
-          ? {
-              ...acc,
-              bank_name: accountForm.bank_name.trim(),
-              account_number: accountForm.account_number.trim(),
-              account_holder: accountForm.account_holder.trim(),
-              notes: accountForm.notes.trim() || undefined,
-            }
-          : acc
-      );
-    } else {
-      const newAcc: PaymentAccount = {
-        id: "acc-" + Date.now(),
-        bank_name: accountForm.bank_name.trim(),
-        account_number: accountForm.account_number.trim(),
-        account_holder: accountForm.account_holder.trim(),
-        is_default: paymentAccounts.length === 0,
-        notes: accountForm.notes.trim() || undefined,
-      };
-      updated = [...paymentAccounts, newAcc];
+    const payload: PaymentAccount = {
+      id: editingAccount ? editingAccount.id : "acc_" + Date.now(),
+      bank_name: accountForm.bank_name.trim(),
+      account_number: accountForm.account_number.trim(),
+      account_holder: accountForm.account_holder.trim(),
+      is_default: editingAccount ? editingAccount.is_default : paymentAccounts.length === 0,
+      notes: accountForm.notes.trim() || undefined,
+    };
+
+    try {
+      await fetch("/api/payment-accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      setShowAccountModal(false);
+      loadData();
+    } catch (err) {
+      console.error("Error saving account:", err);
     }
-
-    setPaymentAccounts(updated);
-    savePaymentAccounts(updated);
-    setShowAccountModal(false);
   }
 
-  function handleDeleteAccount(id: string) {
+  async function handleDeleteAccount(id: string) {
     if (!confirm("Are you sure you want to delete this bank account?")) return;
-    const updated = paymentAccounts.filter((a) => a.id !== id);
-    setPaymentAccounts(updated);
-    savePaymentAccounts(updated);
+    try {
+      await fetch("/api/payment-accounts", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      loadData();
+    } catch (err) {
+      console.error("Error deleting account:", err);
+    }
   }
 
-  function handleSetDefaultAccount(id: string) {
-    const updated = paymentAccounts.map((a) => ({
-      ...a,
-      is_default: a.id === id,
-    }));
-    setPaymentAccounts(updated);
-    savePaymentAccounts(updated);
+  async function handleSetDefaultAccount(id: string) {
+    const target = paymentAccounts.find((a) => a.id === id);
+    if (!target) return;
+    try {
+      await fetch("/api/payment-accounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...target, is_default: true }),
+      });
+      loadData();
+    } catch (err) {
+      console.error("Error setting default account:", err);
+    }
   }
 
   // --- Tour Leaders Handlers ---
@@ -199,46 +249,47 @@ export default function SettingsPage() {
     setShowTlModal(true);
   }
 
-  function handleSaveTl(e: React.FormEvent) {
+  async function handleSaveTl(e: React.FormEvent) {
     e.preventDefault();
     if (!tlForm.name.trim()) {
       alert("Please enter the Tour Leader's name.");
       return;
     }
 
-    let updated: TourLeader[];
-    if (editingTl) {
-      updated = tourLeaders.map((tl) =>
-        tl.id === editingTl.id
-          ? {
-              ...tl,
-              name: tlForm.name.trim(),
-              phone: tlForm.phone.trim() || undefined,
-              notes: tlForm.notes.trim() || undefined,
-            }
-          : tl
-      );
-    } else {
-      const newTl: TourLeader = {
-        id: "tl-" + Date.now(),
-        name: tlForm.name.trim(),
-        phone: tlForm.phone.trim() || undefined,
-        notes: tlForm.notes.trim() || undefined,
-      };
-      updated = [...tourLeaders, newTl];
+    const payload = {
+      id: editingTl ? editingTl.id : undefined,
+      name: tlForm.name.trim(),
+      phone: tlForm.phone.trim() || null,
+      notes: tlForm.notes.trim() || null,
+    };
+
+    try {
+      await fetch("/api/tour-leaders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      setShowTlModal(false);
+      loadData();
+    } catch (err) {
+      console.error("Error saving Tour Leader:", err);
     }
-
-    setTourLeaders(updated);
-    saveTourLeaders(updated);
-    setShowTlModal(false);
   }
 
-  function handleDeleteTl(id: string) {
+  async function handleDeleteTl(id: string) {
     if (!confirm("Are you sure you want to delete this Tour Leader?")) return;
-    const updated = tourLeaders.filter((tl) => tl.id !== id);
-    setTourLeaders(updated);
-    saveTourLeaders(updated);
+    try {
+      await fetch("/api/tour-leaders", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      loadData();
+    } catch (err) {
+      console.error("Error deleting Tour Leader:", err);
+    }
   }
+
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 1000 }}>

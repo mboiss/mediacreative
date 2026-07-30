@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { jsonNoCache } from "@/lib/api-utils";
+import { readJsonStore, writeJsonStore } from "@/lib/json-store";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-key";
@@ -28,31 +33,17 @@ const DEFAULT_TOUR_LEADERS = [
 
 export async function GET() {
   try {
-    const { data, error } = await supabase
-      .from("tour_leaders")
-      .select("*")
-      .order("name");
-
-    if (error) {
-      console.error("GET Tour Leaders Error:", error);
-      return NextResponse.json(DEFAULT_TOUR_LEADERS);
+    const { data, error } = await supabase.from("tour_leaders").select("*").order("name");
+    if (!error && data && data.length > 0) {
+      writeJsonStore("tour_leaders.json", data);
+      return jsonNoCache(data);
     }
-
-    if (!data || data.length === 0) {
-      // Auto-seed
-      const { data: seeded } = await supabase
-        .from("tour_leaders")
-        .insert(DEFAULT_TOUR_LEADERS)
-        .select();
-
-      return NextResponse.json(seeded || DEFAULT_TOUR_LEADERS);
-    }
-
-    return NextResponse.json(data);
   } catch (err) {
-    console.error("GET Tour Leaders Crash:", err);
-    return NextResponse.json(DEFAULT_TOUR_LEADERS);
+    console.warn("Supabase tour_leaders query skipped/failed, using local store:", err);
   }
+
+  const localData = readJsonStore("tour_leaders.json", DEFAULT_TOUR_LEADERS);
+  return jsonNoCache(localData);
 }
 
 export async function POST(request: Request) {
@@ -67,19 +58,26 @@ export async function POST(request: Request) {
       notes: notes || null,
     };
 
-    const { data, error } = await supabase
-      .from("tour_leaders")
-      .insert([payload])
-      .select()
-      .single();
+    // Dual write local store
+    const list = readJsonStore("tour_leaders.json", DEFAULT_TOUR_LEADERS);
+    const existingIdx = list.findIndex((tl: any) => tl.id === payload.id);
+    if (existingIdx >= 0) {
+      list[existingIdx] = payload;
+    } else {
+      list.push(payload);
+    }
+    writeJsonStore("tour_leaders.json", list);
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    // Try saving to Supabase
+    try {
+      await supabase.from("tour_leaders").insert([payload]);
+    } catch (e) {
+      console.warn("Supabase tour_leaders insert skipped:", e);
     }
 
-    return NextResponse.json(data);
+    return jsonNoCache(payload);
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "Insert failed" }, { status: 500 });
+    return jsonNoCache({ error: err?.message || "Insert failed" }, 500);
   }
 }
 
@@ -88,20 +86,23 @@ export async function DELETE(request: Request) {
     const { id } = await request.json();
 
     if (!id) {
-      return NextResponse.json({ error: "Leader ID is required" }, { status: 400 });
+      return jsonNoCache({ error: "Leader ID is required" }, 400);
     }
 
-    const { error } = await supabase
-      .from("tour_leaders")
-      .delete()
-      .eq("id", id);
+    // Dual delete local store
+    const list = readJsonStore("tour_leaders.json", DEFAULT_TOUR_LEADERS);
+    const filtered = list.filter((tl: any) => tl.id !== id);
+    writeJsonStore("tour_leaders.json", filtered);
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    // Try deleting from Supabase
+    try {
+      await supabase.from("tour_leaders").delete().eq("id", id);
+    } catch (e) {
+      console.warn("Supabase tour_leaders delete skipped:", e);
     }
 
-    return NextResponse.json({ success: true });
+    return jsonNoCache({ success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "Delete failed" }, { status: 500 });
+    return jsonNoCache({ error: err?.message || "Delete failed" }, 500);
   }
 }

@@ -13,6 +13,8 @@ export const metadata: Metadata = {
   },
 };
 
+import { AutoClearCache } from "@/components/layout/auto-clear-cache";
+
 export default function RootLayout({
   children,
 }: {
@@ -23,6 +25,7 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <ToastProvider>
+            <AutoClearCache />
             {children}
           </ToastProvider>
         </ThemeProvider>

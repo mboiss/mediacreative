@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { jsonNoCache } from "@/lib/api-utils";
+import { readJsonStore, writeJsonStore } from "@/lib/json-store";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-key";
@@ -81,26 +86,16 @@ export async function GET() {
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("GET Tour Rentals Error:", error);
-      return NextResponse.json(MASTER_TOUR_LOGS);
+    if (!error && data && data.length > 0) {
+      writeJsonStore("tour_rentals.json", data);
+      return jsonNoCache(data);
     }
-
-    if (!data || data.length === 0) {
-      // Auto-seed initial tour logs
-      const { data: seeded } = await supabase
-        .from("tour_rental_logs")
-        .insert(MASTER_TOUR_LOGS)
-        .select();
-
-      return NextResponse.json(seeded || MASTER_TOUR_LOGS);
-    }
-
-    return NextResponse.json(data);
   } catch (err) {
-    console.error("GET Tour Rentals Crash:", err);
-    return NextResponse.json(MASTER_TOUR_LOGS);
+    console.warn("Supabase tour_rental_logs query skipped/failed, using local store:", err);
   }
+
+  const localData = readJsonStore<any[]>("tour_rentals.json", MASTER_TOUR_LOGS);
+  return jsonNoCache(localData);
 }
 
 export async function POST(request: Request) {
@@ -122,7 +117,8 @@ export async function POST(request: Request) {
       device_pax,
     } = body;
 
-    const payload = {
+    const payload: Record<string, any> = {
+      id: body.id || `tour-${Date.now()}`,
       tourcode: tourcode || `TOUR-${Date.now()}`,
       start_date: start_date || "",
       end_date: end_date || "",
@@ -136,21 +132,29 @@ export async function POST(request: Request) {
       remark: remark || null,
       notes: notes || null,
       device_pax: device_pax || {},
+      created_at: new Date().toISOString(),
     };
 
-    const { data, error } = await supabase
-      .from("tour_rental_logs")
-      .insert([payload])
-      .select()
-      .single();
+    // Dual write local store
+    const list = readJsonStore<any[]>("tour_rentals.json", MASTER_TOUR_LOGS);
+    const existingIdx = list.findIndex((t: any) => t.tourcode === payload.tourcode || (t.id && t.id === payload.id));
+    if (existingIdx >= 0) {
+      list[existingIdx] = { ...list[existingIdx], ...payload };
+    } else {
+      list.unshift(payload);
+    }
+    writeJsonStore("tour_rentals.json", list);
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    // Try saving to Supabase if table exists
+    try {
+      await supabase.from("tour_rental_logs").insert([payload]);
+    } catch (e) {
+      console.warn("Supabase tour_rental_logs insert skipped:", e);
     }
 
-    return NextResponse.json(data);
+    return jsonNoCache(payload);
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "Insert failed" }, { status: 500 });
+    return jsonNoCache({ error: err?.message || "Insert failed" }, 500);
   }
 }
 
@@ -175,40 +179,48 @@ export async function PUT(request: Request) {
     } = body;
 
     if (!id && !tourcode) {
-      return NextResponse.json({ error: "Rental ID or Tourcode is required" }, { status: 400 });
+      return jsonNoCache({ error: "Rental ID or Tourcode is required" }, 400);
     }
 
-    let query = supabase.from("tour_rental_logs").update({
-      tourcode,
-      start_date,
-      end_date,
-      days: Number(days || 1),
-      qty: Number(qty || 1),
-      location,
-      tl,
-      status,
-      modems,
-      invoice_status,
-      remark,
-      notes,
-      device_pax,
-    });
+    const updates: Record<string, any> = {};
+    if (tourcode !== undefined) updates.tourcode = tourcode;
+    if (start_date !== undefined) updates.start_date = start_date;
+    if (end_date !== undefined) updates.end_date = end_date;
+    if (days !== undefined) updates.days = Number(days);
+    if (qty !== undefined) updates.qty = Number(qty);
+    if (location !== undefined) updates.location = location;
+    if (tl !== undefined) updates.tl = tl;
+    if (status !== undefined) updates.status = status;
+    if (modems !== undefined) updates.modems = modems;
+    if (invoice_status !== undefined) updates.invoice_status = invoice_status;
+    if (remark !== undefined) updates.remark = remark;
+    if (notes !== undefined) updates.notes = notes;
+    if (device_pax !== undefined) updates.device_pax = device_pax;
 
-    if (id) {
-      query = query.eq("id", id);
+    // Dual update local store
+    const list = readJsonStore<any[]>("tour_rentals.json", MASTER_TOUR_LOGS);
+    let updatedItem: any = { id, tourcode, ...updates };
+    const existingIdx = list.findIndex((t: any) => (id && t.id === id) || (tourcode && t.tourcode === tourcode));
+    if (existingIdx >= 0) {
+      list[existingIdx] = { ...list[existingIdx], ...updates };
+      updatedItem = list[existingIdx];
     } else {
-      query = query.eq("tourcode", tourcode);
+      list.unshift(updatedItem);
+    }
+    writeJsonStore("tour_rentals.json", list);
+
+    // Try updating Supabase
+    try {
+      let q = supabase.from("tour_rental_logs").update(updates);
+      if (id) await q.eq("id", id);
+      else if (tourcode) await q.eq("tourcode", tourcode);
+    } catch (e) {
+      console.warn("Supabase tour_rental_logs update skipped:", e);
     }
 
-    const { data, error } = await query.select();
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json(data?.[0] || data);
+    return jsonNoCache(updatedItem);
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "Update failed" }, { status: 500 });
+    return jsonNoCache({ error: err?.message || "Update failed" }, 500);
   }
 }
 
@@ -217,24 +229,29 @@ export async function DELETE(request: Request) {
     const { id, tourcode } = await request.json();
 
     if (!id && !tourcode) {
-      return NextResponse.json({ error: "Rental ID or Tourcode is required" }, { status: 400 });
+      return jsonNoCache({ error: "Rental ID or Tourcode is required" }, 400);
     }
 
-    let query = supabase.from("tour_rental_logs").delete();
-    if (id) {
-      query = query.eq("id", id);
-    } else {
-      query = query.eq("tourcode", tourcode);
+    // Dual delete local store
+    const list = readJsonStore<any[]>("tour_rentals.json", MASTER_TOUR_LOGS);
+    const filtered = list.filter((t: any) => {
+      if (id && t.id === id) return false;
+      if (tourcode && t.tourcode === tourcode) return false;
+      return true;
+    });
+    writeJsonStore("tour_rentals.json", filtered);
+
+    // Try deleting from Supabase
+    try {
+      let query = supabase.from("tour_rental_logs").delete();
+      if (id) await query.eq("id", id);
+      else if (tourcode) await query.eq("tourcode", tourcode);
+    } catch (e) {
+      console.warn("Supabase tour_rental_logs delete skipped:", e);
     }
 
-    const { error } = await query;
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true });
+    return jsonNoCache({ success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "Delete failed" }, { status: 500 });
+    return jsonNoCache({ error: err?.message || "Delete failed" }, 500);
   }
 }

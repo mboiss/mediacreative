@@ -18,6 +18,7 @@ import {
   Download,
 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
+import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
 import { exportToCSV } from "@/lib/export-utils";
@@ -108,7 +109,7 @@ export default function EsimPage() {
 
   const loadProfiles = useCallback(async () => {
     try {
-      const res = await fetch("/api/esim");
+      const res = await fetch(`/api/esim?_t=${Date.now()}`, { cache: "no-store", headers: { Pragma: "no-cache" } });
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) setProfiles(data);
@@ -123,6 +124,9 @@ export default function EsimPage() {
   useEffect(() => {
     loadProfiles();
   }, [loadProfiles]);
+
+  // Enable Real-time sync across devices
+  useRealtimeSync(loadProfiles, { tables: ["esim_profiles"] });
 
   async function handleCreateEsim(e: React.FormEvent) {
     e.preventDefault();

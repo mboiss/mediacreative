@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { jsonNoCache } from "@/lib/api-utils";
+import { readJsonStore, writeJsonStore } from "@/lib/json-store";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-key";
@@ -52,25 +57,16 @@ export async function GET() {
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (error) {
-      console.error("GET eSIM Error:", error);
-      return NextResponse.json(INITIAL_PROFILES);
+    if (!error && data && data.length > 0) {
+      writeJsonStore("esim.json", data);
+      return jsonNoCache(data);
     }
-
-    if (!data || data.length === 0) {
-      const { data: seeded } = await supabase
-        .from("esim_profiles")
-        .insert(INITIAL_PROFILES)
-        .select();
-
-      return NextResponse.json(seeded || INITIAL_PROFILES);
-    }
-
-    return NextResponse.json(data);
   } catch (err) {
-    console.error("GET eSIM Crash:", err);
-    return NextResponse.json(INITIAL_PROFILES);
+    console.warn("Supabase esim_profiles query skipped/failed, using local store:", err);
   }
+
+  const localData = readJsonStore("esim.json", INITIAL_PROFILES);
+  return jsonNoCache(localData);
 }
 
 export async function POST(request: Request) {
@@ -102,19 +98,26 @@ export async function POST(request: Request) {
       expiry_date: expiry_date || new Date(Date.now() + 30 * 86400000).toISOString().split("T")[0],
     };
 
-    const { data, error } = await supabase
-      .from("esim_profiles")
-      .insert([payload])
-      .select()
-      .single();
+    // Dual write local store
+    const list = readJsonStore("esim.json", INITIAL_PROFILES);
+    const existingIdx = list.findIndex((e: any) => e.id === payload.id);
+    if (existingIdx >= 0) {
+      list[existingIdx] = payload;
+    } else {
+      list.unshift(payload);
+    }
+    writeJsonStore("esim.json", list);
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    // Try saving to Supabase
+    try {
+      await supabase.from("esim_profiles").insert([payload]);
+    } catch (e) {
+      console.warn("Supabase esim_profiles insert skipped:", e);
     }
 
-    return NextResponse.json(data);
+    return jsonNoCache(payload);
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "Insert failed" }, { status: 500 });
+    return jsonNoCache({ error: err?.message || "Insert failed" }, 500);
   }
 }
 
@@ -135,33 +138,43 @@ export async function PUT(request: Request) {
     } = body;
 
     if (!id) {
-      return NextResponse.json({ error: "eSIM ID is required" }, { status: 400 });
+      return jsonNoCache({ error: "eSIM ID is required" }, 400);
     }
 
-    const { data, error } = await supabase
-      .from("esim_profiles")
-      .update({
-        iccid,
-        package_name,
-        region,
-        data_gb: Number(data_gb || 0),
-        price: Number(price || 0),
-        user_name,
-        activation_code,
-        status,
-        expiry_date,
-      })
-      .eq("id", id)
-      .select()
-      .single();
+    const updates = {
+      iccid,
+      package_name,
+      region,
+      data_gb: Number(data_gb || 0),
+      price: Number(price || 0),
+      user_name,
+      activation_code,
+      status,
+      expiry_date,
+    };
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    // Dual update local store
+    const list = readJsonStore("esim.json", INITIAL_PROFILES);
+    let updatedItem = { id, ...updates };
+    const existingIdx = list.findIndex((e: any) => e.id === id);
+    if (existingIdx >= 0) {
+      list[existingIdx] = { ...list[existingIdx], ...updates };
+      updatedItem = list[existingIdx];
+    } else {
+      list.unshift(updatedItem);
+    }
+    writeJsonStore("esim.json", list);
+
+    // Try updating Supabase
+    try {
+      await supabase.from("esim_profiles").update(updates).eq("id", id);
+    } catch (e) {
+      console.warn("Supabase esim_profiles update skipped:", e);
     }
 
-    return NextResponse.json(data);
+    return jsonNoCache(updatedItem);
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "Update failed" }, { status: 500 });
+    return jsonNoCache({ error: err?.message || "Update failed" }, 500);
   }
 }
 
@@ -170,20 +183,23 @@ export async function DELETE(request: Request) {
     const { id } = await request.json();
 
     if (!id) {
-      return NextResponse.json({ error: "eSIM ID is required" }, { status: 400 });
+      return jsonNoCache({ error: "eSIM ID is required" }, 400);
     }
 
-    const { error } = await supabase
-      .from("esim_profiles")
-      .delete()
-      .eq("id", id);
+    // Dual delete local store
+    const list = readJsonStore("esim.json", INITIAL_PROFILES);
+    const filtered = list.filter((e: any) => e.id !== id);
+    writeJsonStore("esim.json", filtered);
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    // Try deleting from Supabase
+    try {
+      await supabase.from("esim_profiles").delete().eq("id", id);
+    } catch (e) {
+      console.warn("Supabase esim_profiles delete skipped:", e);
     }
 
-    return NextResponse.json({ success: true });
+    return jsonNoCache({ success: true });
   } catch (err: any) {
-    return NextResponse.json({ error: err?.message || "Delete failed" }, { status: 500 });
+    return jsonNoCache({ error: err?.message || "Delete failed" }, 500);
   }
 }

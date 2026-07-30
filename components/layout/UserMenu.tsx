@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { User, LogOut, Settings, ShieldCheck, ChevronDown } from "lucide-react";
+import { User, LogOut, Settings, ShieldCheck, ChevronDown, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/supabase/client";
 import { useToast } from "@/components/ui/toast";
+import { forceClearBrowserCache } from "@/components/layout/auto-clear-cache";
 
 export default function UserMenu() {
   const toast = useToast();
@@ -194,6 +195,37 @@ export default function UserMenu() {
             <Settings size={14} style={{ color: "#00d4ff" }} />
             Account Settings
           </Link>
+
+          <button
+            onClick={() => {
+              toast.info("Clearing Cache", "Purging local storage & reloading...");
+              forceClearBrowserCache();
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "8px 10px",
+              borderRadius: 10,
+              background: "rgba(0, 212, 255, 0.08)",
+              border: "1px solid rgba(0, 212, 255, 0.2)",
+              color: "#00d4ff",
+              fontSize: "0.82rem",
+              fontWeight: 600,
+              cursor: "pointer",
+              transition: "all 150ms ease",
+              width: "100%",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(0, 212, 255, 0.18)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(0, 212, 255, 0.08)";
+            }}
+          >
+            <RefreshCw size={14} />
+            Clear Cache & Sync
+          </button>
 
           <button
             onClick={handleLogout}

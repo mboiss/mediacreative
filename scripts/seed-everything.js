@@ -1,16 +1,11 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import { jsonNoCache } from "@/lib/api-utils";
-import { readJsonStore, writeJsonStore } from "@/lib/json-store";
+const { createClient } = require("@supabase/supabase-js");
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://gztjdvykaedcatnxeoxm.supabase.co";
+const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6dGpkdnlrYWVkY2F0bnhlb3htIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3OTcxMzgxMywiZXhwIjoyMDk1Mjg5ODEzfQ.wTpM1_e0W34VqD90qoXaNDh6zfxcrT-jHsjnh2M7lo8";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-key";
+const supabase = createClient(url, serviceKey);
 
-const supabase = createClient(supabaseUrl, supabaseKey);
-
+// 1. MODEMS
 const INITIAL_MODEMS = [
   { id: "modem-1", device_name: "Orbitmifi_6DF6", number: "081329926886", ssid: "Media Creative 1", password: "MC1#2026", status: "Available" },
   { id: "modem-2", device_name: "Orbitmifi_6DE3", number: "081329926880", ssid: "Media Creative 2", password: "MC2#2026", status: "Available" },
@@ -56,123 +51,83 @@ const INITIAL_MODEMS = [
   { id: "modem-42", device_name: "Orbitmifi_C2DA", number: "085313428598", ssid: "Media Creative 42", password: "MC42#2026", status: "Available" },
 ];
 
-export async function GET() {
-  try {
-    const { data, error } = await supabase.from("modems").select("*").order("id");
-    if (!error && data && data.length > 0) {
-      writeJsonStore("modems.json", data);
-      return jsonNoCache(data);
+// 2. APP SETTINGS
+const DEFAULT_SETTINGS = {
+  id: "default",
+  company_name: "Media Creative Studio",
+  email: "billing@mediacreative.co.id",
+  phone: "+62 812-3456-7890",
+  address: "Jl. Sudirman No. 88, Jakarta Selatan 12190",
+  tax_id: "01.234.567.8-012.000",
+  invoice_prefix: "INV-2026-",
+  tax_rate: "11",
+  currency: "IDR (Rp)",
+  payment_terms_days: "14",
+};
+
+// 3. TOUR LEADERS
+const DEFAULT_TOUR_LEADERS = [
+  { id: "tl-1", name: "Komang Sudira" },
+  { id: "tl-2", name: "Empong Kuswoyo" },
+  { id: "tl-3", name: "Pendot" },
+  { id: "tl-4", name: "Gede Suadnyana" },
+  { id: "tl-5", name: "Chairul Effendi" },
+  { id: "tl-6", name: "Bram Idrus" },
+  { id: "tl-7", name: "Komang Karung" },
+  { id: "tl-8", name: "Nurdin Nasution" },
+  { id: "tl-9", name: "Nino" },
+  { id: "tl-10", name: "Sofyan" },
+  { id: "tl-11", name: "Linda Samosir" },
+  { id: "tl-12", name: "I Ketut Sentosa" },
+  { id: "tl-13", name: "Usman" },
+  { id: "tl-14", name: "Agus Wiraman" },
+  { id: "tl-15", name: "Sugiarto" },
+  { id: "tl-16", name: "Ophan" },
+  { id: "tl-17", name: "Ayu Putu" },
+];
+
+// 4. PAYMENT ACCOUNTS
+const DEFAULT_PAYMENT_ACCOUNTS = [
+  { id: "acc_bca", bank_name: "BCA", account_number: "0402434901", account_holder: "Mulyadi", is_default: true },
+  { id: "acc_mandiri", bank_name: "Bank Mandiri", account_number: "137-00-1234567-8", account_holder: "Media Creative", is_default: false },
+  { id: "acc_bsi", bank_name: "BSI", account_number: "7123456789", account_holder: "Mulyadi", is_default: false },
+];
+
+async function seedAll() {
+  console.log("Starting full seed into Supabase...");
+
+  // Seed Modems
+  const { error: mErr } = await supabase.from("modems").upsert(INITIAL_MODEMS);
+  console.log("1. Modems seeded:", mErr ? mErr.message : "SUCCESS (42 modems)");
+
+  // Seed Settings
+  const { error: sErr } = await supabase.from("app_settings").upsert([DEFAULT_SETTINGS]);
+  console.log("2. Settings seeded:", sErr ? sErr.message : "SUCCESS");
+
+  // Seed Tour Leaders
+  const { error: tlErr } = await supabase.from("tour_leaders").upsert(DEFAULT_TOUR_LEADERS);
+  console.log("3. Tour Leaders seeded:", tlErr ? tlErr.message : "SUCCESS");
+
+  // Seed Payment Accounts
+  const { error: paErr } = await supabase.from("payment_accounts").upsert(DEFAULT_PAYMENT_ACCOUNTS);
+  console.log("4. Payment Accounts seeded:", paErr ? paErr.message : "SUCCESS");
+
+  // Seed Tour Rental Logs
+  const parseLogs = require("./parse-tour-logs.js");
+  const fs = require('fs');
+  const rentalsCode = fs.readFileSync("./app/(dashboard)/rentals/page.tsx", "utf8");
+  const match = rentalsCode.match(/const MASTER_TOUR_LOGS: TourRentalLog\[\] = (\[[\s\S]*?\]);/);
+  if (match) {
+    const logs = JSON.parse(match[1]);
+    console.log(`Found ${logs.length} tour logs in rentals page. Seeding to Supabase...`);
+    // Upsert in batches of 50
+    for (let i = 0; i < logs.length; i += 50) {
+      const batch = logs.slice(i, i + 50);
+      const { error: trErr } = await supabase.from("tour_rental_logs").upsert(batch, { onConflict: "tourcode" });
+      if (trErr) console.error("Batch seed error:", trErr.message);
     }
-  } catch (err) {
-    console.warn("Supabase modems query skipped/failed, using local store:", err);
-  }
-
-  const localData = readJsonStore<any[]>("modems.json", INITIAL_MODEMS);
-  return jsonNoCache(localData);
-}
-
-export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { id, device_name, number, ssid, password, status, remark } = body;
-
-    const payload = {
-      id: id || `modem-${Date.now()}`,
-      device_name: device_name || "Orbitmifi",
-      number: number || "",
-      ssid: ssid || "Media Creative",
-      password: password || "MC#2026",
-      status: status || "Available",
-      remark: remark || null,
-    };
-
-    // Dual write to local store
-    const list = readJsonStore<any[]>("modems.json", INITIAL_MODEMS);
-    const existingIdx = list.findIndex((m: any) => m.id === payload.id);
-    if (existingIdx >= 0) {
-      list[existingIdx] = payload;
-    } else {
-      list.push(payload);
-    }
-    writeJsonStore("modems.json", list);
-
-    // Write to Supabase if table exists
-    try {
-      await supabase.from("modems").insert([payload]);
-    } catch (e) {
-      console.warn("Supabase insert modem skipped:", e);
-    }
-
-    return jsonNoCache(payload);
-  } catch (err: any) {
-    return jsonNoCache({ error: err?.message || "Insert failed" }, 500);
-  }
-}
-
-export async function PUT(request: Request) {
-  try {
-    const body = await request.json();
-    const { id, device_name, number, ssid, password, status, remark } = body;
-
-    if (!id) {
-      return jsonNoCache({ error: "Modem ID is required" }, 400);
-    }
-
-    const updates: Record<string, any> = {};
-    if (device_name !== undefined) updates.device_name = device_name;
-    if (number !== undefined) updates.number = number;
-    if (ssid !== undefined) updates.ssid = ssid;
-    if (password !== undefined) updates.password = password;
-    if (status !== undefined) updates.status = status;
-    if (remark !== undefined) updates.remark = remark;
-
-    // Dual update in local store
-    const list = readJsonStore<any[]>("modems.json", INITIAL_MODEMS);
-    let updatedItem = { id, ...updates };
-    const existingIdx = list.findIndex((m: any) => m.id === id);
-    if (existingIdx >= 0) {
-      list[existingIdx] = { ...list[existingIdx], ...updates };
-      updatedItem = list[existingIdx];
-    } else {
-      list.push(updatedItem as any);
-    }
-    writeJsonStore("modems.json", list);
-
-    // Try updating Supabase
-    try {
-      await supabase.from("modems").update(updates).eq("id", id);
-    } catch (e) {
-      console.warn("Supabase modem update skipped:", e);
-    }
-
-    return jsonNoCache(updatedItem);
-  } catch (err: any) {
-    return jsonNoCache({ error: err?.message || "Update failed" }, 500);
+    console.log("5. Tour Rental Logs seeded: SUCCESS");
   }
 }
 
-export async function DELETE(request: Request) {
-  try {
-    const { id } = await request.json();
-
-    if (!id) {
-      return jsonNoCache({ error: "Modem ID is required" }, 400);
-    }
-
-    // Dual delete in local store
-    const list = readJsonStore<any[]>("modems.json", INITIAL_MODEMS);
-    const filtered = list.filter((m: any) => m.id !== id);
-    writeJsonStore("modems.json", filtered);
-
-    // Try deleting from Supabase
-    try {
-      await supabase.from("modems").delete().eq("id", id);
-    } catch (e) {
-      console.warn("Supabase modem delete skipped:", e);
-    }
-
-    return jsonNoCache({ success: true });
-  } catch (err: any) {
-    return jsonNoCache({ error: err?.message || "Delete failed" }, 500);
-  }
-}
+seedAll().catch(console.error);

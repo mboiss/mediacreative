@@ -34,6 +34,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { getTourLeaders, TourLeader } from "@/lib/tour-leaders";
 import { useToast } from "@/components/ui/toast";
 import { exportToCSV } from "@/lib/export-utils";
+import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 
 export type ModemItem = {
   id: string;
@@ -3552,10 +3553,11 @@ export default function ModemWifiPage() {
 
   const loadData = useCallback(async () => {
     try {
+      const ts = Date.now();
       const [modemsRes, toursRes, leadersRes] = await Promise.all([
-        fetch("/api/modems"),
-        fetch("/api/tour-rentals"),
-        fetch("/api/tour-leaders"),
+        fetch(`/api/modems?_t=${ts}`, { cache: "no-store", headers: { Pragma: "no-cache" } }),
+        fetch(`/api/tour-rentals?_t=${ts}`, { cache: "no-store", headers: { Pragma: "no-cache" } }),
+        fetch(`/api/tour-leaders?_t=${ts}`, { cache: "no-store", headers: { Pragma: "no-cache" } }),
       ]);
 
       if (modemsRes.ok) {
@@ -3580,6 +3582,9 @@ export default function ModemWifiPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Enable Real-time sync across devices
+  useRealtimeSync(loadData, { tables: ["modems", "tour_rental_logs", "tour_leaders"] });
 
   // 1-CLICK WHATSAPP DISPATCHER
   function handleWhatsAppShare(tour: TourRentalLog) {

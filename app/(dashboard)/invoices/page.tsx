@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 
 type Client = {
   id: string;
@@ -93,9 +94,10 @@ export default function InvoicesPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
+      const ts = Date.now();
       const [clientsRes, invoicesRes] = await Promise.all([
-        fetch("/api/clients"),
-        fetch("/api/invoices"),
+        fetch(`/api/clients?_t=${ts}`, { cache: "no-store", headers: { Pragma: "no-cache" } }),
+        fetch(`/api/invoices?_t=${ts}`, { cache: "no-store", headers: { Pragma: "no-cache" } }),
       ]);
       const clientsData = await clientsRes.json();
       const invoiceData = await invoicesRes.json();
@@ -111,6 +113,9 @@ export default function InvoicesPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Enable Real-time sync across devices
+  useRealtimeSync(loadData, { tables: ["invoices", "clients", "invoice_items"] });
 
   async function createInvoice(e: React.FormEvent) {
     e.preventDefault();

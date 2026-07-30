@@ -29,7 +29,7 @@ const STORAGE_KEY = "media_creative_tour_leaders";
 
 export async function fetchTourLeaders(): Promise<TourLeader[]> {
   try {
-    const res = await fetch("/api/tour-leaders");
+    const res = await fetch(`/api/tour-leaders?_t=${Date.now()}`, { cache: "no-store", headers: { Pragma: "no-cache" } });
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) return data;

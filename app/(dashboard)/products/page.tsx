@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Search, Plus, Trash2, Package, Loader2, Tag, Edit2, Wrench, Box, TrendingUp } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 
 type Product = {
   id: string;
@@ -51,7 +52,8 @@ export default function ProductsPage() {
 
   const loadProducts = useCallback(async () => {
     try {
-      const res = await fetch("/api/products");
+      const res = await fetch(`/api/products?_t=${Date.now()}`, { cache: "no-store", headers: { Pragma: "no-cache" } });
+      if (!res.ok) return;
       const data = await res.json();
       if (Array.isArray(data)) setProducts(data);
     } catch (err) {
@@ -64,6 +66,9 @@ export default function ProductsPage() {
   useEffect(() => {
     loadProducts();
   }, [loadProducts]);
+
+  // Enable Real-time sync across devices
+  useRealtimeSync(loadProducts, { tables: ["products"] });
 
   function openCreateModal(defaultService = false) {
     setEditingProduct(null);

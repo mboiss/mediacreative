@@ -31,6 +31,19 @@ export const DEFAULT_PAYMENT_ACCOUNTS: PaymentAccount[] = [
   },
 ];
 
+export async function fetchPaymentAccounts(): Promise<PaymentAccount[]> {
+  try {
+    const res = await fetch(`/api/payment-accounts?_t=${Date.now()}`, { cache: "no-store", headers: { Pragma: "no-cache" } });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+    }
+  } catch (err) {
+    console.error("Failed to fetch payment accounts from API:", err);
+  }
+  return getPaymentAccounts();
+}
+
 export function getPaymentAccounts(): PaymentAccount[] {
   if (typeof window === "undefined") return DEFAULT_PAYMENT_ACCOUNTS;
   try {
@@ -47,6 +60,20 @@ export function getPaymentAccounts(): PaymentAccount[] {
   return DEFAULT_PAYMENT_ACCOUNTS;
 }
 
+export async function savePaymentAccountToApi(account: PaymentAccount): Promise<boolean> {
+  try {
+    const res = await fetch("/api/payment-accounts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(account),
+    });
+    return res.ok;
+  } catch (e) {
+    console.error("Error saving payment account to API:", e);
+    return false;
+  }
+}
+
 export function savePaymentAccounts(accounts: PaymentAccount[]): void {
   if (typeof window === "undefined") return;
   try {
@@ -55,6 +82,7 @@ export function savePaymentAccounts(accounts: PaymentAccount[]): void {
     console.error("Error saving payment accounts to localStorage:", e);
   }
 }
+
 
 export function formatAccountTransferText(acc: PaymentAccount): string {
   const bankLabel = acc.bank_name.toUpperCase().startsWith("BANK")
