@@ -27,10 +27,10 @@ const DEFAULT_PAYMENT_ACCOUNTS = [
     is_default: false,
   },
   {
-    id: "acc_bsi",
-    bank_name: "BSI",
-    account_number: "7123456789",
-    account_holder: "Mulyadi",
+    id: "acc_uob",
+    bank_name: "Bank UOB",
+    account_number: "301-301-123-4",
+    account_holder: "Media Creative",
     is_default: false,
   },
 ];
