@@ -17,7 +17,7 @@ export function useRealtimeSync(
   onSync: () => void | Promise<void>,
   options: RealtimeSyncOptions = {}
 ) {
-  const { intervalMs = 5000, tables = [], enabled = true } = options;
+  const { intervalMs = 15000, tables = [], enabled = true } = options;
   const syncRef = useRef(onSync);
 
   useEffect(() => {

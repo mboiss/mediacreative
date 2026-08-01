@@ -33,7 +33,6 @@ import {
   formatAccountTransferText,
   PaymentAccount,
 } from "@/lib/payment-accounts";
-import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 
 type Client = {
   id: string;
@@ -98,7 +97,6 @@ export default function NewInvoicePage() {
 
   // Load clients, products, payment accounts, and tour logs
   const loadData = useCallback(async () => {
-    setLoadingData(true);
     try {
       const ts = Date.now();
       const [cRes, pRes, tRes, accsData] = await Promise.all([
@@ -136,9 +134,6 @@ export default function NewInvoicePage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  // Enable Real-time sync across devices
-  useRealtimeSync(loadData, { tables: ["clients", "products", "tour_rental_logs", "payment_accounts"] });
 
   // Selected client object & Live Filter
   const filteredClients = clients.filter((c) => {

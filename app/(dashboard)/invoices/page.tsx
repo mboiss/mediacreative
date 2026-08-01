@@ -92,7 +92,6 @@ export default function InvoicesPage() {
   });
 
   const loadData = useCallback(async () => {
-    setLoading(true);
     try {
       const ts = Date.now();
       const [clientsRes, invoicesRes] = await Promise.all([
