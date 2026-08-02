@@ -3405,8 +3405,15 @@ export async function GET() {
       .order("created_at", { ascending: false });
 
     if (!error && data) {
-      writeJsonStore("tour_rentals.json", data);
-      return jsonNoCache(data);
+      const localData = readJsonStore<any[]>("tour_rentals.json", MASTER_TOUR_LOGS);
+      const combined = [...data];
+      for (const loc of localData) {
+        if (!combined.some((t) => (loc.tourcode && t.tourcode === loc.tourcode) || (loc.id && t.id === loc.id))) {
+          combined.unshift(loc);
+        }
+      }
+      writeJsonStore("tour_rentals.json", combined);
+      return jsonNoCache(combined);
     }
   } catch (err) {
     console.warn("Supabase tour_rental_logs query skipped/failed, using local store:", err);
@@ -3436,9 +3443,8 @@ export async function POST(request: Request) {
     } = body;
 
     const payload: Record<string, any> = {
-      id: body.id || `tour-${Date.now()}`,
-      tourcode: tourcode || `TOUR-${Date.now()}`,
-      start_date: start_date || "",
+      tourcode: (tourcode || `TOUR-${Date.now()}`).trim(),
+      start_date: start_date || new Date().toISOString().split("T")[0],
       end_date: end_date || "",
       days: Number(days || 1),
       qty: Number(qty || 1),
@@ -3453,9 +3459,17 @@ export async function POST(request: Request) {
       created_at: new Date().toISOString(),
     };
 
+    if (body.id && body.id.length > 20 && body.id.includes("-")) {
+      payload.id = body.id;
+    } else if (typeof crypto !== "undefined" && crypto.randomUUID) {
+      payload.id = crypto.randomUUID();
+    } else {
+      payload.id = `tour-${Date.now()}`;
+    }
+
     // Dual write local store
     const list = readJsonStore<any[]>("tour_rentals.json", MASTER_TOUR_LOGS);
-    const existingIdx = list.findIndex((t: any) => t.tourcode === payload.tourcode || (t.id && t.id === payload.id));
+    const existingIdx = list.findIndex((t: any) => (t.tourcode && t.tourcode === payload.tourcode) || (t.id && t.id === payload.id));
     if (existingIdx >= 0) {
       list[existingIdx] = { ...list[existingIdx], ...payload };
     } else {
@@ -3465,7 +3479,13 @@ export async function POST(request: Request) {
 
     // Try saving to Supabase if table exists
     try {
-      await supabase.from("tour_rental_logs").insert([payload]);
+      const sbPayload = { ...payload };
+      // Omit custom non-UUID string id if Supabase expects UUID type
+      if (sbPayload.id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sbPayload.id)) {
+        delete sbPayload.id;
+      }
+      const { error: sbErr } = await supabase.from("tour_rental_logs").upsert([sbPayload], { onConflict: "tourcode" });
+      if (sbErr) console.warn("Supabase tour_rental_logs upsert error:", sbErr.message);
     } catch (e) {
       console.warn("Supabase tour_rental_logs insert skipped:", e);
     }

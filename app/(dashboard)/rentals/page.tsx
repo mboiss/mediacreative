@@ -3976,13 +3976,29 @@ export default function ModemWifiPage() {
       });
 
       if (res.ok) {
+        const savedTour = await res.json();
         setShowTourModal(false);
         setEditingTourCode(null);
         setActiveTab("tours");
+        setSearch("");
+        setTourStatusFilter("All");
         toast.success(
           isEdit ? "Tour Order Updated" : "New Tour Created",
           `Tour ${updatedTour.tourcode} (${updatedTour.tl}) saved`
         );
+
+        if (savedTour && savedTour.tourcode) {
+          setTourLogs((prev) => {
+            const idx = prev.findIndex((t) => t.tourcode === savedTour.tourcode);
+            if (idx >= 0) {
+              const updated = [...prev];
+              updated[idx] = { ...updated[idx], ...savedTour };
+              return updated;
+            }
+            return [savedTour, ...prev];
+          });
+        }
+
         await loadData();
       } else {
         toast.error("Save Failed", "Failed to save tour rental order");

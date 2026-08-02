@@ -55,8 +55,8 @@
     "number": "081264515938",
     "ssid": "Media Creative 14",
     "password": "MC14#2026",
-    "status": "Maintenance",
-    "remark": "No Bat",
+    "status": "Available",
+    "remark": "No Bat, tuker modem nomor 6",
     "created_at": "2026-07-30T13:01:33.59705+00:00"
   },
   {
@@ -195,8 +195,8 @@
     "number": "081264515951",
     "ssid": "Media Creative 23",
     "password": "MC23#2026",
-    "status": "Available",
-    "remark": null,
+    "status": "Maintenance",
+    "remark": "No Bat",
     "created_at": "2026-07-30T13:01:33.59705+00:00"
   },
   {
