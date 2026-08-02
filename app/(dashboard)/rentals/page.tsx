@@ -3729,15 +3729,11 @@ export default function ModemWifiPage() {
 
   // Form State: New Tour / Rental Order
   const [tourForm, setTourForm] = useState({
-    tourcode: "KIB" + Math.floor(260800 + Math.random() * 99),
-    start_date: new Date().toISOString().split("T")[0],
-    end_date: (() => {
-      const d = new Date();
-      d.setDate(d.getDate() + 14);
-      return d.toISOString().split("T")[0];
-    })(),
-    location: "Sri Phala Resort Sanur",
-    tl: "Komang Sudira",
+    tourcode: "",
+    start_date: "",
+    end_date: "",
+    location: "",
+    tl: "",
     status: "Upcoming" as TourRentalLog["status"],
     invoice_status: "Pending" as TourRentalLog["invoice_status"],
     selectedModemSsids: [] as string[],
@@ -3839,17 +3835,12 @@ export default function ModemWifiPage() {
   // Open New Tour Rental Modal
   function handleOpenNewTour() {
     setEditingTourCode(null);
-    const randomNum = Math.floor(260800 + Math.random() * 99);
     setTourForm({
-      tourcode: "KIB" + randomNum,
-      start_date: new Date().toISOString().split("T")[0],
-      end_date: (() => {
-        const d = new Date();
-        d.setDate(d.getDate() + 14);
-        return d.toISOString().split("T")[0];
-      })(),
-      location: "Sri Phala Resort Sanur",
-      tl: "Komang Sudira",
+      tourcode: "",
+      start_date: "",
+      end_date: "",
+      location: "",
+      tl: "",
       status: "Upcoming",
       invoice_status: "Pending",
       selectedModemSsids: [],
@@ -3936,8 +3927,14 @@ export default function ModemWifiPage() {
       return;
     }
 
-    const sDate = new Date(tourForm.start_date);
-    const eDate = new Date(tourForm.end_date);
+    const sDate = tourForm.start_date ? new Date(tourForm.start_date) : new Date();
+    const eDate = tourForm.end_date
+      ? new Date(tourForm.end_date)
+      : (() => {
+          const d = new Date();
+          d.setDate(d.getDate() + 14);
+          return d;
+        })();
     const diffTime = Math.abs(eDate.getTime() - sDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
 
@@ -3950,8 +3947,14 @@ export default function ModemWifiPage() {
 
     const updatedTour = {
       tourcode: tourForm.tourcode.trim(),
-      start_date: tourForm.start_date,
-      end_date: tourForm.end_date,
+      start_date: tourForm.start_date || new Date().toISOString().split("T")[0],
+      end_date:
+        tourForm.end_date ||
+        (() => {
+          const d = new Date();
+          d.setDate(d.getDate() + 14);
+          return d.toISOString().split("T")[0];
+        })(),
       days: diffDays,
       qty: tourForm.selectedModemSsids.length,
       location: tourForm.location.trim() || "Sanur, Bali",
