@@ -27,6 +27,9 @@ import {
   Download,
   CheckSquare,
   MessageCircle,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import Link from "next/link";
 import { Modal } from "@/components/ui/modal";
@@ -3531,6 +3534,10 @@ export default function ModemWifiPage() {
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>("All");
   const [dateSortOrder, setDateSortOrder] = useState<"newest" | "oldest">("newest");
 
+  type ModemSortField = "ssid" | "device_name" | "number" | "status";
+  const [modemSortField, setModemSortField] = useState<ModemSortField>("ssid");
+  const [modemSortOrder, setModemSortOrder] = useState<"asc" | "desc">("asc");
+
   // Modals
   const [showModal, setShowModal] = useState(false);
   const [showTourModal, setShowTourModal] = useState(false);
@@ -4064,17 +4071,41 @@ export default function ModemWifiPage() {
     setTimeout(() => setCopiedId(null), 2000);
   }
 
-  const filteredModems = modems.filter((item) => {
-    const q = search.toLowerCase();
-    const matchSearch =
-      item.device_name.toLowerCase().includes(q) ||
-      item.number.toLowerCase().includes(q) ||
-      item.ssid.toLowerCase().includes(q) ||
-      item.password.toLowerCase().includes(q) ||
-      (item.remark ?? "").toLowerCase().includes(q);
-    const matchStatus = statusFilter === "All" || item.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
+  function handleModemSort(field: ModemSortField) {
+    if (modemSortField === field) {
+      setModemSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setModemSortField(field);
+      setModemSortOrder("asc");
+    }
+  }
+
+  const filteredModems = modems
+    .filter((item) => {
+      const q = search.toLowerCase();
+      const matchSearch =
+        item.device_name.toLowerCase().includes(q) ||
+        item.number.toLowerCase().includes(q) ||
+        item.ssid.toLowerCase().includes(q) ||
+        item.password.toLowerCase().includes(q) ||
+        (item.remark ?? "").toLowerCase().includes(q);
+      const matchStatus = statusFilter === "All" || item.status === statusFilter;
+      return matchSearch && matchStatus;
+    })
+    .sort((a, b) => {
+      let cmp = 0;
+      if (modemSortField === "ssid") {
+        cmp = a.ssid.localeCompare(b.ssid, undefined, { numeric: true, sensitivity: "base" });
+      } else if (modemSortField === "device_name") {
+        cmp = a.device_name.localeCompare(b.device_name, undefined, { numeric: true, sensitivity: "base" });
+      } else if (modemSortField === "number") {
+        cmp = a.number.localeCompare(b.number);
+      } else if (modemSortField === "status") {
+        const statusOrder: Record<string, number> = { Available: 1, Rented: 2, Maintenance: 3 };
+        cmp = (statusOrder[a.status] || 99) - (statusOrder[b.status] || 99);
+      }
+      return modemSortOrder === "asc" ? cmp : -cmp;
+    });
 
   const filteredTours = tourLogs
     .filter((t) => {
@@ -4291,26 +4322,68 @@ export default function ModemWifiPage() {
         </div>
 
         {activeTab === "inventory" && (
-          <div style={{ display: "flex", gap: 6 }}>
-            {["All", "Available", "Rented", "Maintenance"].map((st) => (
-              <button
-                key={st}
-                onClick={() => setStatusFilter(st)}
-                style={{
-                  padding: "6px 14px",
-                  borderRadius: 20,
-                  border: "1px solid",
-                  fontSize: "0.78rem",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  borderColor: statusFilter === st ? "var(--border-accent)" : "var(--border)",
-                  background: statusFilter === st ? "var(--accent-cyan-dim)" : "transparent",
-                  color: statusFilter === st ? "var(--accent-cyan)" : "var(--text-secondary)",
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 6 }}>
+              {["All", "Available", "Rented", "Maintenance"].map((st) => (
+                <button
+                  key={st}
+                  onClick={() => setStatusFilter(st)}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: 20,
+                    border: "1px solid",
+                    fontSize: "0.78rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    borderColor: statusFilter === st ? "var(--border-accent)" : "var(--border)",
+                    background: statusFilter === st ? "var(--accent-cyan-dim)" : "transparent",
+                    color: statusFilter === st ? "var(--accent-cyan)" : "var(--text-secondary)",
+                  }}
+                >
+                  {st}
+                </button>
+              ))}
+            </div>
+
+            {/* MODEM SORT DROPDOWN */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: "0.76rem", color: "var(--text-muted)", fontWeight: 600 }}>Sort Modem:</span>
+              <select
+                className="form-input form-select"
+                value={`${modemSortField}-${modemSortOrder}`}
+                onChange={(e) => {
+                  const [field, order] = e.target.value.split("-") as [ModemSortField, "asc" | "desc"];
+                  setModemSortField(field);
+                  setModemSortOrder(order);
                 }}
+                style={{ fontSize: "0.8rem", padding: "6px 12px", height: 36, width: "auto", fontWeight: 600, color: "var(--accent-cyan)" }}
               >
-                {st}
+                <option value="ssid-asc">📶 Modem / SSID (MC1 → MC46)</option>
+                <option value="ssid-desc">📶 Modem / SSID (MC46 → MC1)</option>
+                <option value="device_name-asc">🏷️ Device Name (A → Z)</option>
+                <option value="device_name-desc">🏷️ Device Name (Z → A)</option>
+                <option value="status-asc">🟢 Status (Available → Deployed → Maint.)</option>
+                <option value="status-desc">🔴 Status (Maint. → Deployed → Available)</option>
+                <option value="number-asc">📞 SIM Number (Low → High)</option>
+                <option value="number-desc">📞 SIM Number (High → Low)</option>
+              </select>
+            </div>
+
+            {(statusFilter !== "All" || search || modemSortField !== "ssid" || modemSortOrder !== "asc") && (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => {
+                  setSearch("");
+                  setStatusFilter("All");
+                  setModemSortField("ssid");
+                  setModemSortOrder("asc");
+                }}
+                style={{ padding: "6px 10px", fontSize: "0.75rem", color: "#f87171" }}
+              >
+                Clear Filters
               </button>
-            ))}
+            )}
           </div>
         )}
 
@@ -4410,11 +4483,63 @@ export default function ModemWifiPage() {
               <thead>
                 <tr>
                   <th style={{ width: 40 }}>#</th>
-                  <th>Device Name</th>
-                  <th>SIM Number</th>
-                  <th>Modem / SSID</th>
+                  <th
+                    onClick={() => handleModemSort("device_name")}
+                    style={{ cursor: "pointer", userSelect: "none" }}
+                    title="Click to sort by Device Name"
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      Device Name
+                      {modemSortField === "device_name" ? (
+                        modemSortOrder === "asc" ? <ArrowUp size={13} style={{ color: "var(--accent-cyan)" }} /> : <ArrowDown size={13} style={{ color: "var(--accent-cyan)" }} />
+                      ) : (
+                        <ArrowUpDown size={13} style={{ opacity: 0.4 }} />
+                      )}
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleModemSort("number")}
+                    style={{ cursor: "pointer", userSelect: "none" }}
+                    title="Click to sort by SIM Number"
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      SIM Number
+                      {modemSortField === "number" ? (
+                        modemSortOrder === "asc" ? <ArrowUp size={13} style={{ color: "var(--accent-cyan)" }} /> : <ArrowDown size={13} style={{ color: "var(--accent-cyan)" }} />
+                      ) : (
+                        <ArrowUpDown size={13} style={{ opacity: 0.4 }} />
+                      )}
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleModemSort("ssid")}
+                    style={{ cursor: "pointer", userSelect: "none" }}
+                    title="Click to sort by Modem / SSID"
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      Modem / SSID
+                      {modemSortField === "ssid" ? (
+                        modemSortOrder === "asc" ? <ArrowUp size={13} style={{ color: "var(--accent-cyan)" }} /> : <ArrowDown size={13} style={{ color: "var(--accent-cyan)" }} />
+                      ) : (
+                        <ArrowUpDown size={13} style={{ opacity: 0.4 }} />
+                      )}
+                    </div>
+                  </th>
                   <th>Password</th>
-                  <th>Status</th>
+                  <th
+                    onClick={() => handleModemSort("status")}
+                    style={{ cursor: "pointer", userSelect: "none" }}
+                    title="Click to sort by Status"
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      Status
+                      {modemSortField === "status" ? (
+                        modemSortOrder === "asc" ? <ArrowUp size={13} style={{ color: "var(--accent-cyan)" }} /> : <ArrowDown size={13} style={{ color: "var(--accent-cyan)" }} />
+                      ) : (
+                        <ArrowUpDown size={13} style={{ opacity: 0.4 }} />
+                      )}
+                    </div>
+                  </th>
                   <th>Assigned Tour & Drop-off Location</th>
                   <th style={{ textAlign: "right" }}>Actions</th>
                 </tr>
