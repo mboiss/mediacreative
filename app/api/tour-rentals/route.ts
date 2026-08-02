@@ -3480,12 +3480,18 @@ export async function POST(request: Request) {
     // Try saving to Supabase if table exists
     try {
       const sbPayload = { ...payload };
-      // Omit custom non-UUID string id if Supabase expects UUID type
       if (sbPayload.id && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sbPayload.id)) {
         delete sbPayload.id;
       }
-      const { error: sbErr } = await supabase.from("tour_rental_logs").upsert([sbPayload], { onConflict: "tourcode" });
-      if (sbErr) console.warn("Supabase tour_rental_logs upsert error:", sbErr.message);
+      const { error: insErr } = await supabase.from("tour_rental_logs").insert([sbPayload]);
+      if (insErr) {
+        console.warn("Supabase insert warning, falling back to update:", insErr.message);
+        const { error: updErr } = await supabase
+          .from("tour_rental_logs")
+          .update(sbPayload)
+          .eq("tourcode", payload.tourcode);
+        if (updErr) console.warn("Supabase update error:", updErr.message);
+      }
     } catch (e) {
       console.warn("Supabase tour_rental_logs insert skipped:", e);
     }

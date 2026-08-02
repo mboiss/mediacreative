@@ -3595,7 +3595,15 @@ export default function ModemWifiPage() {
         if (Array.isArray(lData)) setTourLeaders(lData);
       }
 
-      setTourLogs(fetchedTours);
+      setTourLogs((prev) => {
+        const combined = [...fetchedTours];
+        for (const p of prev) {
+          if (p.tourcode && !combined.some((t) => t.tourcode === p.tourcode)) {
+            combined.unshift(p);
+          }
+        }
+        return combined;
+      });
 
       // Reconcile modem status based on active tours (Running or Upcoming)
       const activeTours = fetchedTours.filter((t) => t.status === "Running" || t.status === "Upcoming");
