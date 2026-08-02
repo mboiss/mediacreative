@@ -127,9 +127,9 @@ const INITIAL_MODEMS: ModemItem[] = [
   { id: "modem-36", device_name: "Orbitmifi_8D6B", number: "082310302248", ssid: "Media Creative 36", password: "MC36#2026", status: "Rented", remark: "FIS260717 (TL: Linda Samosir)" },
   { id: "modem-37", device_name: "Orbitmifi_8E02", number: "082310302384", ssid: "Media Creative 37", password: "MC37#2026", status: "Rented", remark: "SOJ260723 (TL: Ophan)" },
   { id: "modem-38", device_name: "Orbitmifi_8EC0", number: "082310371129", ssid: "Media Creative 38", password: "MC38#2026", status: "Available" },
-  { id: "modem-39", device_name: "Orbitmifi_9726", number: "082310371088", ssid: "Media Creative 39", password: "MC39#2026", status: "Rented", remark: "FIO260715 (TL: I Ketut Sentosa)" },
+  { id: "modem-39", device_name: "Orbitmifi_9726", number: "082310371088", ssid: "Media Creative 39", password: "MC39#2026", status: "Available" },
   { id: "modem-40", device_name: "Orbitmifi_56BD", number: "082130431824", ssid: "Media Creative 40", password: "MC40#2026", status: "Rented", remark: "SOJ260723 (TL: Ophan)" },
-  { id: "modem-41", device_name: "Orbitmifi_C823", number: "085313428403", ssid: "Media Creative 41", password: "MC41#2026", status: "Rented", remark: "KIS260710 (TL: Nurdin Nasution)" },
+  { id: "modem-41", device_name: "Orbitmifi_C823", number: "085313428403", ssid: "Media Creative 41", password: "MC41#2026", status: "Available" },
   { id: "modem-42", device_name: "Orbitmifi_C2DA", number: "085313428598", ssid: "Media Creative 42", password: "MC42#2026", status: "Available" },
 ];
 
@@ -3567,17 +3567,62 @@ export default function ModemWifiPage() {
         fetch(`/api/tour-leaders?_t=${ts}`, { cache: "no-store", headers: { Pragma: "no-cache" } }),
       ]);
 
+      let fetchedModems: ModemItem[] = [];
+      let fetchedTours: TourRentalLog[] = [];
+
       if (modemsRes.ok) {
         const mData = await modemsRes.json();
-        if (Array.isArray(mData)) setModems(mData);
+        if (Array.isArray(mData)) fetchedModems = mData;
       }
       if (toursRes.ok) {
         const tData = await toursRes.json();
-        if (Array.isArray(tData)) setTourLogs(tData);
+        if (Array.isArray(tData)) fetchedTours = tData;
       }
       if (leadersRes.ok) {
         const lData = await leadersRes.json();
         if (Array.isArray(lData)) setTourLeaders(lData);
+      }
+
+      setTourLogs(fetchedTours);
+
+      // Reconcile modem status based on active tours (Running or Upcoming)
+      const activeTours = fetchedTours.filter((t) => t.status === "Running" || t.status === "Upcoming");
+      const updatesToSync: Array<{ id: string; status: ModemItem["status"]; remark?: string | null }> = [];
+
+      const reconciledModems = fetchedModems.map((m) => {
+        if (m.status === "Maintenance") return m;
+        const mcCode = m.ssid.replace("Media Creative ", "MC");
+        const activeTour = activeTours.find((t) => {
+          const assignedList = t.modems.split(",").map((s) => s.trim());
+          return assignedList.includes(mcCode) || assignedList.includes(m.ssid);
+        });
+
+        const expectedStatus: ModemItem["status"] = activeTour ? "Rented" : "Available";
+        const expectedRemark = activeTour ? `${activeTour.tourcode} (TL: ${activeTour.tl})` : null;
+
+        const isRemarkFromFinishedTour = !activeTour && m.remark && !m.remark.toLowerCase().includes("no bat") && !m.remark.toLowerCase().includes("kartu mati") && !m.remark.toLowerCase().includes("my telkomsel");
+
+        if (m.status !== expectedStatus || (isRemarkFromFinishedTour && m.remark !== null)) {
+          const newRemark = expectedRemark !== null ? expectedRemark : (isRemarkFromFinishedTour ? null : m.remark);
+          updatesToSync.push({ id: m.id, status: expectedStatus, remark: newRemark });
+          return { ...m, status: expectedStatus, remark: newRemark || undefined };
+        }
+        return m;
+      });
+
+      setModems(reconciledModems);
+
+      // Asynchronously push reconciled statuses to API
+      if (updatesToSync.length > 0) {
+        Promise.all(
+          updatesToSync.map((u) =>
+            fetch("/api/modems", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(u),
+            })
+          )
+        ).catch((e) => console.error("Error syncing reconciled modem status:", e));
       }
     } catch (err) {
       console.error("Failed to load rental data from API:", err);
@@ -3852,7 +3897,7 @@ export default function ModemWifiPage() {
     );
     const assignedTour = matchingModem ? getAssignedTourForModem(matchingModem) : undefined;
     const isAssignedToThisTour = editingTourCode && assignedTour?.tourcode === editingTourCode;
-    const isAvailable = (matchingModem ? matchingModem.status === "Available" && !assignedTour : true) || !!isAssignedToThisTour;
+    const isAvailable = matchingModem ? matchingModem.status !== "Maintenance" && (!assignedTour || isAssignedToThisTour) : true;
     const isCurrentlySelected = tourForm.selectedModemSsids.includes(ssidLabel);
 
     if (!isAvailable && !isCurrentlySelected) {
@@ -3954,6 +3999,42 @@ export default function ModemWifiPage() {
       });
       if (res.ok) {
         toast.success("Status Updated", `Tour ${tourcode} status changed to ${newStatus}`);
+
+        // Automatically sync assigned modem statuses
+        const targetTour = tourLogs.find((t) => t.tourcode === tourcode);
+        if (targetTour) {
+          const assignedCodes = targetTour.modems.split(",").map((s) => s.trim()).filter(Boolean);
+          for (const mcCode of assignedCodes) {
+            const matchModem = modems.find(
+              (m) => m.ssid.replace("Media Creative ", "MC") === mcCode || m.ssid === mcCode
+            );
+            if (matchModem && matchModem.status !== "Maintenance") {
+              if (newStatus === "Finish" || newStatus === "Cancel") {
+                const otherActive = tourLogs.find(
+                  (t) => t.tourcode !== tourcode && (t.status === "Running" || t.status === "Upcoming") && t.modems.split(",").map((s) => s.trim()).includes(mcCode)
+                );
+                if (!otherActive) {
+                  await fetch("/api/modems", {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ id: matchModem.id, status: "Available", remark: null }),
+                  });
+                }
+              } else if (newStatus === "Running" || newStatus === "Upcoming") {
+                await fetch("/api/modems", {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    id: matchModem.id,
+                    status: "Rented",
+                    remark: `${tourcode} (TL: ${targetTour.tl})`,
+                  }),
+                });
+              }
+            }
+          }
+        }
+
         await loadData();
         if (selectedTourDetail?.tourcode === tourcode) {
           setSelectedTourDetail((prev) => (prev ? { ...prev, status: newStatus } : null));

@@ -50,9 +50,9 @@ const INITIAL_MODEMS = [
   { id: "modem-36", device_name: "Orbitmifi_8D6B", number: "082310302248", ssid: "Media Creative 36", password: "MC36#2026", status: "Rented", remark: "FIS260717 (TL: Linda Samosir)" },
   { id: "modem-37", device_name: "Orbitmifi_8E02", number: "082310302384", ssid: "Media Creative 37", password: "MC37#2026", status: "Rented", remark: "SOJ260723 (TL: Ophan)" },
   { id: "modem-38", device_name: "Orbitmifi_8EC0", number: "082310371129", ssid: "Media Creative 38", password: "MC38#2026", status: "Available" },
-  { id: "modem-39", device_name: "Orbitmifi_9726", number: "082310371088", ssid: "Media Creative 39", password: "MC39#2026", status: "Rented", remark: "FIO260715 (TL: I Ketut Sentosa)" },
+  { id: "modem-39", device_name: "Orbitmifi_9726", number: "082310371088", ssid: "Media Creative 39", password: "MC39#2026", status: "Available" },
   { id: "modem-40", device_name: "Orbitmifi_56BD", number: "082130431824", ssid: "Media Creative 40", password: "MC40#2026", status: "Rented", remark: "SOJ260723 (TL: Ophan)" },
-  { id: "modem-41", device_name: "Orbitmifi_C823", number: "085313428403", ssid: "Media Creative 41", password: "MC41#2026", status: "Rented", remark: "KIS260710 (TL: Nurdin Nasution)" },
+  { id: "modem-41", device_name: "Orbitmifi_C823", number: "085313428403", ssid: "Media Creative 41", password: "MC41#2026", status: "Available" },
   { id: "modem-42", device_name: "Orbitmifi_C2DA", number: "085313428598", ssid: "Media Creative 42", password: "MC42#2026", status: "Available" },
 ];
 

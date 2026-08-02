@@ -1,0 +1,462 @@
+[
+  {
+    "id": "modem-1",
+    "device_name": "Orbitmifi_6DF6",
+    "number": "081329926886",
+    "ssid": "Media Creative 1",
+    "password": "MC1#2026",
+    "status": "Maintenance",
+    "remark": "No Bat",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-10",
+    "device_name": "Orbitmifi_6A92",
+    "number": "081329924439",
+    "ssid": "Media Creative 10",
+    "password": "MC10#2026",
+    "status": "Rented",
+    "remark": "SOD260722 (TL: Komang Sudira)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-11",
+    "device_name": "Orbitmifi_47D5",
+    "number": "081398703423",
+    "ssid": "Media Creative 11",
+    "password": "MC11#2026",
+    "status": "Rented",
+    "remark": "SOD260722 (TL: Komang Sudira)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-12",
+    "device_name": "Orbitmifi_57FD",
+    "number": "081398703258",
+    "ssid": "Media Creative 12",
+    "password": "MC12#2026",
+    "status": "Available",
+    "remark": null,
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-13",
+    "device_name": "Orbitmifi_58C5",
+    "number": "081264516147",
+    "ssid": "Media Creative 13",
+    "password": "MC13#2026",
+    "status": "Rented",
+    "remark": "BAI260723 (TL: Halim Karnadi)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-14",
+    "device_name": "Orbitmifi_58F4",
+    "number": "081264515938",
+    "ssid": "Media Creative 14",
+    "password": "MC14#2026",
+    "status": "Maintenance",
+    "remark": "No Bat",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-15",
+    "device_name": "Orbitmifi_7021",
+    "number": "081232919331",
+    "ssid": "Media Creative 15",
+    "password": "MC15#2026",
+    "status": "Rented",
+    "remark": "SOO260729 (TL: Nasri)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-16",
+    "device_name": "Orbitmifi_58D8",
+    "number": "081264515931",
+    "ssid": "Media Creative 16",
+    "password": "MC16#2026",
+    "status": "Rented",
+    "remark": "SOO260729 (TL: Nasri)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-17",
+    "device_name": "Orbitmifi_5976",
+    "number": "081264515948",
+    "ssid": "Media Creative 17",
+    "password": "MC17#2026",
+    "status": "Maintenance",
+    "remark": "No Bat",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-1785497617660",
+    "device_name": "Orbitmifi_86DF",
+    "number": "081367135695",
+    "ssid": "Media Creative 43",
+    "password": "MC43#2026",
+    "status": "Available",
+    "remark": "My Telkomsel Apps",
+    "created_at": "2026-07-31T11:33:37.899901+00:00"
+  },
+  {
+    "id": "modem-1785497719903",
+    "device_name": "Orbitmifi_8616",
+    "number": "081367135696",
+    "ssid": "Media Creative 44",
+    "password": "MC44#2026",
+    "status": "Available",
+    "remark": "My Telkomsel Apps",
+    "created_at": "2026-07-31T11:35:20.22789+00:00"
+  },
+  {
+    "id": "modem-1785497771737",
+    "device_name": "Orbitmifi_86C6",
+    "number": "081367135621",
+    "ssid": "Media Creative 45",
+    "password": "MC45#2026",
+    "status": "Available",
+    "remark": "My Telkomsel Apps",
+    "created_at": "2026-07-31T11:36:12.174053+00:00"
+  },
+  {
+    "id": "modem-1785501942401",
+    "device_name": "Orbitmifi_855B",
+    "number": "081367135925",
+    "ssid": "Media Creative 46",
+    "password": "MC46#2026",
+    "status": "Available",
+    "remark": "My Telkomsel Apps",
+    "created_at": "2026-07-31T12:45:43.25786+00:00"
+  },
+  {
+    "id": "modem-18",
+    "device_name": "Orbitmifi_588D",
+    "number": "081264515947",
+    "ssid": "Media Creative 18",
+    "password": "MC18#2026",
+    "status": "Rented",
+    "remark": "SOO260729 (TL: Nasri)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-19",
+    "device_name": "Orbitmifi_5A36",
+    "number": "081264515950",
+    "ssid": "Media Creative 19",
+    "password": "MC19#2026",
+    "status": "Rented",
+    "remark": "FID260730 (TL: Sofyan)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-2",
+    "device_name": "Orbitmifi_6DE3",
+    "number": "081329926880",
+    "ssid": "Media Creative 2",
+    "password": "MC2#2026",
+    "status": "Rented",
+    "remark": "SOO260729 (TL: Nasri)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-20",
+    "device_name": "Orbitmifi_587A",
+    "number": "081264515935",
+    "ssid": "Media Creative 20",
+    "password": "MC20#2026",
+    "status": "Rented",
+    "remark": "BAS260727 (TL: Komang Karung)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-21",
+    "device_name": "Orbitmifi_5941",
+    "number": "081264515971",
+    "ssid": "Media Creative 21",
+    "password": "MC21#2026",
+    "status": "Rented",
+    "remark": "FID260730 (TL: Sofyan)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-22",
+    "device_name": "Orbitmifi_5946",
+    "number": "081264516146",
+    "ssid": "Media Creative 22",
+    "password": "MC22#2026",
+    "status": "Maintenance",
+    "remark": "No Bat",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-23",
+    "device_name": "Orbitmifi_5031",
+    "number": "081264515951",
+    "ssid": "Media Creative 23",
+    "password": "MC23#2026",
+    "status": "Available",
+    "remark": null,
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-24",
+    "device_name": "Orbitmifi_70A6",
+    "number": "081398733261",
+    "ssid": "Media Creative 24",
+    "password": "MC24#2026",
+    "status": "Rented",
+    "remark": "KIB260722 (TL: Gede Suadnyana)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-25",
+    "device_name": "Orbitmifi_48C4",
+    "number": "081398734462",
+    "ssid": "Media Creative 25",
+    "password": "MC25#2026",
+    "status": "Available",
+    "remark": null,
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-26",
+    "device_name": "Orbitmifi_499B",
+    "number": "081232918904",
+    "ssid": "Media Creative 26",
+    "password": "MC26#2026",
+    "status": "Available",
+    "remark": null,
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-27",
+    "device_name": "Orbitmifi_4A10",
+    "number": "081232918901",
+    "ssid": "Media Creative 27",
+    "password": "MC27#2026",
+    "status": "Rented",
+    "remark": "SOO260729 (TL: Nasri)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-28",
+    "device_name": "Orbitmifi_4947",
+    "number": "081398734440",
+    "ssid": "Media Creative 28",
+    "password": "MC28#2026",
+    "status": "Rented",
+    "remark": "FIO260729 (TL: Nino)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-29",
+    "device_name": "Orbitmifi_4987",
+    "number": "081232918902",
+    "ssid": "Media Creative 29",
+    "password": "MC29#2026",
+    "status": "Rented",
+    "remark": "KIB260722 (TL: Gede Suadnyana)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-3",
+    "device_name": "Orbitmifi_4F0A",
+    "number": "081264515945",
+    "ssid": "Media Creative 3",
+    "password": "MC3#2026",
+    "status": "Rented",
+    "remark": "AIL260716 (TL: Bram Idrus)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-30",
+    "device_name": "Orbitmifi_48DC",
+    "number": "081398734437",
+    "ssid": "Media Creative 30",
+    "password": "MC30#2026",
+    "status": "Rented",
+    "remark": "SOJ260723 (TL: Ophan)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-31",
+    "device_name": "Orbitmifi_4959",
+    "number": "081398734447",
+    "ssid": "Media Creative 31",
+    "password": "MC31#2026",
+    "status": "Maintenance",
+    "remark": "No Bat",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-32",
+    "device_name": "Orbitmifi_925B",
+    "number": "082310327205",
+    "ssid": "Media Creative 32",
+    "password": "MC32#2026",
+    "status": "Rented",
+    "remark": "SOJ260730 (TL: Empong)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-33",
+    "device_name": "Orbitmifi_8D50",
+    "number": "082310302160",
+    "ssid": "Media Creative 33",
+    "password": "MC33#2026",
+    "status": "Rented",
+    "remark": "BAJ260723 (TL: Sugiarto)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-34",
+    "device_name": "Orbitmifi_8D4B",
+    "number": "082310302178",
+    "ssid": "Media Creative 34",
+    "password": "MC34#2026",
+    "status": "Rented",
+    "remark": "SOO260729 (TL: Nasri)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-35",
+    "device_name": "Orbitmifi_9725",
+    "number": "082310371109",
+    "ssid": "Media Creative 35",
+    "password": "MC35#2026",
+    "status": "Rented",
+    "remark": "SOJ260723 (TL: Ophan)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-36",
+    "device_name": "Orbitmifi_8D6B",
+    "number": "082310302248",
+    "ssid": "Media Creative 36",
+    "password": "MC36#2026",
+    "status": "Rented",
+    "remark": "FIS260717 (TL: Linda Samosir)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-37",
+    "device_name": "Orbitmifi_8E02",
+    "number": "082310302384",
+    "ssid": "Media Creative 37",
+    "password": "MC37#2026",
+    "status": "Rented",
+    "remark": "SOJ260723 (TL: Ophan)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-38",
+    "device_name": "Orbitmifi_8EC0",
+    "number": "082310371129",
+    "ssid": "Media Creative 38",
+    "password": "MC38#2026",
+    "status": "Available",
+    "remark": null,
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-39",
+    "device_name": "Orbitmifi_9726",
+    "number": "082310371088",
+    "ssid": "Media Creative 39",
+    "password": "MC39#2026",
+    "status": "Available",
+    "remark": null,
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-4",
+    "device_name": "Orbitmifi_47E7",
+    "number": "081398703478",
+    "ssid": "Media Creative 4",
+    "password": "MC4#2026",
+    "status": "Rented",
+    "remark": "SOO260729 (TL: Nasri)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-40",
+    "device_name": "Orbitmifi_56BD",
+    "number": "082130431824",
+    "ssid": "Media Creative 40",
+    "password": "MC40#2026",
+    "status": "Rented",
+    "remark": "SOJ260723 (TL: Ophan)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-41",
+    "device_name": "Orbitmifi_C823",
+    "number": "085313428403",
+    "ssid": "Media Creative 41",
+    "password": "MC41#2026",
+    "status": "Available",
+    "remark": null,
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-42",
+    "device_name": "Orbitmifi_C2DA",
+    "number": "085313428598",
+    "ssid": "Media Creative 42",
+    "password": "MC42#2026",
+    "status": "Maintenance",
+    "remark": "NoBat",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-5",
+    "device_name": "Orbitmifi_56A5",
+    "number": "081398703256",
+    "ssid": "Media Creative 5",
+    "password": "MC5#2026",
+    "status": "Available",
+    "remark": null,
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-6",
+    "device_name": "Orbitmifi_7180",
+    "number": "081398733229",
+    "ssid": "Media Creative 6",
+    "password": "MC6#2026",
+    "status": "Rented",
+    "remark": "FIO260729 (TL: Nino)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-7",
+    "device_name": "Orbitmifi_6A80",
+    "number": "081329924435",
+    "ssid": "Media Creative 7",
+    "password": "MC7#2026",
+    "status": "Available",
+    "remark": null,
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-8",
+    "device_name": "Orbitmifi_6DF0",
+    "number": "081345343604",
+    "ssid": "Media Creative 8",
+    "password": "MC8#2026",
+    "status": "Available",
+    "remark": null,
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  },
+  {
+    "id": "modem-9",
+    "device_name": "Orbitmifi_6CC0",
+    "number": "081329924527",
+    "ssid": "Media Creative 9",
+    "password": "MC9#2026",
+    "status": "Rented",
+    "remark": "KIB260722 (TL: Gede Suadnyana)",
+    "created_at": "2026-07-30T13:01:33.59705+00:00"
+  }
+]
