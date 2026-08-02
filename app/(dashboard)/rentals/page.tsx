@@ -3847,20 +3847,12 @@ export default function ModemWifiPage() {
   // Open New Tour Rental Modal
   function handleOpenNewTour() {
     setEditingTourCode(null);
-    const randomNum = Math.floor(260800 + Math.random() * 999);
-    const today = new Date().toISOString().split("T")[0];
-    const twoWeeks = (() => {
-      const d = new Date();
-      d.setDate(d.getDate() + 14);
-      return d.toISOString().split("T")[0];
-    })();
-
     setTourForm({
-      tourcode: "KIB" + randomNum,
-      start_date: today,
-      end_date: twoWeeks,
+      tourcode: "",
+      start_date: "",
+      end_date: "",
       location: "",
-      tl: tourLeaders[0]?.name || "",
+      tl: "",
       status: "Upcoming",
       invoice_status: "Pending",
       selectedModemSsids: [],
@@ -3939,8 +3931,14 @@ export default function ModemWifiPage() {
   async function handleSaveNewTour(e: React.FormEvent) {
     e.preventDefault();
 
-    const finalTourCode = tourForm.tourcode.trim() || ("KIB" + Math.floor(260800 + Math.random() * 999));
-    const finalTl = tourForm.tl.trim() || (tourLeaders[0]?.name || "Komang Sudira");
+    if (!tourForm.tourcode.trim()) {
+      toast.warning("Missing Tourcode", "Silakan isi Tour Code terlebih dahulu");
+      return;
+    }
+    if (!tourForm.tl.trim()) {
+      toast.warning("Missing Tour Leader", "Silakan pilih Tour Leader (TL)");
+      return;
+    }
 
     if (tourForm.status !== "Upcoming" && tourForm.selectedModemSsids.length === 0) {
       toast.warning("Modem Selection Required", "Silakan pilih setidaknya 1 modem untuk tour Running");
@@ -3973,13 +3971,13 @@ export default function ModemWifiPage() {
     const combinedPaxRemark = paxList.join(", ") || tourForm.remark.trim();
 
     const updatedTour = {
-      tourcode: finalTourCode,
+      tourcode: tourForm.tourcode.trim(),
       start_date: formattedStart,
       end_date: formattedEnd,
       days: diffDays,
       qty: tourForm.selectedModemSsids.length,
       location: tourForm.location.trim() || "Sanur, Bali",
-      tl: finalTl,
+      tl: tourForm.tl.trim(),
       status: tourForm.status,
       modems: modemLabels,
       invoice_status: tourForm.invoice_status,
@@ -5651,84 +5649,86 @@ export default function ModemWifiPage() {
               {/* MODEM PILL GRID */}
               <div
                 style={{
-                  maxHeight: 180,
+                  maxHeight: 220,
                   overflowY: "auto",
-                  padding: 10,
+                  padding: 8,
                   borderRadius: 12,
                   border: "1px solid var(--border)",
                   background: "var(--bg-glass)",
                   display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))",
-                  gap: 8,
+                  gridTemplateColumns: "repeat(auto-fill, minmax(85px, 1fr))",
+                  gap: 6,
                 }}
               >
-                {modems.map((m) => {
-                  const mcCode = m.ssid.replace("Media Creative ", "MC");
-                  const isSelected = tourForm.selectedModemSsids.includes(mcCode);
-                  const assignedTour = getAssignedTourForModem(m);
-                  const isAssignedToThisTour = editingTourCode && assignedTour?.tourcode === editingTourCode;
-                  const isAvailable = (m.status === "Available" && !assignedTour) || !!isAssignedToThisTour;
+                {[...modems]
+                  .sort((a, b) => a.ssid.localeCompare(b.ssid, undefined, { numeric: true, sensitivity: "base" }))
+                  .map((m) => {
+                    const mcCode = m.ssid.replace("Media Creative ", "MC");
+                    const isSelected = tourForm.selectedModemSsids.includes(mcCode);
+                    const assignedTour = getAssignedTourForModem(m);
+                    const isAssignedToThisTour = editingTourCode && assignedTour?.tourcode === editingTourCode;
+                    const isAvailable = (m.status === "Available" && !assignedTour) || !!isAssignedToThisTour;
 
-                  return (
-                    <button
-                      key={m.id}
-                      type="button"
-                      disabled={!isAvailable && !isSelected}
-                      onClick={() => {
-                        if (!isAvailable && !isSelected) return;
-                        toggleModemSelectionInTour(mcCode);
-                      }}
-                      title={
-                        !isAvailable
-                          ? `Assigned / Unavailable (${assignedTour ? assignedTour.tourcode : m.remark || m.status})`
-                          : `Available - Click to select ${mcCode}`
-                      }
-                      style={{
-                        padding: "6px 8px",
-                        borderRadius: 8,
-                        border: `1px solid ${
-                          isSelected
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        disabled={!isAvailable && !isSelected}
+                        onClick={() => {
+                          if (!isAvailable && !isSelected) return;
+                          toggleModemSelectionInTour(mcCode);
+                        }}
+                        title={
+                          !isAvailable
+                            ? `Assigned / Unavailable (${assignedTour ? assignedTour.tourcode : m.remark || m.status})`
+                            : `Available - Click to select ${mcCode}`
+                        }
+                        style={{
+                          padding: "4px 6px",
+                          borderRadius: 6,
+                          border: `1px solid ${
+                            isSelected
+                              ? "var(--accent-cyan)"
+                              : isAvailable
+                              ? "var(--border)"
+                              : "rgba(239, 68, 68, 0.25)"
+                          }`,
+                          background: isSelected
+                            ? "var(--accent-cyan-dim)"
+                            : isAvailable
+                            ? "var(--bg-glass-hover)"
+                            : "rgba(239, 68, 68, 0.05)",
+                          color: isSelected
                             ? "var(--accent-cyan)"
                             : isAvailable
-                            ? "var(--border)"
-                            : "rgba(239, 68, 68, 0.25)"
-                        }`,
-                        background: isSelected
-                          ? "var(--accent-cyan-dim)"
-                          : isAvailable
-                          ? "var(--bg-glass-hover)"
-                          : "rgba(239, 68, 68, 0.05)",
-                        color: isSelected
-                          ? "var(--accent-cyan)"
-                          : isAvailable
-                          ? "var(--text-primary)"
-                          : "var(--text-muted)",
-                        fontSize: "0.75rem",
-                        fontWeight: isSelected ? 800 : 500,
-                        cursor: isAvailable || isSelected ? "pointer" : "not-allowed",
-                        opacity: isAvailable || isSelected ? 1 : 0.45,
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        gap: 2,
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        {isSelected ? (
-                          <Check size={12} style={{ color: "var(--accent-cyan)" }} />
-                        ) : !isAvailable ? (
-                          <span style={{ fontSize: "0.6rem", color: "#f87171", fontWeight: 700 }}>✕</span>
-                        ) : null}
-                        <span>{mcCode}</span>
-                      </div>
-                      <span style={{ fontSize: "0.62rem", opacity: 0.8, color: !isAvailable && !isSelected ? "#f87171" : undefined }}>
-                        {!isAvailable && !isSelected
-                          ? (assignedTour ? assignedTour.tourcode : m.status)
-                          : m.device_name.replace("Orbitmifi_", "")}
-                      </span>
-                    </button>
-                  );
-                })}
+                            ? "var(--text-primary)"
+                            : "var(--text-muted)",
+                          fontSize: "0.72rem",
+                          fontWeight: isSelected ? 800 : 500,
+                          cursor: isAvailable || isSelected ? "pointer" : "not-allowed",
+                          opacity: isAvailable || isSelected ? 1 : 0.45,
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: 1,
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: 3, fontWeight: 700 }}>
+                          {isSelected ? (
+                            <Check size={11} style={{ color: "var(--accent-cyan)" }} />
+                          ) : !isAvailable ? (
+                            <span style={{ fontSize: "0.55rem", color: "#f87171", fontWeight: 700 }}>✕</span>
+                          ) : null}
+                          <span>{mcCode}</span>
+                        </div>
+                        <span style={{ fontSize: "0.6rem", opacity: 0.8, color: !isAvailable && !isSelected ? "#f87171" : undefined }}>
+                          {!isAvailable && !isSelected
+                            ? (assignedTour ? assignedTour.tourcode : m.status)
+                            : m.device_name.replace("Orbitmifi_", "")}
+                        </span>
+                      </button>
+                    );
+                  })}
               </div>
             </div>
 
