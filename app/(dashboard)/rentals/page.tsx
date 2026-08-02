@@ -66,7 +66,7 @@ export type TourRentalLog = {
 };
 
 function parseTourDate(dateStr?: string): number {
-  if (!dateStr) return 0;
+  if (!dateStr || !dateStr.trim()) return Date.now();
   if (dateStr.includes("-") && dateStr.split("-")[0].length === 4) {
     const [y, m, d] = dateStr.split("-").map(Number);
     return new Date(y, (m || 1) - 1, d || 1).getTime();
@@ -85,7 +85,19 @@ function parseTourDate(dateStr?: string): number {
     return new Date(year, month, day).getTime();
   }
   const d = new Date(dateStr).getTime();
-  return isNaN(d) ? 0 : d;
+  return isNaN(d) || d === 0 ? Date.now() : d;
+}
+
+function formatDateDisplay(dateStr: string): string {
+  if (!dateStr) return "";
+  if (/^\d{2}-[A-Za-z]{3}-\d{4}$/.test(dateStr)) return dateStr;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mmm = months[d.getMonth()];
+  const yyyy = d.getFullYear();
+  return `${dd}-${mmm}-${yyyy}`;
 }
 
 const INITIAL_MODEMS: ModemItem[] = [
@@ -3835,12 +3847,20 @@ export default function ModemWifiPage() {
   // Open New Tour Rental Modal
   function handleOpenNewTour() {
     setEditingTourCode(null);
+    const randomNum = Math.floor(260800 + Math.random() * 999);
+    const today = new Date().toISOString().split("T")[0];
+    const twoWeeks = (() => {
+      const d = new Date();
+      d.setDate(d.getDate() + 14);
+      return d.toISOString().split("T")[0];
+    })();
+
     setTourForm({
-      tourcode: "",
-      start_date: "",
-      end_date: "",
+      tourcode: "KIB" + randomNum,
+      start_date: today,
+      end_date: twoWeeks,
       location: "",
-      tl: "",
+      tl: tourLeaders[0]?.name || "",
       status: "Upcoming",
       invoice_status: "Pending",
       selectedModemSsids: [],
@@ -3918,25 +3938,32 @@ export default function ModemWifiPage() {
 
   async function handleSaveNewTour(e: React.FormEvent) {
     e.preventDefault();
-    if (!tourForm.tourcode.trim() || !tourForm.tl.trim()) {
-      toast.warning("Incomplete Form", "Please fill in Tourcode and Tour Leader");
-      return;
-    }
+
+    const finalTourCode = tourForm.tourcode.trim() || ("KIB" + Math.floor(260800 + Math.random() * 999));
+    const finalTl = tourForm.tl.trim() || (tourLeaders[0]?.name || "Komang Sudira");
+
     if (tourForm.status !== "Upcoming" && tourForm.selectedModemSsids.length === 0) {
       toast.warning("Modem Selection Required", "Silakan pilih setidaknya 1 modem untuk tour Running");
       return;
     }
 
-    const sDate = tourForm.start_date ? new Date(tourForm.start_date) : new Date();
-    const eDate = tourForm.end_date
-      ? new Date(tourForm.end_date)
-      : (() => {
-          const d = new Date();
-          d.setDate(d.getDate() + 14);
-          return d;
-        })();
+    const todayStr = new Date().toISOString().split("T")[0];
+    const defaultEndStr = (() => {
+      const d = new Date();
+      d.setDate(d.getDate() + 14);
+      return d.toISOString().split("T")[0];
+    })();
+
+    const rawStart = tourForm.start_date || todayStr;
+    const rawEnd = tourForm.end_date || defaultEndStr;
+
+    const sDate = new Date(rawStart);
+    const eDate = new Date(rawEnd);
     const diffTime = Math.abs(eDate.getTime() - sDate.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+
+    const formattedStart = formatDateDisplay(rawStart);
+    const formattedEnd = formatDateDisplay(rawEnd);
 
     const modemLabels = tourForm.selectedModemSsids.join(", ");
 
@@ -3946,19 +3973,13 @@ export default function ModemWifiPage() {
     const combinedPaxRemark = paxList.join(", ") || tourForm.remark.trim();
 
     const updatedTour = {
-      tourcode: tourForm.tourcode.trim(),
-      start_date: tourForm.start_date || new Date().toISOString().split("T")[0],
-      end_date:
-        tourForm.end_date ||
-        (() => {
-          const d = new Date();
-          d.setDate(d.getDate() + 14);
-          return d.toISOString().split("T")[0];
-        })(),
+      tourcode: finalTourCode,
+      start_date: formattedStart,
+      end_date: formattedEnd,
       days: diffDays,
       qty: tourForm.selectedModemSsids.length,
       location: tourForm.location.trim() || "Sanur, Bali",
-      tl: tourForm.tl.trim(),
+      tl: finalTl,
       status: tourForm.status,
       modems: modemLabels,
       invoice_status: tourForm.invoice_status,
@@ -3982,6 +4003,9 @@ export default function ModemWifiPage() {
         setActiveTab("tours");
         setSearch("");
         setTourStatusFilter("All");
+        setInvoiceStatusFilter("All");
+        setDateSortOrder("newest");
+
         toast.success(
           isEdit ? "Tour Order Updated" : "New Tour Created",
           `Tour ${updatedTour.tourcode} (${updatedTour.tl}) saved`
