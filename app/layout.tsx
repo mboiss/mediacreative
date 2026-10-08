@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider } from "@/components/ui/toast";
+import { ConfirmProvider } from "@/components/ui/confirm-dialog";
 
 export const metadata: Metadata = {
   title: "Media Creative Control Center",
@@ -25,8 +26,10 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <ToastProvider>
-            <AutoClearCache />
-            {children}
+            <ConfirmProvider>
+              <AutoClearCache />
+              {children}
+            </ConfirmProvider>
           </ToastProvider>
         </ThemeProvider>
       </body>

@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Image from "next/image";
 import { Printer, Download, Loader2, CheckCircle } from "lucide-react";
 import { InvoiceSheet } from "@/components/invoice/invoice-sheet";
+import { useToast } from "@/components/ui/toast";
 
 type Client = {
   id: string;
@@ -45,6 +46,7 @@ type Invoice = {
 export default function PublicInvoicePage() {
   const params = useParams();
   const id = params.id as string;
+  const toast = useToast();
 
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [items, setItems] = useState<InvoiceItem[]>([]);
@@ -87,7 +89,7 @@ export default function PublicInvoicePage() {
     try {
       const element = document.querySelector(".printable-invoice") as HTMLElement;
       if (!element) {
-        alert("Invoice element not found.");
+        toast.error("Invoice element not found.");
         setDownloadingPdf(false);
         return;
       }
@@ -119,6 +121,7 @@ export default function PublicInvoicePage() {
       await (window as any).html2pdf().set(opt).from(element).save();
     } catch (err) {
       console.error("PDF generation failed:", err);
+      toast.warning("PDF download failed", "Opening the print dialog instead.");
       window.print();
     } finally {
       setDownloadingPdf(false);

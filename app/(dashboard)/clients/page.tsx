@@ -1,11 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Search, Plus, Trash2, Users, Loader2, X, Edit2, Mail, Phone, Building, Download } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
+import { Pagination, usePagination } from "@/components/ui/pagination";
+import { LoadingState } from "@/components/ui/loading-state";
 import { exportToCSV } from "@/lib/export-utils";
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 
@@ -26,8 +30,19 @@ const EMPTY_FORM = {
   address: "",
 };
 
+// Opens the "Add Client" modal when the URL contains ?new=1 (e.g. from the dashboard Quick Action).
+function NewClientTrigger({ onOpen }: { onOpen: () => void }) {
+  const searchParams = useSearchParams();
+  const isNew = searchParams.get("new") === "1";
+  useEffect(() => {
+    if (isNew) onOpen();
+  }, [isNew, onOpen]);
+  return null;
+}
+
 export default function ClientsPage() {
   const toast = useToast();
+  const confirm = useConfirm();
   const [clients, setClients] = useState<Client[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -57,11 +72,11 @@ export default function ClientsPage() {
   // Enable Real-time sync across devices
   useRealtimeSync(loadClients, { tables: ["clients"] });
 
-  function openCreateModal() {
+  const openCreateModal = useCallback(() => {
     setEditingClient(null);
     setForm({ ...EMPTY_FORM });
     setShowModal(true);
-  }
+  }, []);
 
   function openEditModal(client: Client) {
     setEditingClient(client);
@@ -107,7 +122,16 @@ export default function ClientsPage() {
   }
 
   async function deleteClient(id: string) {
-    if (!confirm("Apakah Anda yakin ingin menghapus client ini?")) return;
+    const client = clients.find((c) => c.id === id);
+    if (
+      !(await confirm({
+        title: "Delete client?",
+        message: `${client?.full_name ? `"${client.full_name}"` : "This client"} will be permanently removed.`,
+        confirmLabel: "Delete",
+        tone: "danger",
+      }))
+    )
+      return;
     setDeletingId(id);
     try {
       const res = await fetch("/api/clients", {
@@ -149,9 +173,14 @@ export default function ClientsPage() {
       c.email?.toLowerCase().includes(search.toLowerCase())
   );
 
+  const { pageItems, page, setPage, pageSize, setPageSize, totalPages, totalItems } = usePagination(filtered, search);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
+      <Suspense fallback={null}>
+        <NewClientTrigger onOpen={openCreateModal} />
+      </Suspense>
 
       {/* HEADER */}
       <div className="animate-fade-in-up" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
@@ -193,10 +222,7 @@ export default function ClientsPage() {
       {/* TABLE */}
       <div style={{ background: "var(--bg-glass)", border: "1px solid var(--border)", borderRadius: 20, overflow: "hidden" }}>
         {loading ? (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 60, gap: 12, color: "var(--text-secondary)" }}>
-            <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} />
-            Loading clients...
-          </div>
+          <LoadingState label="Loading clients..." />
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={<Users size={28} />}
@@ -222,7 +248,7 @@ export default function ClientsPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((client) => (
+              {pageItems.map((client) => (
                 <tr key={client.id}>
                   <td>
                     <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
@@ -294,6 +320,16 @@ export default function ClientsPage() {
               ))}
             </tbody>
           </table>
+        )}
+        {!loading && (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
         )}
       </div>
 

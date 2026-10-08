@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useToast } from "@/components/ui/toast";
 import {
   ArrowLeft,
   Save,
@@ -27,6 +28,7 @@ export default function ClientDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+  const toast = useToast();
 
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
@@ -74,13 +76,14 @@ export default function ClientDetailPage() {
       });
       if (res.ok) {
         await loadClient();
-        alert("Client updated successfully.");
+        toast.success("Client Updated", "Changes saved successfully.");
       } else {
-        const err = await res.json();
-        alert("Error: " + (err.error || "Failed to update"));
+        const err = await res.json().catch(() => ({}));
+        toast.error("Update Failed", err.error || "Could not update client.");
       }
     } catch (err) {
       console.error(err);
+      toast.error("Network Error", "Could not connect to server.");
     } finally {
       setSaving(false);
     }

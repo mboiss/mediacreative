@@ -27,6 +27,8 @@ import {
   Download,
 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
+import { useToast } from "@/components/ui/toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { InvoiceSheet } from "@/components/invoice/invoice-sheet";
 import { getPaymentAccounts, formatAccountTransferText } from "@/lib/payment-accounts";
@@ -110,6 +112,8 @@ function formatDate(dateStr?: string) {
 export default function InvoiceDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const toast = useToast();
+  const confirm = useConfirm();
   const id = params.id as string;
 
   const [invoice, setInvoice] = useState<Invoice | null>(null);
@@ -258,7 +262,7 @@ export default function InvoiceDetailPage() {
     try {
       const element = document.querySelector(".printable-invoice") as HTMLElement;
       if (!element) {
-        alert("Invoice element not found.");
+        toast.error("Invoice element not found.");
         setDownloadingPdf(false);
         return;
       }
@@ -290,6 +294,7 @@ export default function InvoiceDetailPage() {
       await (window as any).html2pdf().set(opt).from(element).save();
     } catch (err) {
       console.error("PDF generation failed:", err);
+      toast.warning("PDF download failed", "Opening the print dialog instead.");
       window.print();
     } finally {
       setDownloadingPdf(false);
@@ -320,21 +325,33 @@ export default function InvoiceDetailPage() {
   const loadProducts = useCallback(async () => {
     try {
       const res = await fetch("/api/products");
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error("Failed to load products", data?.error);
+        return;
+      }
       if (Array.isArray(data)) setProducts(data);
     } catch (err) {
       console.error(err);
+      toast.error("Failed to load products");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadClients = useCallback(async () => {
     try {
       const res = await fetch("/api/clients");
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast.error("Failed to load clients", data?.error);
+        return;
+      }
       if (Array.isArray(data)) setClients(data);
     } catch (err) {
       console.error(err);
+      toast.error("Failed to load clients");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -369,13 +386,14 @@ export default function InvoiceDetailPage() {
       if (res.ok) {
         setShowEditHeader(false);
         await loadInvoice();
+        toast.success("Invoice updated");
       } else {
-        const err = await res.json();
-        alert("Failed to update: " + (err.error || "Unknown error"));
+        const err = await res.json().catch(() => ({}));
+        toast.error("Failed to update invoice", err.error || "Unknown error");
       }
     } catch (err) {
       console.error(err);
-      alert("Failed to update invoice.");
+      toast.error("Failed to update invoice", "Please try again.");
     } finally {
       setUpdating(false);
     }
@@ -395,7 +413,7 @@ export default function InvoiceDetailPage() {
   async function addItem(e: React.FormEvent) {
     e.preventDefault();
     if (!itemForm.quantity || !itemForm.unit_price) {
-      alert("Please fill in quantity and unit price.");
+      toast.warning("Please fill in quantity and unit price.");
       return;
     }
     setAddingItem(true);
@@ -415,20 +433,29 @@ export default function InvoiceDetailPage() {
         await loadInvoice();
         setItemForm({ product_id: "", description: "", quantity: "1", unit_price: "" });
         setShowAddItem(false);
+        toast.success("Line item added");
       } else {
-        const err = await res.json();
-        alert("Error: " + (err.error || "Failed to add item"));
+        const err = await res.json().catch(() => ({}));
+        toast.error("Failed to add item", err.error || "Unknown error");
       }
     } catch (err) {
       console.error(err);
-      alert("Failed to add item.");
+      toast.error("Failed to add item", "Please try again.");
     } finally {
       setAddingItem(false);
     }
   }
 
   async function deleteItem(itemId: string) {
-    if (!confirm("Remove this line item?")) return;
+    if (
+      !(await confirm({
+        title: "Remove line item?",
+        message: "This line item will be removed from the invoice.",
+        confirmLabel: "Remove",
+        tone: "danger",
+      }))
+    )
+      return;
     setDeletingItemId(itemId);
     try {
       const res = await fetch("/api/invoice-items", {
@@ -438,9 +465,14 @@ export default function InvoiceDetailPage() {
       });
       if (res.ok) {
         await loadInvoice();
+        toast.success("Line item removed");
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error("Failed to remove item", err.error || "Unknown error");
       }
     } catch (err) {
       console.error(err);
+      toast.error("Failed to remove item", "Please try again.");
     } finally {
       setDeletingItemId(null);
     }
@@ -448,7 +480,14 @@ export default function InvoiceDetailPage() {
 
   async function updateStatus(newStatus: string) {
     if (!invoice) return;
-    if (!confirm(`Change status to "${newStatus}"?`)) return;
+    if (
+      !(await confirm({
+        title: "Change status?",
+        message: `Change this invoice's status to "${newStatus}"?`,
+        confirmLabel: "Change status",
+      }))
+    )
+      return;
     setUpdating(true);
     try {
       const res = await fetch(`/api/invoices/${id}`, {
@@ -458,28 +497,42 @@ export default function InvoiceDetailPage() {
       });
       if (res.ok) {
         await loadInvoice();
+        toast.success(`Status changed to ${newStatus}`);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error("Failed to change status", err.error || "Unknown error");
       }
     } catch (err) {
       console.error(err);
+      toast.error("Failed to change status", "Please try again.");
     } finally {
       setUpdating(false);
     }
   }
 
   async function deleteInvoice() {
-    if (!confirm("Are you sure you want to delete this entire invoice? This action cannot be undone.")) return;
+    if (
+      !(await confirm({
+        title: "Delete invoice?",
+        message: "This will permanently delete the entire invoice. This action cannot be undone.",
+        confirmLabel: "Delete",
+        tone: "danger",
+      }))
+    )
+      return;
     setDeleting(true);
     try {
       const res = await fetch(`/api/invoices/${id}`, { method: "DELETE" });
       if (res.ok) {
+        toast.success("Invoice deleted");
         router.push("/invoices");
       } else {
-        const err = await res.json();
-        alert("Failed to delete: " + (err.error || "Unknown error"));
+        const err = await res.json().catch(() => ({}));
+        toast.error("Failed to delete invoice", err.error || "Unknown error");
       }
     } catch (err) {
       console.error(err);
-      alert("Error deleting invoice.");
+      toast.error("Failed to delete invoice", "Please try again.");
     } finally {
       setDeleting(false);
     }

@@ -21,6 +21,8 @@ import { Modal } from "@/components/ui/modal";
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
+import { LoadingState } from "@/components/ui/loading-state";
 import { exportToCSV } from "@/lib/export-utils";
 
 type EsimProfile = {
@@ -89,6 +91,7 @@ function formatDate(dateStr: string) {
 
 export default function EsimPage() {
   const toast = useToast();
+  const confirm = useConfirm();
   const [profiles, setProfiles] = useState<EsimProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -174,7 +177,15 @@ export default function EsimPage() {
   }
 
   async function deleteProfile(id: string) {
-    if (!confirm("Are you sure you want to remove this eSIM profile?")) return;
+    if (
+      !(await confirm({
+        title: "Remove eSIM profile?",
+        message: "This eSIM profile will be permanently deleted.",
+        confirmLabel: "Remove",
+        tone: "danger",
+      }))
+    )
+      return;
     try {
       const res = await fetch("/api/esim", {
         method: "DELETE",
@@ -189,6 +200,7 @@ export default function EsimPage() {
       }
     } catch (err) {
       console.error(err);
+      toast.error("Network Error", "Failed to remove eSIM profile");
     }
   }
 
@@ -315,7 +327,9 @@ export default function EsimPage() {
 
       {/* TABLE */}
       <div style={{ background: "var(--bg-glass)", border: "1px solid var(--border)", borderRadius: 20, overflow: "hidden" }}>
-        {filtered.length === 0 ? (
+        {loading ? (
+          <LoadingState label="Loading eSIM profiles..." />
+        ) : filtered.length === 0 ? (
           <EmptyState
             icon={<Smartphone size={28} />}
             title="No eSIM profiles found"

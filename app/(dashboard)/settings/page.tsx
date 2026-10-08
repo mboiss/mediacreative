@@ -28,6 +28,8 @@ import {
 } from "@/lib/tour-leaders";
 
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
+import { useToast } from "@/components/ui/toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 type SettingsForm = {
   company_name: string;
@@ -53,7 +55,14 @@ const DEFAULT_SETTINGS: SettingsForm = {
   payment_terms_days: "14",
 };
 
+async function readError(res: Response, fallback: string) {
+  const data = await res.json().catch(() => null);
+  return (data && typeof data.error === "string" && data.error) || fallback;
+}
+
 export default function SettingsPage() {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [form, setForm] = useState<SettingsForm>(DEFAULT_SETTINGS);
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>([]);
   const [tourLeaders, setTourLeaders] = useState<TourLeader[]>([]);
@@ -147,10 +156,11 @@ export default function SettingsPage() {
         setTimeout(() => setSavedSuccess(false), 3000);
         await loadData();
       } else {
-        alert("Gagal menyimpan pengaturan ke server.");
+        toast.error("Save Failed", await readError(res, "Could not save settings to the server."));
       }
     } catch (err) {
       console.error("Failed to save settings:", err);
+      toast.error("Network Error", "Could not connect to server.");
     } finally {
       setSaving(false);
     }
@@ -177,7 +187,7 @@ export default function SettingsPage() {
   async function handleSaveAccount(e: React.FormEvent) {
     e.preventDefault();
     if (!accountForm.bank_name || !accountForm.account_number || !accountForm.account_holder) {
-      alert("Please fill in required bank account fields.");
+      toast.warning("Missing Fields", "Bank name, account number and account holder are required.");
       return;
     }
 
@@ -191,29 +201,52 @@ export default function SettingsPage() {
     };
 
     try {
-      await fetch("/api/payment-accounts", {
+      const res = await fetch("/api/payment-accounts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      if (!res.ok) {
+        toast.error("Save Failed", await readError(res, "Could not save bank account."));
+        return;
+      }
       setShowAccountModal(false);
+      toast.success(editingAccount ? "Account Updated" : "Account Added", `${payload.bank_name} saved.`);
       loadData();
     } catch (err) {
       console.error("Error saving account:", err);
+      toast.error("Network Error", "Could not connect to server.");
     }
   }
 
   async function handleDeleteAccount(id: string) {
-    if (!confirm("Are you sure you want to delete this bank account?")) return;
+    const acc = paymentAccounts.find((a) => a.id === id);
+    if (
+      !(await confirm({
+        title: "Delete bank account?",
+        message: acc
+          ? `${acc.bank_name} (${acc.account_number}) will be permanently removed.`
+          : "This bank account will be permanently removed.",
+        confirmLabel: "Delete",
+        tone: "danger",
+      }))
+    )
+      return;
     try {
-      await fetch("/api/payment-accounts", {
+      const res = await fetch("/api/payment-accounts", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
+      if (!res.ok) {
+        toast.error("Delete Failed", await readError(res, "Could not delete bank account."));
+        return;
+      }
+      toast.success("Account Deleted", "Bank account removed.");
       loadData();
     } catch (err) {
       console.error("Error deleting account:", err);
+      toast.error("Network Error", "Could not connect to server.");
     }
   }
 
@@ -221,14 +254,20 @@ export default function SettingsPage() {
     const target = paymentAccounts.find((a) => a.id === id);
     if (!target) return;
     try {
-      await fetch("/api/payment-accounts", {
+      const res = await fetch("/api/payment-accounts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...target, is_default: true }),
       });
+      if (!res.ok) {
+        toast.error("Update Failed", await readError(res, "Could not set default account."));
+        return;
+      }
+      toast.success("Default Account Set", `${target.bank_name} is now the default.`);
       loadData();
     } catch (err) {
       console.error("Error setting default account:", err);
+      toast.error("Network Error", "Could not connect to server.");
     }
   }
 
@@ -252,7 +291,7 @@ export default function SettingsPage() {
   async function handleSaveTl(e: React.FormEvent) {
     e.preventDefault();
     if (!tlForm.name.trim()) {
-      alert("Please enter the Tour Leader's name.");
+      toast.warning("Missing Name", "Please enter the Tour Leader's name.");
       return;
     }
 
@@ -264,29 +303,50 @@ export default function SettingsPage() {
     };
 
     try {
-      await fetch("/api/tour-leaders", {
+      const res = await fetch("/api/tour-leaders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      if (!res.ok) {
+        toast.error("Save Failed", await readError(res, "Could not save Tour Leader."));
+        return;
+      }
       setShowTlModal(false);
+      toast.success(editingTl ? "Tour Leader Updated" : "Tour Leader Added", `${payload.name} saved.`);
       loadData();
     } catch (err) {
       console.error("Error saving Tour Leader:", err);
+      toast.error("Network Error", "Could not connect to server.");
     }
   }
 
   async function handleDeleteTl(id: string) {
-    if (!confirm("Are you sure you want to delete this Tour Leader?")) return;
+    const tl = tourLeaders.find((t) => t.id === id);
+    if (
+      !(await confirm({
+        title: "Delete Tour Leader?",
+        message: `${tl ? `"${tl.name}"` : "This Tour Leader"} will be permanently removed.`,
+        confirmLabel: "Delete",
+        tone: "danger",
+      }))
+    )
+      return;
     try {
-      await fetch("/api/tour-leaders", {
+      const res = await fetch("/api/tour-leaders", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
+      if (!res.ok) {
+        toast.error("Delete Failed", await readError(res, "Could not delete Tour Leader."));
+        return;
+      }
+      toast.success("Tour Leader Deleted", "Tour Leader removed.");
       loadData();
     } catch (err) {
       console.error("Error deleting Tour Leader:", err);
+      toast.error("Network Error", "Could not connect to server.");
     }
   }
 

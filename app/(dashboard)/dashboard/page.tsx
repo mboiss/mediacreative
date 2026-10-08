@@ -37,6 +37,15 @@ type KPIData = {
   totalInvoices: number;
   totalRevenue: number;
   pendingAmount: number;
+  pendingCount: number;
+  revenueTrend: { month: string; revenue: number; invoices: number }[];
+  modemStatus: Record<string, number>;
+};
+
+const MODEM_STATUS_COLORS: Record<string, string> = {
+  Available: "#10b981",
+  Rented: "#00d4ff",
+  Maintenance: "#f59e0b",
 };
 
 const MOTIVATIONAL_QUOTES = [
@@ -82,7 +91,7 @@ function formatCurrency(amount: number) {
 }
 
 const quickLinks = [
-  { label: "Add Client", href: "/clients", icon: Users, color: "#00d4ff" },
+  { label: "Add Client", href: "/clients?new=1", icon: Users, color: "#00d4ff" },
   { label: "New Invoice", href: "/invoices/new", icon: FileText, color: "#7c3aed" },
   { label: "Products", href: "/products", icon: TrendingUp, color: "#10b981" },
   { label: "Reports", href: "/reports", icon: Clock, color: "#f59e0b" },
@@ -95,8 +104,9 @@ export default function DashboardPage() {
 
   const loadDashboardData = useCallback(() => {
     fetch(`/api/dashboard?_t=${Date.now()}`, { cache: "no-store", headers: { Pragma: "no-cache" } })
-      .then((r) => r.json())
-      .then((data) => {
+      .then(async (r) => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data?.error || "Failed to load dashboard data");
         setKpi(data);
         setLoading(false);
       })
@@ -120,6 +130,12 @@ export default function DashboardPage() {
   }
 
   const currentQuote = MOTIVATIONAL_QUOTES[quoteIndex];
+
+  const modemSlices = Object.entries(kpi?.modemStatus ?? {}).map(([name, value]) => ({
+    name,
+    value,
+    color: MODEM_STATUS_COLORS[name] ?? "#94a3b8",
+  }));
 
   const cards = [
     {
@@ -286,7 +302,7 @@ export default function DashboardPage() {
       {/* KPI CARDS */}
       <div
         className="stagger-children"
-        style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}
+        style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}
       >
         {cards.map((card) => {
           const Icon = card.icon;
@@ -349,7 +365,7 @@ export default function DashboardPage() {
       </div>
 
       {/* INTERACTIVE ANALYTICS CHARTS SECTION */}
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 340px), 1fr))", gap: 20 }}>
         {/* REVENUE & INVOICING TREND CHART */}
         <div
           style={{
@@ -366,29 +382,19 @@ export default function DashboardPage() {
             <div>
               <h3 style={{ fontSize: "1rem", fontWeight: 800, color: "var(--text-primary)", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
                 <BarChart2 size={18} style={{ color: "#00d4ff" }} />
-                Monthly Financial & Invoicing Trend
+                Paid Revenue Trend
               </h3>
               <p style={{ fontSize: "0.78rem", color: "var(--text-secondary)", margin: "4px 0 0" }}>
-                Comparison of revenue earnings vs active invoices issued over 6 months
+                Paid invoice revenue by issue month, last 6 months
               </p>
             </div>
-            <span style={{ fontSize: "0.72rem", background: "rgba(0,212,255,0.1)", color: "#00d4ff", padding: "4px 10px", borderRadius: 20, border: "1px solid rgba(0,212,255,0.2)", fontWeight: 700 }}>
-              Live Metrics
-            </span>
           </div>
 
           <div style={{ width: "100%", height: 250 }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
-                data={[
-                  { month: "Feb", Revenue: 24500000, Invoices: 12 },
-                  { month: "Mar", Revenue: 31200000, Invoices: 18 },
-                  { month: "Apr", Revenue: 28900000, Invoices: 15 },
-                  { month: "May", Revenue: 42000000, Invoices: 22 },
-                  { month: "Jun", Revenue: 38500000, Invoices: 20 },
-                  { month: "Jul", Revenue: 47200000, Invoices: 26 },
-                ]}
-                margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                data={kpi?.revenueTrend ?? []}
+                margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
               >
                 <defs>
                   <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
@@ -397,7 +403,12 @@ export default function DashboardPage() {
                   </linearGradient>
                 </defs>
                 <XAxis dataKey="month" stroke="var(--text-muted)" fontSize={11} tickLine={false} />
-                <YAxis stroke="var(--text-muted)" fontSize={11} tickLine={false} />
+                <YAxis
+                  stroke="var(--text-muted)"
+                  fontSize={11}
+                  tickLine={false}
+                  tickFormatter={(v: number) => (v >= 1_000_000 ? `${Math.round(v / 1_000_000)}jt` : String(v))}
+                />
                 <Tooltip
                   contentStyle={{
                     background: "rgba(15, 23, 42, 0.95)",
@@ -407,8 +418,9 @@ export default function DashboardPage() {
                     color: "#fff",
                     fontSize: "0.8rem",
                   }}
+                  formatter={(value) => ["Rp " + Number(value).toLocaleString("id-ID"), "Paid revenue"]}
                 />
-                <Area type="monotone" dataKey="Revenue" stroke="#00d4ff" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+                <Area type="monotone" dataKey="revenue" stroke="#00d4ff" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -437,14 +449,12 @@ export default function DashboardPage() {
           </div>
 
           <div style={{ width: "100%", height: 180, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {modemSlices.length > 0 && (
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={[
-                    { name: "Available", value: 27, color: "#10b981" },
-                    { name: "Rented (Active)", value: 14, color: "#00d4ff" },
-                    { name: "Maintenance", value: 1, color: "#f59e0b" },
-                  ]}
+                  data={modemSlices}
+                  isAnimationActive={false}
                   cx="50%"
                   cy="50%"
                   innerRadius={50}
@@ -452,9 +462,9 @@ export default function DashboardPage() {
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  <Cell key="cell-0" fill="#10b981" />
-                  <Cell key="cell-1" fill="#00d4ff" />
-                  <Cell key="cell-2" fill="#f59e0b" />
+                  {modemSlices.map((slice) => (
+                    <Cell key={slice.name} fill={slice.color} />
+                  ))}
                 </Pie>
                 <Tooltip
                   contentStyle={{
@@ -467,17 +477,16 @@ export default function DashboardPage() {
                 />
               </PieChart>
             </ResponsiveContainer>
+            )}
           </div>
 
-          <div style={{ display: "flex", justifyContent: "space-around", gap: 6, paddingTop: 6, borderTop: "1px solid var(--border)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.74rem", color: "var(--text-secondary)" }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#10b981" }} />
-              Available (27)
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.74rem", color: "var(--text-secondary)" }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#00d4ff" }} />
-              Rented (14)
-            </div>
+          <div style={{ display: "flex", justifyContent: "space-around", flexWrap: "wrap", gap: 6, paddingTop: 6, borderTop: "1px solid var(--border)" }}>
+            {modemSlices.map((slice) => (
+              <div key={slice.name} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.74rem", color: "var(--text-secondary)" }}>
+                <span style={{ width: 8, height: 8, borderRadius: "50%", background: slice.color }} />
+                {slice.name} ({slice.value})
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -494,7 +503,7 @@ export default function DashboardPage() {
         <h3 style={{ fontSize: "0.875rem", fontWeight: 700, color: "var(--text-primary)", margin: "0 0 16px" }}>
           Quick Actions
         </h3>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
           {quickLinks.map((link) => {
             const Icon = link.icon;
             return (

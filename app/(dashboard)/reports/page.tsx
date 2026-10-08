@@ -16,10 +16,11 @@ import {
   FileSpreadsheet,
   CheckCircle2,
   AlertCircle,
-  Loader2,
   RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
+import { Pagination, usePagination } from "@/components/ui/pagination";
+import { LoadingState } from "@/components/ui/loading-state";
 
 type InvoiceItem = {
   id: string;
@@ -168,6 +169,12 @@ export default function ReportsPage() {
       return true;
     });
   }, [invoices, selectedYear, selectedMonth, selectedClient, selectedStatus, search]);
+
+  // Pagination for the invoices table (metrics/subtotals still use the full filtered list)
+  const { pageItems, page, setPage, pageSize, setPageSize, totalPages, totalItems } = usePagination(
+    filteredInvoices,
+    `${selectedYear}|${selectedMonth}|${selectedClient}|${selectedStatus}|${search}`
+  );
 
   // Aggregate Metrics for Filtered View
   const metrics = useMemo(() => {
@@ -671,10 +678,7 @@ export default function ReportsPage() {
         </div>
 
         {loading ? (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 60, gap: 12, color: "var(--text-secondary)" }}>
-            <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} />
-            Loading real reports data...
-          </div>
+          <LoadingState label="Loading reports data..." />
         ) : filteredInvoices.length === 0 ? (
           <div style={{ padding: 60, textAlign: "center", color: "var(--text-secondary)" }}>
             No invoice records match your current filter selection.
@@ -694,7 +698,7 @@ export default function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredInvoices.map((inv) => {
+                {pageItems.map((inv) => {
                   const amount = getInvoiceTotal(inv);
                   const clientName = inv.clients?.company || inv.clients?.full_name || "—";
                   const prodDesc = (inv.invoice_items || []).map((i) => i.description).join(", ") || "Item";
@@ -747,6 +751,16 @@ export default function ReportsPage() {
               </tbody>
             </table>
           </div>
+        )}
+        {!loading && (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
         )}
       </div>
     </div>

@@ -7,21 +7,13 @@ import {
   Search,
   FileText,
   ArrowRight,
-  Calendar,
-  User,
-  ChevronDown,
   RefreshCw,
-  Loader2,
 } from "lucide-react";
-import { Modal } from "@/components/ui/modal";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useToast } from "@/components/ui/toast";
+import { LoadingState } from "@/components/ui/loading-state";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
-
-type Client = {
-  id: string;
-  full_name: string;
-  company?: string;
-};
 
 type Invoice = {
   id: string;
@@ -76,37 +68,29 @@ function formatDate(dateStr?: string) {
 }
 
 export default function InvoicesPage() {
-  const [clients, setClients] = useState<Client[]>([]);
+  const toast = useToast();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [showModal, setShowModal] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-
-  const [form, setForm] = useState({
-    client_id: "",
-    invoice_date: new Date().toISOString().split("T")[0],
-    due_date: "",
-    notes: "",
-  });
 
   const loadData = useCallback(async () => {
     try {
       const ts = Date.now();
-      const [clientsRes, invoicesRes] = await Promise.all([
-        fetch(`/api/clients?_t=${ts}`, { cache: "no-store", headers: { Pragma: "no-cache" } }),
-        fetch(`/api/invoices?_t=${ts}`, { cache: "no-store", headers: { Pragma: "no-cache" } }),
-      ]);
-      const clientsData = await clientsRes.json();
-      const invoiceData = await invoicesRes.json();
-      if (Array.isArray(clientsData)) setClients(clientsData);
+      const invoicesRes = await fetch(`/api/invoices?_t=${ts}`, { cache: "no-store", headers: { Pragma: "no-cache" } });
+      const invoiceData = await invoicesRes.json().catch(() => null);
+      if (!invoicesRes.ok) {
+        toast.error("Failed to load invoices", invoiceData?.error);
+        return;
+      }
       if (Array.isArray(invoiceData)) setInvoices(invoiceData);
     } catch (err) {
       console.error("Failed to load data:", err);
+      toast.error("Failed to load invoices", "Please check your connection and try again.");
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -115,45 +99,6 @@ export default function InvoicesPage() {
 
   // Enable Real-time sync across devices
   useRealtimeSync(loadData, { tables: ["invoices", "clients", "invoice_items"] });
-
-  async function createInvoice(e: React.FormEvent) {
-    e.preventDefault();
-    if (!form.client_id) {
-      alert("Please select a client.");
-      return;
-    }
-    setCreating(true);
-    try {
-      const res = await fetch("/api/invoices", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setShowModal(false);
-        setForm({
-          client_id: "",
-          invoice_date: new Date().toISOString().split("T")[0],
-          due_date: "",
-          notes: "",
-        });
-        await loadData();
-        // Navigate to the new invoice detail
-        if (Array.isArray(data) && data[0]?.id) {
-          window.location.href = `/invoices/${data[0].id}`;
-        }
-      } else {
-        const err = await res.json();
-        alert("Error: " + (err.error || "Failed to create invoice"));
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Failed to create invoice. Please try again.");
-    } finally {
-      setCreating(false);
-    }
-  }
 
   // Filtered & searched invoices
   const filtered = invoices.filter((inv) => {
@@ -165,6 +110,11 @@ export default function InvoicesPage() {
       statusFilter === "All" || inv.status === statusFilter;
     return matchSearch && matchStatus;
   });
+
+  const { pageItems, page, setPage, pageSize, setPageSize, totalPages, totalItems } = usePagination(
+    filtered,
+    `${search}|${statusFilter}`
+  );
 
   // Stats
   const stats = {
@@ -322,19 +272,7 @@ export default function InvoicesPage() {
         }}
       >
         {loading ? (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 60,
-              gap: 12,
-              color: "var(--text-secondary)",
-            }}
-          >
-            <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} />
-            Loading invoices...
-          </div>
+          <LoadingState label="Loading invoices..." />
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={<FileText size={28} />}
@@ -369,7 +307,7 @@ export default function InvoicesPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((invoice) => (
+              {pageItems.map((invoice) => (
                 <tr key={invoice.id}>
                   <td>
                     <Link
@@ -428,115 +366,18 @@ export default function InvoicesPage() {
             </tbody>
           </table>
         )}
+        {!loading && filtered.length > 0 && (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        )}
       </div>
 
-      {/* CREATE INVOICE MODAL */}
-      <Modal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        title="Create New Invoice"
-        maxWidth={520}
-      >
-        <form onSubmit={createInvoice} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
-          {/* Client */}
-          <div>
-            <label className="form-label">
-              <User size={11} style={{ display: "inline", marginRight: 4 }} />
-              Client *
-            </label>
-            <select
-              className="form-input form-select"
-              value={form.client_id}
-              onChange={(e) => setForm({ ...form, client_id: e.target.value })}
-              required
-            >
-              <option value="">— Select Client —</option>
-              {clients.map((client) => (
-                <option key={client.id} value={client.id}>
-                  {client.full_name}
-                  {client.company ? ` (${client.company})` : ""}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Dates */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
-              <label className="form-label">
-                <Calendar size={11} style={{ display: "inline", marginRight: 4 }} />
-                Invoice Date *
-              </label>
-              <input
-                type="date"
-                className="form-input"
-                value={form.invoice_date}
-                onChange={(e) => setForm({ ...form, invoice_date: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <label className="form-label">
-                <Calendar size={11} style={{ display: "inline", marginRight: 4 }} />
-                Due Date
-              </label>
-              <input
-                type="date"
-                className="form-input"
-                value={form.due_date}
-                min={form.invoice_date}
-                onChange={(e) => setForm({ ...form, due_date: e.target.value })}
-              />
-            </div>
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="form-label">Notes (optional)</label>
-            <textarea
-              className="form-input"
-              style={{ resize: "vertical", minHeight: 72 }}
-              placeholder="Internal notes for this invoice..."
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            />
-          </div>
-
-          <div className="divider" style={{ margin: "4px 0" }} />
-
-          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => setShowModal(false)}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={creating}
-            >
-              {creating ? (
-                <>
-                  <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <FileText size={14} />
-                  Create Invoice
-                </>
-              )}
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      `}</style>
     </div>
   );
 }

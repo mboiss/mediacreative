@@ -9,8 +9,6 @@ const supabase = createAdminClient(
 );
 
 export async function createClientRecord(formData: FormData) {
-  console.log("ACTION TRIGGERED");
-
   const payload = {
     full_name: formData.get("full_name"),
     email: formData.get("email"),
@@ -19,15 +17,12 @@ export async function createClientRecord(formData: FormData) {
     address: formData.get("address"),
   };
 
-  console.log(payload);
-
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from("clients")
     .insert(payload)
     .select();
 
-  console.log("DATA:", data);
-  console.log("ERROR:", error);
+  if (error) console.error("Failed to create client:", error);
 
   revalidatePath("/clients");
 }

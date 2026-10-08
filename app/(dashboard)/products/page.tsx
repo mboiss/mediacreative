@@ -5,6 +5,10 @@ import { Search, Plus, Trash2, Package, Loader2, Tag, Edit2, Wrench, Box, Trendi
 import { Modal } from "@/components/ui/modal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
+import { useToast } from "@/components/ui/toast";
+import { useConfirm } from "@/components/ui/confirm-dialog";
+import { Pagination, usePagination } from "@/components/ui/pagination";
+import { LoadingState } from "@/components/ui/loading-state";
 
 type Product = {
   id: string;
@@ -40,6 +44,8 @@ function formatCurrency(amount: number) {
 }
 
 export default function ProductsPage() {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<"all" | "goods" | "service">("all");
@@ -124,30 +130,48 @@ export default function ProductsPage() {
         setForm({ ...EMPTY_FORM });
         setEditingProduct(null);
         setShowModal(false);
+        toast.success(isEdit ? "Item Updated" : "Item Added", `${form.product_name} saved successfully.`);
         await loadProducts();
       } else {
-        const err = await res.json();
-        alert("Error: " + (err.error || `Failed to ${isEdit ? "update" : "add"} product`));
+        const err = await res.json().catch(() => ({}));
+        toast.error(isEdit ? "Update Failed" : "Add Failed", err.error || `Failed to ${isEdit ? "update" : "add"} item.`);
       }
     } catch (err) {
       console.error(err);
+      toast.error("Network Error", "Could not connect to server.");
     } finally {
       setSaving(false);
     }
   }
 
   async function deleteProduct(id: string) {
-    if (!confirm("Delete this product / service item?")) return;
+    const product = products.find((p) => p.id === id);
+    if (
+      !(await confirm({
+        title: "Delete item?",
+        message: `${product?.product_name ? `"${product.product_name}"` : "This product / service item"} will be permanently removed from the catalog.`,
+        confirmLabel: "Delete",
+        tone: "danger",
+      }))
+    )
+      return;
     setDeletingId(id);
     try {
-      await fetch("/api/products", {
+      const res = await fetch("/api/products", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
+      if (res.ok) {
+        toast.success("Item Deleted", "Removed from the catalog.");
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error("Delete Failed", err.error || "Could not delete item.");
+      }
       await loadProducts();
     } catch (err) {
       console.error(err);
+      toast.error("Network Error", "Could not connect to server.");
     } finally {
       setDeletingId(null);
     }
@@ -167,6 +191,11 @@ export default function ProductsPage() {
       p.description?.toLowerCase().includes(q)
     );
   });
+
+  const { pageItems, page, setPage, pageSize, setPageSize, totalPages, totalItems } = usePagination(
+    filtered,
+    `${activeTab}|${search}`
+  );
 
   // Calculate statistics
   const goodsList = products.filter((p) => !isServiceItem(p));
@@ -312,10 +341,7 @@ export default function ProductsPage() {
       {/* TABLE */}
       <div style={{ background: "var(--bg-glass)", border: "1px solid var(--border)", borderRadius: 20, overflow: "hidden" }}>
         {loading ? (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 60, gap: 12, color: "var(--text-secondary)" }}>
-            <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} />
-            Loading catalog...
-          </div>
+          <LoadingState label="Loading catalog..." />
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={<Package size={28} />}
@@ -351,7 +377,7 @@ export default function ProductsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((product) => {
+                {pageItems.map((product) => {
                   const isSvc = isServiceItem(product);
                   const cost = Number(product.cost || 0);
                   const price = Number(product.price || 0);
@@ -478,6 +504,16 @@ export default function ProductsPage() {
               </tbody>
             </table>
           </div>
+        )}
+        {!loading && (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            pageSize={pageSize}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
         )}
       </div>
 

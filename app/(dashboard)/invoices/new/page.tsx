@@ -26,6 +26,7 @@ import {
   Wifi,
 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
+import { useToast } from "@/components/ui/toast";
 import { InvoiceSheet } from "@/components/invoice/invoice-sheet";
 import {
   getPaymentAccounts,
@@ -61,6 +62,7 @@ type FormLineItem = {
 
 export default function NewInvoicePage() {
   const router = useRouter();
+  const toast = useToast();
 
   // Data sources
   const [clients, setClients] = useState<Client[]>([]);
@@ -109,14 +111,23 @@ export default function NewInvoicePage() {
       if (cRes.ok) {
         const cData = await cRes.json();
         if (Array.isArray(cData)) setClients(cData);
+      } else {
+        const err = await cRes.json().catch(() => ({}));
+        toast.error("Failed to load clients", err.error);
       }
       if (pRes.ok) {
         const pData = await pRes.json();
         if (Array.isArray(pData)) setProducts(pData);
+      } else {
+        const err = await pRes.json().catch(() => ({}));
+        toast.error("Failed to load products", err.error);
       }
       if (tRes.ok) {
         const tData = await tRes.json();
         if (Array.isArray(tData)) setTourLogs(tData);
+      } else {
+        const err = await tRes.json().catch(() => ({}));
+        toast.error("Failed to load tour logs", err.error);
       }
 
       setPaymentAccounts(accsData);
@@ -126,9 +137,11 @@ export default function NewInvoicePage() {
       }
     } catch (err) {
       console.error("Failed to load initial data:", err);
+      toast.error("Failed to load invoice data", "Please refresh the page and try again.");
     } finally {
       setLoadingData(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -207,7 +220,7 @@ export default function NewInvoicePage() {
 
   function handleRemoveLineItem(id: string) {
     if (lineItems.length === 1) {
-      alert("Invoice must have at least 1 line item.");
+      toast.warning("Invoice must have at least 1 line item.");
       return;
     }
     setLineItems((prev) => prev.filter((it) => it.id !== id));
@@ -244,13 +257,14 @@ export default function NewInvoicePage() {
         setClientId(created.id);
         setShowNewClientModal(false);
         setNewClientForm({ full_name: "", company: "", email: "", phone: "", address: "" });
+        toast.success("Client added", created.full_name);
       } else {
-        const err = await res.json();
-        alert("Failed to add client: " + (err.error || "Unknown error"));
+        const err = await res.json().catch(() => ({}));
+        toast.error("Failed to add client", err.error || "Unknown error");
       }
     } catch (err) {
       console.error(err);
-      alert("Error adding client.");
+      toast.error("Failed to add client", "Please try again.");
     } finally {
       setCreatingClient(false);
     }
@@ -259,12 +273,12 @@ export default function NewInvoicePage() {
   // Save / Submit Invoice
   async function handleSubmit(targetStatus: "Draft" | "Sent") {
     if (!clientId) {
-      alert("Please select a client for this invoice.");
+      toast.warning("Please select a client for this invoice.");
       return;
     }
 
     if (lineItems.some((it) => !it.description.trim())) {
-      alert("All line items must have a description.");
+      toast.warning("All line items must have a description.");
       return;
     }
 
@@ -294,14 +308,15 @@ export default function NewInvoicePage() {
 
       if (res.ok) {
         const created = await res.json();
+        toast.success(targetStatus === "Sent" ? "Invoice created and marked as sent" : "Invoice saved as draft");
         router.push(`/invoices/${created.id}`);
       } else {
-        const err = await res.json();
-        alert("Failed to create invoice: " + (err.error || "Unknown error"));
+        const err = await res.json().catch(() => ({}));
+        toast.error("Failed to create invoice", err.error || "Unknown error");
       }
     } catch (err) {
       console.error(err);
-      alert("Failed to create invoice.");
+      toast.error("Failed to create invoice", "Please try again.");
     } finally {
       setSaving(false);
     }
