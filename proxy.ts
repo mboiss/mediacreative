@@ -49,6 +49,16 @@ export async function proxy(request: NextRequest) {
 
   const isProtected = protectedRoutes.some((route) => pathname === route || pathname.startsWith(route + "/"));
 
+  // API routes use the service role key, so they must never be reachable without a session.
+  // Exceptions: reading a single invoice (the shareable /view-invoice/<uuid> page) and auth endpoints.
+  const isPublicApi =
+    pathname.startsWith("/api/auth/") ||
+    (request.method === "GET" && /^\/api\/invoices\/[0-9a-f-]{36}$/i.test(pathname));
+
+  if (pathname.startsWith("/api/") && !isPublicApi && !user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   if (isProtected && !user) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
