@@ -1,37 +1,62 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
+
+/* Tailwind `dark:` follows the next-themes class on <html> instead of the OS setting. */
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* ============================================
    DESIGN TOKENS
+   Every colour in the app should come from here so both themes stay correct.
+   See DESIGN.md for usage rules.
    ============================================ */
 :root, html.dark {
-  --bg-primary: #060d1a;
-  --bg-secondary: #0a1628;
+  /* Surfaces */
+  --bg-primary: #060d1a;          /* page background */
+  --bg-secondary: #0a1628;        /* solid panels, select options */
   --bg-card: rgba(10, 22, 45, 0.7);
-  --bg-glass: rgba(255, 255, 255, 0.04);
-  --bg-glass-hover: rgba(255, 255, 255, 0.08);
+  --bg-glass: rgba(255, 255, 255, 0.04);       /* cards */
+  --bg-glass-hover: rgba(255, 255, 255, 0.08); /* hovered rows / cards */
+  --bg-inset: rgba(255, 255, 255, 0.025);      /* inputs, nested blocks */
+  --table-head-bg: rgba(2, 6, 23, 0.75);
 
+  /* Text (all pass WCAG AA on --bg-primary) */
   --text-primary: #f0f6ff;
-  --text-secondary: #8ba3c7;
-  --text-muted: #4a6080;
+  --text-secondary: #9fb3d1;
+  --text-muted: #7088a8;
+  --text-on-accent: #ffffff;
 
+  /* Brand */
   --accent-cyan: #00d4ff;
   --accent-cyan-dim: rgba(0, 212, 255, 0.15);
-  --accent-purple: #7c3aed;
-  --accent-purple-dim: rgba(124, 58, 237, 0.15);
-  --accent-emerald: #10b981;
-  --accent-amber: #f59e0b;
-  --accent-red: #ef4444;
+  --accent-purple: #8b5cf6;
+  --accent-purple-dim: rgba(139, 92, 246, 0.15);
+  --accent-gradient: linear-gradient(135deg, #00b8e6, #7c3aed);
 
-  --border: rgba(255, 255, 255, 0.07);
+  /* Status — use with the -bg / -border variants below */
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #f87171;
+  --info: #60a5fa;
+  --neutral: #94a3b8;
+
+  /* Legacy aliases (older inline styles) */
+  --accent-emerald: var(--success);
+  --accent-amber: var(--warning);
+  --accent-red: var(--danger);
+
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
   --border-accent: rgba(0, 212, 255, 0.3);
 
   --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4), 0 1px 4px rgba(0, 0, 0, 0.2);
   --shadow-glow: 0 0 30px rgba(0, 212, 255, 0.1);
+  --page-glow-1: rgba(0, 212, 255, 0.10);
+  --page-glow-2: rgba(124, 58, 237, 0.08);
 
   --sidebar-bg: rgba(6, 13, 26, 0.85);
   --topbar-bg: rgba(6, 13, 26, 0.7);
   --modal-bg: #0d1f3c;
+  --tooltip-bg: rgba(15, 23, 42, 0.95);
 
   --radius-sm: 10px;
   --radius-md: 14px;
@@ -47,30 +72,108 @@ html.light {
   --bg-primary: #f4f6fa;
   --bg-secondary: #ffffff;
   --bg-card: #ffffff;
-  --bg-glass: rgba(255, 255, 255, 0.85);
-  --bg-glass-hover: rgba(240, 244, 250, 0.95);
+  --bg-glass: #ffffff;
+  --bg-glass-hover: #f1f5f9;
+  --bg-inset: #f8fafc;
+  --table-head-bg: #eef2f7;
 
   --text-primary: #0f172a;
   --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  --text-muted: #64748b;
+  --text-on-accent: #ffffff;
 
-  --accent-cyan: #0284c7;
-  --accent-cyan-dim: rgba(2, 132, 199, 0.1);
-  --accent-purple: #7c3aed;
-  --accent-purple-dim: rgba(124, 58, 237, 0.1);
-  --accent-emerald: #059669;
-  --accent-amber: #d97706;
-  --accent-red: #dc2626;
+  --accent-cyan: #0369a1;
+  --accent-cyan-dim: rgba(3, 105, 161, 0.1);
+  --accent-purple: #6d28d9;
+  --accent-purple-dim: rgba(109, 40, 217, 0.1);
+  --accent-gradient: linear-gradient(135deg, #0284c7, #6d28d9);
 
-  --border: rgba(0, 0, 0, 0.08);
-  --border-accent: rgba(2, 132, 199, 0.3);
+  --success: #047857;
+  --warning: #b45309;
+  --danger: #b91c1c;
+  --info: #1d4ed8;
+  --neutral: #475569;
 
-  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.03);
-  --shadow-glow: 0 0 30px rgba(2, 132, 199, 0.08);
+  --border: rgba(15, 23, 42, 0.1);
+  --border-strong: rgba(15, 23, 42, 0.18);
+  --border-accent: rgba(3, 105, 161, 0.35);
+
+  --shadow-card: 0 4px 20px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+  --shadow-glow: 0 0 30px rgba(3, 105, 161, 0.08);
+  --page-glow-1: rgba(3, 105, 161, 0.06);
+  --page-glow-2: rgba(109, 40, 217, 0.04);
 
   --sidebar-bg: rgba(255, 255, 255, 0.92);
   --topbar-bg: rgba(255, 255, 255, 0.85);
   --modal-bg: #ffffff;
+  --tooltip-bg: #ffffff;
+}
+
+/* Tinted backgrounds / borders derived from each status colour, for both themes. */
+:root {
+  --success-bg: color-mix(in srgb, var(--success) 12%, transparent);
+  --success-border: color-mix(in srgb, var(--success) 30%, transparent);
+  --warning-bg: color-mix(in srgb, var(--warning) 12%, transparent);
+  --warning-border: color-mix(in srgb, var(--warning) 30%, transparent);
+  --danger-bg: color-mix(in srgb, var(--danger) 12%, transparent);
+  --danger-border: color-mix(in srgb, var(--danger) 30%, transparent);
+  --info-bg: color-mix(in srgb, var(--info) 12%, transparent);
+  --info-border: color-mix(in srgb, var(--info) 30%, transparent);
+  --neutral-bg: color-mix(in srgb, var(--neutral) 12%, transparent);
+  --neutral-border: color-mix(in srgb, var(--neutral) 30%, transparent);
+  --accent-bg: color-mix(in srgb, var(--accent-cyan) 12%, transparent);
+  --accent-border: color-mix(in srgb, var(--accent-cyan) 30%, transparent);
+  --purple-bg: color-mix(in srgb, var(--accent-purple) 12%, transparent);
+  --purple-border: color-mix(in srgb, var(--accent-purple) 30%, transparent);
+}
+
+/* Expose the tokens as Tailwind utilities: bg-surface, text-fg-muted, border-line, text-success, bg-success-bg … */
+@theme inline {
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  --color-page: var(--bg-primary);
+  --color-panel: var(--bg-secondary);
+  --color-surface: var(--bg-glass);
+  --color-surface-hover: var(--bg-glass-hover);
+  --color-inset: var(--bg-inset);
+  --color-elevated: var(--modal-bg);
+
+  --color-fg: var(--text-primary);
+  --color-fg-muted: var(--text-secondary);
+  --color-fg-subtle: var(--text-muted);
+  --color-on-accent: var(--text-on-accent);
+
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-line-accent: var(--border-accent);
+
+  --color-accent: var(--accent-cyan);
+  --color-accent-bg: var(--accent-bg);
+  --color-accent-border: var(--accent-border);
+  --color-purple: var(--accent-purple);
+  --color-purple-bg: var(--purple-bg);
+  --color-purple-border: var(--purple-border);
+
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-success-border: var(--success-border);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-border: var(--warning-border);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-border: var(--danger-border);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-info-border: var(--info-border);
+  --color-neutral: var(--neutral);
+  --color-neutral-bg: var(--neutral-bg);
+  --color-neutral-border: var(--neutral-border);
+
+  --radius-card: var(--radius-lg);
+  --radius-control: var(--radius-sm);
+
+  --shadow-card: var(--shadow-card);
 }
 
 /* ============================================
@@ -89,8 +192,8 @@ html {
 body {
   background-color: var(--bg-primary);
   background-image:
-    radial-gradient(ellipse 80% 50% at 20% -20%, rgba(0, 212, 255, 0.10) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 40% at 80% 120%, rgba(124, 58, 237, 0.08) 0%, transparent 60%);
+    radial-gradient(ellipse 80% 50% at 20% -20%, var(--page-glow-1) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 120%, var(--page-glow-2) 0%, transparent 60%);
   color: var(--text-primary);
   min-height: 100vh;
   transition: background-color 200ms ease, color 200ms ease;
@@ -132,7 +235,7 @@ body {
 .glass-card-hover:hover {
   background: var(--bg-glass-hover);
   border-color: var(--border-accent);
-  box-shadow: var(--shadow-card), 0 0 20px rgba(0, 212, 255, 0.05);
+  box-shadow: var(--shadow-card), var(--shadow-glow);
   transform: translateY(-1px);
 }
 
@@ -152,29 +255,25 @@ body {
 }
 
 .badge-draft {
-  background: rgba(100, 116, 139, 0.15);
-  color: #64748b;
-  border: 1px solid rgba(100, 116, 139, 0.25);
+  background: var(--neutral-bg);
+  color: var(--neutral);
+  border: 1px solid var(--neutral-border);
 }
 .badge-sent {
-  background: rgba(59, 130, 246, 0.15);
-  color: #3b82f6;
-  border: 1px solid rgba(59, 130, 246, 0.25);
+  background: var(--info-bg);
+  color: var(--info);
+  border: 1px solid var(--info-border);
 }
 .badge-paid {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid var(--success-border);
 }
-.badge-overdue {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.25);
-}
+.badge-overdue,
 .badge-cancelled {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
 }
 
 /* ============================================
@@ -202,8 +301,8 @@ body {
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 8px rgba(0, 212, 255, 0.3); }
-  50%       { box-shadow: 0 0 20px rgba(0, 212, 255, 0.6); }
+  0%, 100% { box-shadow: 0 0 8px var(--accent-border); }
+  50%       { box-shadow: 0 0 20px var(--accent-cyan-dim); }
 }
 
 .animate-fade-in-up {
@@ -229,7 +328,7 @@ body {
 .form-input {
   width: 100%;
   padding: 10px 14px;
-  background: var(--bg-glass);
+  background: var(--bg-inset);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
@@ -244,7 +343,7 @@ body {
 .form-input:focus {
   background: var(--bg-glass-hover);
   border-color: var(--accent-cyan);
-  box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+  box-shadow: 0 0 0 3px var(--accent-cyan-dim);
 }
 .form-input:disabled {
   opacity: 0.5;
@@ -283,7 +382,7 @@ select option {
    GRADIENT TEXT
    ============================================ */
 .gradient-text {
-  background: linear-gradient(135deg, var(--accent-cyan), #7c3aed);
+  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -300,7 +399,7 @@ select option {
    PAGE HEADER
    ============================================ */
 .page-header {
-  background: linear-gradient(135deg, rgba(0, 212, 255, 0.06), rgba(124, 58, 237, 0.06));
+  background: linear-gradient(135deg, var(--accent-bg), var(--purple-bg));
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   padding: 28px 32px;
@@ -311,17 +410,19 @@ select option {
 /* ============================================
    TABLE STYLES
    ============================================ */
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
 .data-table {
   width: 100%;
   border-collapse: collapse;
 }
 .data-table thead {
-  background: rgba(2, 6, 23, 0.75);
+  background: var(--table-head-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-}
-html.light .data-table thead {
-  background: #e2e8f0;
 }
 .data-table th {
   font-size: 0.75rem;
@@ -372,12 +473,12 @@ html.light .data-table thead {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #00d4ff, #7c3aed);
-  color: white;
-  box-shadow: 0 4px 16px rgba(0, 212, 255, 0.25);
+  background: var(--accent-gradient);
+  color: var(--text-on-accent);
+  box-shadow: 0 4px 16px var(--accent-cyan-dim);
 }
 .btn-primary:hover:not(:disabled) {
-  box-shadow: 0 6px 24px rgba(0, 212, 255, 0.4);
+  box-shadow: 0 6px 24px var(--accent-border);
   transform: translateY(-1px);
 }
 
@@ -393,22 +494,37 @@ html.light .data-table thead {
 }
 
 .btn-danger {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background: var(--danger-bg);
+  color: var(--danger);
+  border: 1px solid var(--danger-border);
 }
 .btn-danger:hover:not(:disabled) {
-  background: rgba(239, 68, 68, 0.2);
-  border-color: rgba(239, 68, 68, 0.4);
+  background: color-mix(in srgb, var(--danger) 20%, transparent);
+  border-color: var(--danger);
 }
 
 .btn-success {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.2);
+  background: var(--success-bg);
+  color: var(--success);
+  border: 1px solid var(--success-border);
 }
 .btn-success:hover:not(:disabled) {
-  background: rgba(16, 185, 129, 0.2);
+  background: color-mix(in srgb, var(--success) 20%, transparent);
+}
+.btn:focus-visible,
+.form-input:focus-visible {
+  outline: 2px solid var(--accent-cyan);
+  outline-offset: 2px;
+}
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+}
+.btn-icon {
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  justify-content: center;
 }
 
 /* ============================================
@@ -500,11 +616,6 @@ html.light .data-table thead {
    MOBILE RESPONSIVE STYLES
    ============================================ */
 @media (max-width: 768px) {
-  /* Main Container Padding */
-  main {
-    padding: 16px 12px !important;
-  }
-
   /* Topbar Hamburger Button */
   .mobile-menu-btn {
     display: flex !important;
