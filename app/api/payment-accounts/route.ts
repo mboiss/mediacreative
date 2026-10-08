@@ -1,57 +1,20 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { jsonNoCache } from "@/lib/api-utils";
-import { readJsonStore, writeJsonStore } from "@/lib/json-store";
+import { getSupabaseAdmin, errorMessage } from "@/lib/supabase-admin";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-key";
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-const DEFAULT_PAYMENT_ACCOUNTS = [
-  {
-    id: "acc_bca",
-    bank_name: "BCA",
-    account_number: "0402434901",
-    account_holder: "Mulyadi",
-    is_default: true,
-  },
-  {
-    id: "acc_mandiri",
-    bank_name: "Bank Mandiri",
-    account_number: "137-00-1234567-8",
-    account_holder: "Media Creative",
-    is_default: false,
-  },
-  {
-    id: "acc_uob",
-    bank_name: "Bank UOB",
-    account_number: "301-301-123-4",
-    account_holder: "Media Creative",
-    is_default: false,
-  },
-];
-
 export async function GET() {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from("payment_accounts")
       .select("*")
       .order("created_at", { ascending: true });
-
-    if (!error && data && data.length > 0) {
-      writeJsonStore("payment_accounts.json", data);
-      return jsonNoCache(data);
-    }
+    if (error) throw error;
+    return jsonNoCache(data ?? []);
   } catch (err) {
-    console.warn("Supabase payment_accounts query skipped/failed, using local store:", err);
+    return jsonNoCache({ error: errorMessage(err, "Failed to load payment accounts") }, 500);
   }
-
-  const localData = readJsonStore("payment_accounts.json", DEFAULT_PAYMENT_ACCOUNTS);
-  return jsonNoCache(localData);
 }
 
 export async function POST(request: Request) {
@@ -68,35 +31,19 @@ export async function POST(request: Request) {
       notes: notes || null,
     };
 
-    // Dual write local store
-    const list = readJsonStore("payment_accounts.json", DEFAULT_PAYMENT_ACCOUNTS);
+    const supabase = getSupabaseAdmin();
     if (payload.is_default) {
-      list.forEach((acc: any) => (acc.is_default = false));
+      const { error: resetErr } = await supabase
+        .from("payment_accounts")
+        .update({ is_default: false })
+        .neq("id", payload.id);
+      if (resetErr) throw resetErr;
     }
-    const existingIdx = list.findIndex((acc: any) => acc.id === payload.id);
-    if (existingIdx >= 0) {
-      list[existingIdx] = payload;
-    } else {
-      list.push(payload);
-    }
-    writeJsonStore("payment_accounts.json", list);
-
-    // Try saving to Supabase
-    try {
-      if (payload.is_default) {
-        await supabase
-          .from("payment_accounts")
-          .update({ is_default: false })
-          .neq("id", payload.id);
-      }
-      await supabase.from("payment_accounts").upsert([payload]);
-    } catch (e) {
-      console.warn("Supabase payment_accounts write skipped:", e);
-    }
-
-    return jsonNoCache(payload);
-  } catch (err: any) {
-    return jsonNoCache({ error: err?.message || "Operation failed" }, 500);
+    const { data, error } = await supabase.from("payment_accounts").upsert([payload]).select().single();
+    if (error) throw error;
+    return jsonNoCache(data);
+  } catch (err) {
+    return jsonNoCache({ error: errorMessage(err, "Operation failed") }, 500);
   }
 }
 
@@ -108,20 +55,10 @@ export async function DELETE(request: Request) {
       return jsonNoCache({ error: "Account ID is required" }, 400);
     }
 
-    // Dual delete local store
-    const list = readJsonStore("payment_accounts.json", DEFAULT_PAYMENT_ACCOUNTS);
-    const filtered = list.filter((acc: any) => acc.id !== id);
-    writeJsonStore("payment_accounts.json", filtered);
-
-    // Try deleting from Supabase
-    try {
-      await supabase.from("payment_accounts").delete().eq("id", id);
-    } catch (e) {
-      console.warn("Supabase payment_accounts delete skipped:", e);
-    }
-
+    const { error } = await getSupabaseAdmin().from("payment_accounts").delete().eq("id", id);
+    if (error) throw error;
     return jsonNoCache({ success: true });
-  } catch (err: any) {
-    return jsonNoCache({ error: err?.message || "Delete failed" }, 500);
+  } catch (err) {
+    return jsonNoCache({ error: errorMessage(err, "Delete failed") }, 500);
   }
 }

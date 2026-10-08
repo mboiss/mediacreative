@@ -1,16 +1,10 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import { jsonNoCache } from "@/lib/api-utils";
-import { readJsonStore, writeJsonStore } from "@/lib/json-store";
+import { getSupabaseAdmin, errorMessage } from "@/lib/supabase-admin";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-key";
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
+// Shown only until settings are saved for the first time.
 const DEFAULT_SETTINGS = {
   id: "default",
   company_name: "Media Creative Studio",
@@ -26,22 +20,16 @@ const DEFAULT_SETTINGS = {
 
 export async function GET() {
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabaseAdmin()
       .from("app_settings")
       .select("*")
       .eq("id", "default")
-      .single();
-
-    if (!error && data) {
-      writeJsonStore("settings.json", data);
-      return jsonNoCache(data);
-    }
+      .maybeSingle();
+    if (error) throw error;
+    return jsonNoCache(data ?? DEFAULT_SETTINGS);
   } catch (err) {
-    console.warn("Supabase settings query skipped/failed, using local store:", err);
+    return jsonNoCache({ error: errorMessage(err, "Failed to load settings") }, 500);
   }
-
-  const localData = readJsonStore("settings.json", DEFAULT_SETTINGS);
-  return jsonNoCache(localData);
 }
 
 export async function POST(request: Request) {
@@ -61,18 +49,10 @@ export async function POST(request: Request) {
       payment_terms_days: body.payment_terms_days,
     };
 
-    // Dual write to local store
-    writeJsonStore("settings.json", payload);
-
-    // Try saving to Supabase if table exists
-    try {
-      await supabase.from("app_settings").upsert([payload]);
-    } catch (e) {
-      console.warn("Supabase settings write skipped:", e);
-    }
-
-    return jsonNoCache(payload);
-  } catch (err: any) {
-    return jsonNoCache({ error: err?.message || "Save settings failed" }, 500);
+    const { data, error } = await getSupabaseAdmin().from("app_settings").upsert([payload]).select().single();
+    if (error) throw error;
+    return jsonNoCache(data);
+  } catch (err) {
+    return jsonNoCache({ error: errorMessage(err, "Save settings failed") }, 500);
   }
 }
