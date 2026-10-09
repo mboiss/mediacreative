@@ -2,9 +2,13 @@
 
 import { useEffect } from "react";
 
+/** Cache names owned by the PWA service worker (public/sw.js) — never cleared automatically. */
+const PWA_CACHE_PREFIX = "mc-";
+
 /**
- * Automatically clears stale local storage cache and browser Cache Storage
- * to ensure all computers/laptops always load fresh live data from Supabase.
+ * Clears leftovers from older app versions (local fallback data, old caches and old service workers)
+ * so every device loads fresh data from Supabase. The PWA's own service worker (/sw.js) and its
+ * caches are kept, otherwise the app could not be installed.
  */
 export function AutoClearCache() {
   useEffect(() => {
@@ -25,20 +29,19 @@ export function AutoClearCache() {
         }
       });
 
-      // 2. Clear browser CacheStorage if active
+      // 2. Clear old CacheStorage entries (not the PWA's own caches)
       if ("caches" in window) {
         caches.keys().then((names) => {
-          names.forEach((name) => {
-            caches.delete(name);
-          });
+          names.filter((name) => !name.startsWith(PWA_CACHE_PREFIX)).forEach((name) => caches.delete(name));
         });
       }
 
-      // 3. Unregister any leftover service workers
+      // 3. Unregister leftover service workers other than the PWA's /sw.js
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.getRegistrations().then((registrations) => {
           registrations.forEach((registration) => {
-            registration.unregister();
+            const url = registration.active?.scriptURL ?? registration.installing?.scriptURL ?? registration.waiting?.scriptURL ?? "";
+            if (!url.endsWith("/sw.js")) registration.unregister();
           });
         });
       }
