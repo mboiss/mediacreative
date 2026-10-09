@@ -160,6 +160,23 @@ export function InvoiceSheet({
             >
               INVOICE
             </div>
+            <dl
+              className={cn(
+                "ml-auto mt-4 grid w-fit grid-cols-[auto_auto] gap-x-6 gap-y-1.5 text-left",
+                compact ? "text-xs" : "text-xs sm:text-sm"
+              )}
+            >
+              {[
+                ["Invoice No.", <span key="n" className="font-mono">{invoiceNumber}</span>],
+                ["Issue Date", formatDate(invoiceDate)],
+                ["Due Date", dueDate ? formatDate(dueDate) : "On receipt"],
+              ].map(([label, value]) => (
+                <React.Fragment key={String(label)}>
+                  <dt className={PAPER.muted}>{label}</dt>
+                  <dd className={cn("text-right font-semibold", PAPER.ink)}>{value}</dd>
+                </React.Fragment>
+              ))}
+            </dl>
             {stamp && (
               <div
                 className={cn(
@@ -174,51 +191,24 @@ export function InvoiceSheet({
           </div>
         </div>
 
-        {/* 2. BILL TO (left) + INVOICE DETAILS (right) */}
-        <div
-          className={cn(
-            "grid gap-x-10 gap-y-5 border-t pt-5",
-            PAPER.rule,
-            compact ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-[1fr_auto]"
+        {/* 2. BILL TO */}
+        <div className={cn("border-t pt-5", PAPER.rule)}>
+          <Label>Bill To</Label>
+          {client ? (
+            <div className={cn("leading-snug", compact ? "text-xs" : "text-sm")}>
+              <div className={cn("font-bold", PAPER.ink)}>{client.company || client.full_name || "—"}</div>
+              {client.company && client.full_name && <div className={PAPER.inkSoft}>Attn. {client.full_name}</div>}
+              {client.address && <div className={cn("mt-1 whitespace-pre-line", PAPER.muted)}>{client.address}</div>}
+              {(client.phone || client.email) && (
+                <div className={cn("mt-0.5", PAPER.muted)}>{[client.phone, client.email].filter(Boolean).join("  ·  ")}</div>
+              )}
+            </div>
+          ) : (
+            <div className={cn("text-xs italic", PAPER.muted)}>No client selected.</div>
           )}
-        >
-          <div className="min-w-0">
-            <Label>Bill To</Label>
-            {client ? (
-              <div className={cn("leading-snug", compact ? "text-xs" : "text-sm")}>
-                <div className={cn("font-bold", PAPER.ink)}>{client.company || client.full_name || "—"}</div>
-                {client.company && client.full_name && <div className={PAPER.inkSoft}>Attn. {client.full_name}</div>}
-                {client.address && <div className={cn("mt-1 whitespace-pre-line", PAPER.muted)}>{client.address}</div>}
-                {(client.phone || client.email) && (
-                  <div className={cn("mt-0.5", PAPER.muted)}>{[client.phone, client.email].filter(Boolean).join("  ·  ")}</div>
-                )}
-              </div>
-            ) : (
-              <div className={cn("text-xs italic", PAPER.muted)}>No client selected.</div>
-            )}
-          </div>
-
-          <dl
-            className={cn(
-              "grid grid-cols-[auto_auto] content-start gap-x-6 gap-y-1.5",
-              compact ? "text-xs" : "text-xs sm:text-sm",
-              !compact && "sm:justify-self-end"
-            )}
-          >
-            {[
-              ["Invoice No.", <span key="n" className="font-mono">{invoiceNumber}</span>],
-              ["Issue Date", formatDate(invoiceDate)],
-              ["Due Date", dueDate ? formatDate(dueDate) : "On receipt"],
-            ].map(([label, value]) => (
-              <React.Fragment key={String(label)}>
-                <dt className={PAPER.muted}>{label}</dt>
-                <dd className={cn("text-right font-semibold", PAPER.ink)}>{value}</dd>
-              </React.Fragment>
-            ))}
-          </dl>
         </div>
 
-        {/* 4. LINE ITEMS — auto layout so the amount column is never clipped */}
+        {/* 3. LINE ITEMS — auto layout so the amount column is never clipped */}
         <div className={cn("overflow-x-auto rounded-lg border", PAPER.rule)}>
           <table className={cn("w-full min-w-[420px] border-collapse", compact ? "text-xs" : "text-xs sm:text-sm")}>
             <thead>
