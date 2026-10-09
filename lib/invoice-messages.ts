@@ -117,67 +117,156 @@ export function buildWhatsAppMessage(input: InvoiceMessageInput): string {
   return lines.join("\n");
 }
 
-/** Email subject + plain-text body (mailto: cannot carry formatting, so no symbols or markup). */
-export function buildEmail(input: InvoiceMessageInput): { subject: string; body: string } {
+type EmailContent = {
+  kind: Kind;
+  subject: string;
+  greeting: string;
+  intro: string[];
+  rows: [string, string][];
+  payment: PaymentDetails | null;
+  linkLabel: string;
+  sender: string;
+  contact: string;
+};
+
+function emailContent(input: InvoiceMessageInput): EmailContent {
   const kind = kindOf(input);
   const pay = parsePaymentNotes(input.notes) ?? DEFAULT_PAYMENT;
   const amount = formatRupiah(input.amount);
   const due = input.dueDate ? formatDate(input.dueDate) : "Upon receipt";
   const sender = companyName(input);
-  const contact = contactLine(input);
-  const greeting = `Dear ${input.clientName?.trim() || "Sir/Madam"},`;
 
-  const summary = [
-    `Invoice number : ${input.invoiceNumber}`,
-    `Issue date     : ${input.invoiceDate ? formatDate(input.invoiceDate) : "-"}`,
-    `Due date       : ${due}`,
-    `${kind === "paid" ? "Amount paid    " : "Amount due     "}: ${amount}`,
-  ];
-
-  const payment = [
-    "Payment details",
-    `Bank           : ${pay.bank}`,
-    `Account number : ${pay.accountNumber}`,
-    ...(pay.accountName ? [`Account name   : ${pay.accountName}`] : []),
-    `Please use the invoice number as the transfer reference.`,
+  const rows: [string, string][] = [
+    ["Invoice number", input.invoiceNumber],
+    ["Issue date", input.invoiceDate ? formatDate(input.invoiceDate) : "-"],
+    ["Due date", due],
+    [kind === "paid" ? "Amount paid" : "Amount due", amount],
   ];
 
   let subject: string;
   let intro: string[];
-  let closing: string[];
-
   if (kind === "paid") {
     subject = `Payment received – Invoice ${input.invoiceNumber} – ${sender}`;
     intro = [`Thank you for your payment. We confirm that invoice ${input.invoiceNumber} has been paid in full.`];
-    closing = [`You can view and download your paid invoice for your records here:`, input.invoiceUrl];
   } else if (kind === "overdue") {
     subject = `Payment reminder – Invoice ${input.invoiceNumber} – ${sender}`;
     intro = [
       `We hope you are well. This is a friendly reminder that invoice ${input.invoiceNumber} was due on ${due} and remains unpaid.`,
       `If you have already made the payment, please disregard this email, or reply with the transfer receipt so we can update our records.`,
     ];
-    closing = [`View and download the invoice:`, input.invoiceUrl, "", ...payment];
   } else {
     subject = `Invoice ${input.invoiceNumber} from ${sender} – due ${due}`;
     intro = [`Thank you for your business. Please find the details of your invoice below.`];
-    closing = [`View and download the invoice:`, input.invoiceUrl, "", ...payment];
   }
 
-  const body = [
-    greeting,
-    "",
-    ...intro,
-    "",
-    ...summary,
-    "",
-    ...closing,
-    "",
-    `If you have any questions, simply reply to this email.`,
-    "",
-    "Kind regards,",
+  return {
+    kind,
+    subject,
+    greeting: `Dear ${input.clientName?.trim() || "Sir/Madam"},`,
+    intro,
+    rows,
+    payment: kind === "paid" ? null : pay,
+    linkLabel: kind === "paid" ? "View paid invoice" : "View & download invoice",
     sender,
-    ...(contact ? [contact] : []),
-  ].join("\n");
+    contact: contactLine(input),
+  };
+}
 
-  return { subject, body };
+/** Email subject + plain-text body (fallback for mail apps that don't accept pasted formatting). */
+export function buildEmail(input: InvoiceMessageInput): { subject: string; body: string } {
+  const c = emailContent(input);
+  const lines = [
+    c.greeting,
+    "",
+    ...c.intro,
+    "",
+    ...c.rows.map(([k, v]) => `${k}: ${v}`),
+    "",
+    `${c.linkLabel}: ${input.invoiceUrl}`,
+  ];
+  if (c.payment) {
+    lines.push(
+      "",
+      "Payment details",
+      `Bank: ${c.payment.bank}`,
+      `Account number: ${c.payment.accountNumber}`,
+      ...(c.payment.accountName ? [`Account name: ${c.payment.accountName}`] : []),
+      "Please use the invoice number as the transfer reference."
+    );
+  }
+  lines.push("", "If you have any questions, simply reply to this email.", "", "Kind regards,", c.sender);
+  if (c.contact) lines.push(c.contact);
+  return { subject: c.subject, body: lines.join("\n") };
+}
+
+function esc(value: string) {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+/**
+ * Formatted email body (HTML with inline styles and tables, which Gmail / Outlook / Apple Mail keep when pasted).
+ * Copied to the clipboard by the "Email" button; the user pastes it into the message body.
+ */
+export function buildEmailHtml(input: InvoiceMessageInput): { subject: string; html: string } {
+  const c = emailContent(input);
+  const font = "font-family:Arial,Helvetica,sans-serif;";
+  const muted = "color:#64748b;";
+  const ink = "color:#0f172a;";
+  const brand = "#0369a1";
+
+  const accent = c.kind === "paid" ? "#047857" : c.kind === "overdue" ? "#b91c1c" : brand;
+  const badge = c.kind === "paid" ? "PAID" : c.kind === "overdue" ? "OVERDUE" : "INVOICE";
+
+  const row = ([k, v]: [string, string], last: boolean) => {
+    const isAmount = k.startsWith("Amount");
+    return `<tr>
+      <td style="${font}${muted}font-size:13px;padding:10px 16px;${last ? "" : "border-bottom:1px solid #e2e8f0;"}">${esc(k)}</td>
+      <td style="${font}${isAmount ? `color:${accent};font-size:16px;font-weight:bold;` : `${ink}font-size:14px;font-weight:bold;`}padding:10px 16px;text-align:right;${last ? "" : "border-bottom:1px solid #e2e8f0;"}">${esc(v)}</td>
+    </tr>`;
+  };
+
+  const paymentRows = c.payment
+    ? [
+        ["Bank", c.payment.bank],
+        ["Account number", c.payment.accountNumber],
+        ...(c.payment.accountName ? [["Account name", c.payment.accountName]] : []),
+      ]
+        .map(
+          ([k, v]) => `<tr>
+      <td style="${font}${muted}font-size:13px;padding:6px 16px;">${esc(k)}</td>
+      <td style="${font}${ink}font-size:14px;font-weight:bold;padding:6px 16px;text-align:right;">${esc(v)}</td>
+    </tr>`
+        )
+        .join("")
+    : "";
+
+  const html = `<div style="${font}${ink}font-size:14px;line-height:1.6;max-width:600px;">
+  <p style="margin:0 0 12px;">${esc(c.greeting)}</p>
+  ${c.intro.map((t) => `<p style="margin:0 0 12px;">${esc(t)}</p>`).join("")}
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:separate;border:1px solid #e2e8f0;border-radius:8px;margin:16px 0;max-width:600px;">
+    <tr>
+      <td colspan="2" style="${font}background:#f8fafc;border-bottom:3px solid ${accent};padding:12px 16px;border-radius:8px 8px 0 0;">
+        <span style="font-size:12px;font-weight:bold;letter-spacing:2px;color:${accent};">${badge}</span>
+        <span style="font-size:14px;font-weight:bold;${ink}margin-left:8px;">${esc(c.sender)}</span>
+      </td>
+    </tr>
+    ${c.rows.map((r, i) => row(r, i === c.rows.length - 1)).join("")}
+  </table>
+  <p style="margin:0 0 20px;">
+    <a href="${esc(input.invoiceUrl)}" style="${font}display:inline-block;background:${brand};color:#ffffff;text-decoration:none;font-weight:bold;font-size:14px;padding:10px 18px;border-radius:6px;">${esc(c.linkLabel)}</a>
+  </p>
+  ${
+    c.payment
+      ? `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:separate;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin:0 0 16px;max-width:600px;">
+    <tr><td colspan="2" style="${font}${muted}font-size:11px;font-weight:bold;letter-spacing:1px;padding:12px 16px 4px;">PAYMENT DETAILS</td></tr>
+    ${paymentRows}
+    <tr><td colspan="2" style="${font}${muted}font-size:12px;padding:6px 16px 12px;">Please use <b style="${ink}">${esc(input.invoiceNumber)}</b> as the transfer reference.</td></tr>
+  </table>`
+      : ""
+  }
+  <p style="margin:0 0 12px;">If you have any questions, simply reply to this email.</p>
+  <p style="margin:0;">Kind regards,<br><b>${esc(c.sender)}</b>${c.contact ? `<br><span style="${muted}font-size:13px;">${esc(c.contact)}</span>` : ""}</p>
+</div>`;
+
+  return { subject: c.subject, html };
 }

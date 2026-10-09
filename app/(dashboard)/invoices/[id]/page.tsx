@@ -29,7 +29,7 @@ import { useToast } from "@/components/ui/toast";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { InvoiceSheet, type InvoiceCompany } from "@/components/invoice/invoice-sheet";
-import { buildEmail, buildWhatsAppMessage } from "@/lib/invoice-messages";
+import { buildEmail, buildEmailHtml, buildWhatsAppMessage } from "@/lib/invoice-messages";
 import { LoadingState } from "@/components/ui/loading-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
@@ -165,13 +165,39 @@ export default function InvoiceDetailPage() {
     window.open(waUrl, "_blank");
   }
 
-  function handleSendEmail(overrideEmail?: string) {
+  /**
+   * mailto: can only carry plain text, so the formatted (table) email is copied to the clipboard as HTML
+   * and the mail app opens with recipient + subject; the user pastes the body with Ctrl+V.
+   * Falls back to the plain-text body when rich clipboard isn't available.
+   */
+  async function handleSendEmail(overrideEmail?: string) {
     if (!invoice) return;
     const email = overrideEmail || invoice.clients?.email || manualEmail || "";
-    const { subject, body } = buildEmail(messageInput());
+    const input = messageInput();
+    const plain = buildEmail(input);
+    const { subject, html } = buildEmailHtml(input);
 
-    const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    window.location.href = mailtoUrl;
+    let copied = false;
+    try {
+      if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+        await navigator.clipboard.write([
+          new ClipboardItem({
+            "text/html": new Blob([html], { type: "text/html" }),
+            "text/plain": new Blob([plain.body], { type: "text/plain" }),
+          }),
+        ]);
+        copied = true;
+      }
+    } catch (err) {
+      console.error("Rich clipboard copy failed:", err);
+    }
+
+    if (copied) {
+      toast.success("Formatted email copied", "Your mail app is opening — paste into the message body with Ctrl+V (⌘V on Mac).");
+      window.location.href = `mailto:${email}?subject=${encodeURIComponent(subject)}`;
+    } else {
+      window.location.href = `mailto:${email}?subject=${encodeURIComponent(plain.subject)}&body=${encodeURIComponent(plain.body)}`;
+    }
   }
 
   function copyInvoiceLink() {
