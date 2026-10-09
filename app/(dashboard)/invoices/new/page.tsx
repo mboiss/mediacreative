@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
-import { InvoiceSheet } from "@/components/invoice/invoice-sheet";
+import { InvoiceSheet, type InvoiceCompany } from "@/components/invoice/invoice-sheet";
 import { LoadingState } from "@/components/ui/loading-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
@@ -71,6 +71,7 @@ export default function NewInvoicePage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [company, setCompany] = useState<InvoiceCompany | null>(null);
 
   // Form State
   const [clientId, setClientId] = useState("");
@@ -111,6 +112,12 @@ export default function NewInvoicePage() {
   const loadData = useCallback(async () => {
     try {
       const ts = Date.now();
+      // Sender details for the preview; the preview still renders with defaults if this fails.
+      fetch(`/api/settings?_t=${ts}`, { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((s) => s && setCompany(s))
+        .catch(() => {});
+
       const [cRes, pRes, tRes, accsData] = await Promise.all([
         fetch(`/api/clients?_t=${ts}`, { cache: "no-store", headers: { Pragma: "no-cache" } }),
         fetch(`/api/products?_t=${ts}`, { cache: "no-store", headers: { Pragma: "no-cache" } }),
@@ -753,6 +760,7 @@ export default function NewInvoicePage() {
             subtotal={rawSubtotal}
             totalAmount={grandTotal}
             status="Draft"
+            company={company}
           />
         </div>
       </div>

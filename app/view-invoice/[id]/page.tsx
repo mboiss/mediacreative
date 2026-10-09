@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
 import { Printer, Download, Loader2 } from "lucide-react";
-import { InvoiceSheet } from "@/components/invoice/invoice-sheet";
+import { InvoiceSheet, type InvoiceCompany } from "@/components/invoice/invoice-sheet";
 import { useToast } from "@/components/ui/toast";
 import { LoadingState } from "@/components/ui/loading-state";
 
@@ -51,6 +51,7 @@ export default function PublicInvoicePage() {
 
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [items, setItems] = useState<InvoiceItem[]>([]);
+  const [company, setCompany] = useState<InvoiceCompany | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
@@ -67,6 +68,7 @@ export default function PublicInvoicePage() {
       const json = await res.json();
       setInvoice(json.invoice);
       setItems(json.items ?? []);
+      setCompany(json.company ?? null);
     } catch (err) {
       console.error("Error loading invoice:", err);
       setErrorMessage("Failed to load invoice details.");
@@ -186,6 +188,7 @@ export default function PublicInvoicePage() {
           subtotal={subtotal}
           totalAmount={invoice.total_amount ?? subtotal}
           status={invoice.status}
+          company={company}
         />
       </div>
     </div>

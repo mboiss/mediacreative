@@ -28,7 +28,8 @@ import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
-import { InvoiceSheet } from "@/components/invoice/invoice-sheet";
+import { InvoiceSheet, type InvoiceCompany } from "@/components/invoice/invoice-sheet";
+import { buildEmail, buildWhatsAppMessage } from "@/lib/invoice-messages";
 import { LoadingState } from "@/components/ui/loading-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
@@ -87,6 +88,7 @@ export default function InvoiceDetailPage() {
 
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [items, setItems] = useState<InvoiceItem[]>([]);
+  const [company, setCompany] = useState<InvoiceCompany | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -137,61 +139,26 @@ export default function InvoiceDetailPage() {
     return cleaned;
   }
 
-  function getPaymentDetailsText(notes?: string) {
-    if (!notes || !notes.trim()) {
-      return {
-        bank: "BCA",
-        accountNumber: "0402434901",
-        accountName: "Mulyadi",
-      };
-    }
-
-    const lines = notes.trim().split("\n");
-    let bankName = "BCA";
-    let accNo = "0402434901";
-    let accName = "Mulyadi";
-
-    for (const line of lines) {
-      if (/mandiri/i.test(line)) bankName = "Mandiri";
-      else if (/bca/i.test(line)) bankName = "BCA";
-      else if (/bri/i.test(line)) bankName = "BRI";
-      else if (/bni/i.test(line)) bankName = "BNI";
-      else if (/cimb/i.test(line)) bankName = "CIMB";
-      else if (/permata/i.test(line)) bankName = "Permata";
-      else if (/danamon/i.test(line)) bankName = "Danamon";
-      else if (/jenius/i.test(line)) bankName = "Jenius";
-      else if (/bsi/i.test(line)) bankName = "BSI";
-
-      const numMatch = line.match(/\d{8,16}/);
-      if (numMatch) {
-        accNo = numMatch[0];
-      }
-
-      if (/a\/?n/i.test(line)) {
-        const parts = line.split(/a\/?n\s*:\s*/i);
-        if (parts[1]) accName = parts[1].trim();
-      }
-    }
-
+  function messageInput() {
     return {
-      bank: bankName,
-      accountNumber: accNo,
-      accountName: accName,
+      invoiceNumber: invoice!.invoice_number,
+      status: invoice!.status,
+      invoiceDate: invoice!.invoice_date,
+      dueDate: invoice!.due_date,
+      amount: invoice!.total_amount ?? subtotal,
+      clientName: invoice!.clients?.full_name,
+      notes: invoice!.notes,
+      invoiceUrl: getPublicInvoiceUrl(),
+      company,
     };
   }
 
   function handleSendWhatsApp(overridePhone?: string) {
     if (!invoice) return;
     const phone = overridePhone || formatWhatsAppPhone(invoice.clients?.phone || manualPhone);
-    const clientName = invoice.clients?.full_name || "Client";
-    const formattedAmount = formatRupiah(invoice.total_amount ?? subtotal);
-    const formattedDueDate = formatDate(invoice.due_date);
-    const invoiceUrl = getPublicInvoiceUrl();
-    const payment = getPaymentDetailsText(invoice.notes);
+    const text = buildWhatsAppMessage(messageInput());
 
-    const text = `Hello *${clientName}*,\n\nHere are the details for your invoice from *Media Creative*:\n📄 *Invoice No:* ${invoice.invoice_number}\n💰 *Total Amount:* ${formattedAmount}\n📅 *Due Date:* ${formattedDueDate}\n\n🔗 *View & Download Invoice Online:* \n${invoiceUrl}\n\n*Payment Details:*\nBank : ${payment.bank}\nAccount Number : ${payment.accountNumber}\nAccount Name : ${payment.accountName}\n\nThank you for your business! 🙏`;
-
-    const waUrl = phone 
+    const waUrl = phone
       ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}`
       : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
 
@@ -201,15 +168,7 @@ export default function InvoiceDetailPage() {
   function handleSendEmail(overrideEmail?: string) {
     if (!invoice) return;
     const email = overrideEmail || invoice.clients?.email || manualEmail || "";
-    const clientName = invoice.clients?.full_name || "Valued Client";
-    const formattedAmount = formatRupiah(invoice.total_amount ?? subtotal);
-    const formattedDate = formatDate(invoice.invoice_date);
-    const formattedDueDate = formatDate(invoice.due_date);
-    const invoiceUrl = getPublicInvoiceUrl();
-    const payment = getPaymentDetailsText(invoice.notes);
-
-    const subject = `Invoice ${invoice.invoice_number} from Media Creative`;
-    const body = `Dear ${clientName},\n\nThank you for choosing *Media Creative.*\nWe have issued your invoice for the recent order. Please find the details below.\n\n__________________________________________________\n\n📄 *INVOICE SUMMARY*\n__________________________________________________\n\n🧾 Invoice Number : ${invoice.invoice_number}\n💰 Total Amount : ${formattedAmount}\n📅 Issue Date : ${formattedDate}\n⏰ Due Date : ${formattedDueDate}\n__________________________________________________\n\n🌐 *View & Download Invoice*\nYou can view, print, or download your invoice at any time using the link below:\n${invoiceUrl}\n\n🏦 *Payment Details*\nBank : ${payment.bank}\nAccount Number : ${payment.accountNumber}\nAccount Name : ${payment.accountName}\n\nIf you have any questions regarding this invoice, please feel free to contact us.\nThank you for your business.\n\nBest regards,\n*Media Creative*`;
+    const { subject, body } = buildEmail(messageInput());
 
     const mailtoUrl = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     window.location.href = mailtoUrl;
@@ -283,6 +242,7 @@ export default function InvoiceDetailPage() {
       const json = await res.json();
       setInvoice(json.invoice);
       setItems(json.items ?? []);
+      setCompany(json.company ?? null);
     } catch (err) {
       console.error("Error fetching invoice:", err);
       setErrorMessage("Failed to load invoice details");
@@ -717,6 +677,7 @@ export default function InvoiceDetailPage() {
           subtotal={subtotal}
           totalAmount={invoice.total_amount ?? subtotal}
           status={invoice.status}
+          company={company}
         />
       </div>
 

@@ -46,9 +46,18 @@ export async function GET(
     );
   }
 
+  // Sender details printed on the invoice (also needed by the public /view-invoice page,
+  // which cannot call the login-protected /api/settings).
+  const { data: settings } = await supabase
+    .from("app_settings")
+    .select("company_name, email, phone, address, tax_id")
+    .eq("id", "default")
+    .maybeSingle();
+
   return NextResponse.json({
     invoice,
     items: items ?? [],
+    company: settings ?? null,
   });
 }
 
