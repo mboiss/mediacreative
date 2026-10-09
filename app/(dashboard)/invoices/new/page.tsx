@@ -377,7 +377,9 @@ export default function NewInvoicePage() {
         {/* LEFT COLUMN: EDITOR */}
         <div className={cn("min-w-0 flex-col gap-5", activeTabMobile === "edit" ? "flex" : "hidden xl:flex")}>
           {/* 1. CLIENT */}
-          <Panel title="Bill to" icon={<User size={15} />}>
+          {/* overflow-visible + z-index so the client suggestions can drop over the next card */}
+          <Panel title="Bill to" icon={<User size={15} />} className="relative z-20 overflow-visible">
+
             <ClientPicker
               clients={clients}
               value={clientId}
