@@ -17,10 +17,11 @@ import {
   Check,
   Eye,
   FileText,
-  Search,
   Wifi,
   Settings,
+  ChevronDown,
 } from "lucide-react";
+import { ClientPicker } from "@/components/invoice/client-picker";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { InvoiceSheet, type InvoiceCompany } from "@/components/invoice/invoice-sheet";
@@ -28,11 +29,10 @@ import { LoadingState } from "@/components/ui/loading-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { Field, SearchInput, SelectInput, TextArea, TextInput } from "@/components/ui/field";
+import { Field, SelectInput, TextArea, TextInput } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
 import { formatRupiah } from "@/lib/format";
 import {
-  getPaymentAccounts,
   fetchPaymentAccounts,
   formatAccountTransferText,
   PaymentAccount,
@@ -45,14 +45,6 @@ type Client = {
   phone?: string;
   company?: string;
   address?: string;
-};
-
-type Product = {
-  id: string;
-  product_name: string;
-  product_code?: string;
-  price: number;
-  category?: string;
 };
 
 type FormLineItem = {
@@ -69,7 +61,6 @@ export default function NewInvoicePage() {
 
   // Data sources
   const [clients, setClients] = useState<Client[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [company, setCompany] = useState<InvoiceCompany | null>(null);
 
@@ -105,7 +96,7 @@ export default function NewInvoicePage() {
   const [newClientForm, setNewClientForm] = useState({ full_name: "", company: "", email: "", phone: "", address: "" });
   const [creatingClient, setCreatingClient] = useState(false);
   const [activeTabMobile, setActiveTabMobile] = useState<"edit" | "preview">("edit");
-  const [clientSearch, setClientSearch] = useState("");
+  const [visibleTours, setVisibleTours] = useState(5);
   const [tourLogs, setTourLogs] = useState<any[]>([]);
 
   // Load clients, products, payment accounts, and tour logs
@@ -118,9 +109,8 @@ export default function NewInvoicePage() {
         .then((s) => s && setCompany(s))
         .catch(() => {});
 
-      const [cRes, pRes, tRes, accsData] = await Promise.all([
+      const [cRes, tRes, accsData] = await Promise.all([
         fetch(`/api/clients?_t=${ts}`, { cache: "no-store", headers: { Pragma: "no-cache" } }),
-        fetch(`/api/products?_t=${ts}`, { cache: "no-store", headers: { Pragma: "no-cache" } }),
         fetch(`/api/tour-rentals?_t=${ts}`, { cache: "no-store", headers: { Pragma: "no-cache" } }),
         fetchPaymentAccounts(),
       ]);
@@ -131,13 +121,6 @@ export default function NewInvoicePage() {
       } else {
         const err = await cRes.json().catch(() => ({}));
         toast.error("Failed to load clients", err.error);
-      }
-      if (pRes.ok) {
-        const pData = await pRes.json();
-        if (Array.isArray(pData)) setProducts(pData);
-      } else {
-        const err = await pRes.json().catch(() => ({}));
-        toast.error("Failed to load products", err.error);
       }
       if (tRes.ok) {
         const tData = await tRes.json();
@@ -165,16 +148,12 @@ export default function NewInvoicePage() {
     loadData();
   }, [loadData]);
 
-  // Selected client object & Live Filter
-  const filteredClients = clients.filter((c) => {
-    const q = clientSearch.toLowerCase();
-    return (
-      c.full_name.toLowerCase().includes(q) ||
-      (c.company ?? "").toLowerCase().includes(q) ||
-      (c.email ?? "").toLowerCase().includes(q)
-    );
-  });
   const selectedClient = clients.find((c) => c.id === clientId);
+
+  // Only tours that are still out (Running) or about to start (Upcoming), newest first.
+  const activeTours = tourLogs
+    .filter((t) => t.status === "Running" || t.status === "Upcoming")
+    .sort((a, b) => String(b.start_date ?? "").localeCompare(String(a.start_date ?? "")));
 
   // Quick Add Modem Rental from Tour Code (Auto Qty & Auto Rp 600.000)
   function addModemRentalItemFromTour(t: any) {
@@ -207,13 +186,13 @@ export default function NewInvoicePage() {
   }
 
   // Line item manipulation
-  function handleAddLineItem(product?: Product) {
+  function handleAddLineItem() {
     const newItem: FormLineItem = {
       id: "item-" + Date.now() + Math.random().toString(36).substr(2, 4),
-      product_id: product?.id || "",
-      description: product ? product.product_name : "",
+      product_id: "",
+      description: "",
       quantity: 1,
-      unit_price: product ? product.price : 0,
+      unit_price: 0,
     };
     setLineItems((prev) => [...prev, newItem]);
   }
@@ -222,15 +201,7 @@ export default function NewInvoicePage() {
     setLineItems((prev) =>
       prev.map((item) => {
         if (item.id !== id) return item;
-        const updated = { ...item, [field]: val };
-        if (field === "product_id" && val) {
-          const matched = products.find((p) => p.id === val);
-          if (matched) {
-            updated.description = matched.product_name;
-            updated.unit_price = matched.price;
-          }
-        }
-        return updated;
+        return { ...item, [field]: val };
       })
     );
   }
@@ -241,12 +212,6 @@ export default function NewInvoicePage() {
       return;
     }
     setLineItems((prev) => prev.filter((it) => it.id !== id));
-  }
-
-  // Quick preset bank notes
-  function applyBankPreset(bankName: string, accNo: string) {
-    const preset = `Transfer Pembayaran:\nBank ${bankName}: ${accNo} a.n. Media Creative\nMohon bukti transfer diisi nomor invoice. Terima kasih!`;
-    setNotes(preset);
   }
 
   // Calculations
@@ -341,7 +306,6 @@ export default function NewInvoicePage() {
 
   const chip = "inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold transition-colors";
   const chipIdle = "border-line bg-surface text-fg-muted hover:border-line-accent hover:text-fg";
-  const chipAccent = "border-line bg-surface text-fg hover:border-line-accent hover:bg-surface-hover";
 
   return (
     <div className="flex w-full max-w-[1400px] flex-col gap-6">
@@ -412,47 +376,17 @@ export default function NewInvoicePage() {
       <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         {/* LEFT COLUMN: EDITOR */}
         <div className={cn("min-w-0 flex-col gap-5", activeTabMobile === "edit" ? "flex" : "hidden xl:flex")}>
-          {/* 1. CLIENT SELECTION */}
-          <Panel
-            title="Client"
-            icon={<User size={15} />}
-            actions={
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowNewClientModal(true)}>
-                <Plus size={13} />
-                New Client
-              </button>
-            }
-          >
-            <div className="flex flex-col gap-3">
-              <SearchInput
-                icon={<Search size={14} />}
-                placeholder="Search client name, company, or email..."
-                aria-label="Search clients"
-                value={clientSearch}
-                onChange={(e) => setClientSearch(e.target.value)}
-              />
-
-              <Field label="Select client" htmlFor="invoice-client" required>
-                <SelectInput id="invoice-client" value={clientId} onChange={(e) => setClientId(e.target.value)}>
-                  <option value="">— Select client ({filteredClients.length} found) —</option>
-                  {filteredClients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.full_name} {c.company ? `(${c.company})` : ""} {c.email ? `• ${c.email}` : ""}
-                    </option>
-                  ))}
-                </SelectInput>
-              </Field>
-
-              {selectedClient && (
-                <div className="flex flex-col gap-1 rounded-xl border border-line bg-inset px-4 py-3 text-sm text-fg-muted">
-                  <div className="font-semibold text-fg">{selectedClient.full_name}</div>
-                  {selectedClient.company && <div>{selectedClient.company}</div>}
-                  {selectedClient.email && <div className="break-all">Email: {selectedClient.email}</div>}
-                  {selectedClient.phone && <div>Phone: {selectedClient.phone}</div>}
-                  {selectedClient.address && <div className="mt-0.5">Address: {selectedClient.address}</div>}
-                </div>
-              )}
-            </div>
+          {/* 1. CLIENT */}
+          <Panel title="Bill to" icon={<User size={15} />}>
+            <ClientPicker
+              clients={clients}
+              value={clientId}
+              onChange={setClientId}
+              onCreateNew={(name) => {
+                setNewClientForm((f) => ({ ...f, full_name: name }));
+                setShowNewClientModal(true);
+              }}
+            />
           </Panel>
 
           {/* 2. DATES & TERMS */}
@@ -502,141 +436,116 @@ export default function NewInvoicePage() {
           </Panel>
 
           {/* 3. LINE ITEMS */}
-          <Panel
-            title={`Line Items (${lineItems.length})`}
-            icon={<Package size={15} />}
-            description={products.length > 0 ? "Pick a catalog product to autofill description and price." : undefined}
-          >
+          <Panel title={`Items (${lineItems.length})`} icon={<Package size={15} />}>
             <div className="flex flex-col gap-4">
-              {/* Catalog quick add */}
-              {products.length > 0 && (
-                <div className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-fg-muted">Quick add from catalog</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {products.slice(0, 5).map((p) => (
-                      <button key={p.id} type="button" onClick={() => handleAddLineItem(p)} className={cn(chip, chipAccent)}>
-                        <Plus size={12} /> {p.product_name} ({formatRupiah(p.price)})
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Column headers (desktop) */}
+              <div className="hidden grid-cols-[minmax(0,1fr)_72px_140px_120px_32px] gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-fg-subtle sm:grid">
+                <span>Description</span>
+                <span>Qty</span>
+                <span>Unit price (Rp)</span>
+                <span className="text-right">Amount</span>
+                <span />
+              </div>
 
-              {/* Modem rental from active tour */}
-              {tourLogs.length > 0 && (
-                <div className="flex flex-col gap-2 rounded-xl border border-line bg-inset p-3">
-                  <span className="flex items-start gap-1.5 text-xs font-semibold text-fg-muted">
-                    <Wifi size={14} className="mt-px shrink-0 text-accent" />
-                    Quick add modem rental from an active tour (sets qty and Rp 600.000 automatically)
-                  </span>
-                  <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
-                    {tourLogs.slice(0, 10).map((t) => (
-                      <button
-                        key={t.tourcode}
-                        type="button"
-                        onClick={() => addModemRentalItemFromTour(t)}
-                        className={cn(chip, chipAccent)}
-                        title={`Add modem rental for ${t.tourcode} (${t.qty} modems assigned)`}
-                      >
-                        <Plus size={12} /> {t.tourcode} ({t.qty} modem{t.qty > 1 ? "s" : ""})
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Line item cards */}
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
                 {lineItems.map((item, idx) => (
-                  <div key={item.id} className="flex flex-col gap-3 rounded-xl border border-line bg-inset p-3 sm:p-4">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-fg-muted">Item #{idx + 1}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveLineItem(item.id)}
-                        className="btn btn-ghost btn-icon hover:text-danger"
-                        aria-label={`Remove item ${idx + 1}`}
-                        title="Remove line item"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-
-                    {products.length > 0 && (
-                      <SelectInput
-                        aria-label={`Catalog product for item ${idx + 1}`}
-                        value={item.product_id}
-                        onChange={(e) => handleUpdateLineItem(item.id, "product_id", e.target.value)}
-                      >
-                        <option value="">— Custom description (or pick a catalog product) —</option>
-                        {products.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.product_name} — {formatRupiah(p.price)}
-                          </option>
-                        ))}
-                      </SelectInput>
-                    )}
-
-                    <Field label="Description" htmlFor={`${item.id}-desc`}>
+                  <div
+                    key={item.id}
+                    className="grid grid-cols-[1fr_auto] items-center gap-2 rounded-xl border border-line bg-inset p-2.5 sm:grid-cols-[minmax(0,1fr)_72px_140px_120px_32px] sm:border-0 sm:bg-transparent sm:p-0"
+                  >
+                    <TextInput
+                      aria-label={`Description for item ${idx + 1}`}
+                      placeholder="Item description"
+                      value={item.description}
+                      onChange={(e) => handleUpdateLineItem(item.id, "description", e.target.value)}
+                      className="col-span-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveLineItem(item.id)}
+                      className="btn btn-ghost btn-icon size-8! hover:text-danger sm:order-last"
+                      aria-label={`Remove item ${idx + 1}`}
+                      title="Remove item"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                    <div className="col-span-2 grid grid-cols-[72px_1fr_auto] items-center gap-2 sm:contents">
                       <TextInput
-                        id={`${item.id}-desc`}
-                        placeholder="Enter item description..."
-                        value={item.description}
-                        onChange={(e) => handleUpdateLineItem(item.id, "description", e.target.value)}
+                        aria-label={`Quantity for item ${idx + 1}`}
+                        type="number"
+                        inputMode="decimal"
+                        min="1"
+                        step="0.01"
+                        value={item.quantity}
+                        onChange={(e) => handleUpdateLineItem(item.id, "quantity", Number(e.target.value))}
                       />
-                    </Field>
-
-                    {/* Qty / Unit price / Total: two columns on phones, three on wider screens */}
-                    <div className="grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_1.5fr_1fr]">
-                      <Field label="Qty" htmlFor={`${item.id}-qty`}>
-                        <TextInput
-                          id={`${item.id}-qty`}
-                          type="number"
-                          inputMode="decimal"
-                          min="1"
-                          step="0.01"
-                          value={item.quantity}
-                          onChange={(e) => handleUpdateLineItem(item.id, "quantity", Number(e.target.value))}
-                        />
-                      </Field>
-                      <Field label="Unit price (Rp)" htmlFor={`${item.id}-price`}>
-                        <TextInput
-                          id={`${item.id}-price`}
-                          type="number"
-                          inputMode="numeric"
-                          min="0"
-                          step="1000"
-                          value={item.unit_price}
-                          onChange={(e) => handleUpdateLineItem(item.id, "unit_price", Number(e.target.value))}
-                        />
-                      </Field>
-                      <div className="col-span-2 flex items-baseline justify-between gap-2 border-t border-line pt-2 sm:col-span-1 sm:block sm:border-0 sm:pt-0 sm:text-right">
-                        <span className="block text-xs font-semibold uppercase tracking-wide text-fg-subtle">Total</span>
-                        <span className="whitespace-nowrap text-base font-bold tabular-nums text-fg">
-                          {formatRupiah((Number(item.quantity) || 0) * (Number(item.unit_price) || 0))}
-                        </span>
-                      </div>
+                      <TextInput
+                        aria-label={`Unit price for item ${idx + 1}`}
+                        type="number"
+                        inputMode="numeric"
+                        min="0"
+                        step="1000"
+                        value={item.unit_price}
+                        onChange={(e) => handleUpdateLineItem(item.id, "unit_price", Number(e.target.value))}
+                      />
+                      <span className="whitespace-nowrap text-right text-sm font-semibold tabular-nums text-fg">
+                        {formatRupiah((Number(item.quantity) || 0) * (Number(item.unit_price) || 0))}
+                      </span>
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                <button
-                  type="button"
-                  className="btn btn-ghost justify-center whitespace-normal"
-                  onClick={addGenericModemRentalItem}
-                >
-                  <Wifi size={14} />
-                  Add Modem Rental (Rp 600.000)
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-ghost justify-center whitespace-normal border-dashed"
-                  onClick={() => handleAddLineItem()}
-                >
-                  <Plus size={14} />
-                  Add Blank Line Item
+              <button type="button" className="btn btn-ghost btn-sm self-start" onClick={() => handleAddLineItem()}>
+                <Plus size={14} /> Add item
+              </button>
+
+              {/* Modem rental from an active tour */}
+              <div className="flex flex-col gap-2 border-t border-line pt-4">
+                <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-fg-muted">
+                  <Wifi size={14} className="text-accent" aria-hidden />
+                  Modem rental from an active tour
+                </div>
+                {activeTours.length === 0 ? (
+                  <p className="text-sm text-fg-subtle">No running or upcoming tours right now.</p>
+                ) : (
+                  <>
+                    <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line">
+                      {activeTours.slice(0, visibleTours).map((t) => (
+                        <li key={t.tourcode} className="flex items-center justify-between gap-3 px-3 py-2">
+                          <div className="min-w-0 text-sm">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-semibold text-fg">{t.tourcode}</span>
+                              <StatusBadge status={t.status} />
+                            </div>
+                            <div className="truncate text-xs text-fg-subtle">
+                              {[t.tl, `${t.qty} modem${Number(t.qty) === 1 ? "" : "s"}`, t.start_date].filter(Boolean).join(" · ")}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm shrink-0"
+                            onClick={() => addModemRentalItemFromTour(t)}
+                            title={`Add ${t.qty} × modem rental (Rp 600.000) for ${t.tourcode}`}
+                          >
+                            <Plus size={13} /> Add
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                    {activeTours.length > visibleTours && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm self-center"
+                        onClick={() => setVisibleTours((n) => n + 5)}
+                      >
+                        <ChevronDown size={14} /> Show more ({activeTours.length - visibleTours} more)
+                      </button>
+                    )}
+                  </>
+                )}
+                <button type="button" className="btn btn-ghost btn-sm self-start" onClick={addGenericModemRentalItem}>
+                  <Plus size={13} /> Modem rental without tour (Rp 600.000)
                 </button>
               </div>
             </div>
@@ -688,29 +597,34 @@ export default function NewInvoicePage() {
               <div className="flex flex-col gap-1.5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <label htmlFor="invoice-notes" className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
-                    Payment instructions &amp; notes
+                    Payment to
                   </label>
                   <Link href="/settings" className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline">
                     <Settings size={12} /> Manage accounts
                   </Link>
                 </div>
                 {paymentAccounts.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
+                  <SelectInput
+                    aria-label="Pay to account"
+                    value={paymentAccounts.find((a) => formatAccountTransferText(a) === notes)?.id ?? ""}
+                    onChange={(e) => {
+                      const acc = paymentAccounts.find((a) => a.id === e.target.value);
+                      if (acc) setNotes(formatAccountTransferText(acc));
+                    }}
+                  >
+                    <option value="" disabled>
+                      Choose bank account…
+                    </option>
                     {paymentAccounts.map((acc) => (
-                      <button
-                        key={acc.id}
-                        type="button"
-                        onClick={() => setNotes(formatAccountTransferText(acc))}
-                        className={cn(chip, chipIdle)}
-                        title={`Use ${acc.bank_name}`}
-                      >
-                        <Plus size={12} /> {acc.bank_name} ({acc.account_number})
-                      </button>
+                      <option key={acc.id} value={acc.id}>
+                        {acc.bank_name} · {acc.account_number} · a.n. {acc.account_holder}
+                      </option>
                     ))}
-                  </div>
+                  </SelectInput>
                 )}
                 <TextArea
                   id="invoice-notes"
+                  className="min-h-16"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Include bank transfer details or payment instructions..."
