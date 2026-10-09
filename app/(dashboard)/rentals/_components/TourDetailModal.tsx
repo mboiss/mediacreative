@@ -187,7 +187,7 @@ export function TourDetailModal({
           </div>
 
           {tour.modems && tour.modems.trim().length > 0 ? (
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-1.5">
               {tour.modems.split(",").map((rawLabel) => {
                 const label = rawLabel.trim();
                 if (!label) return null;
@@ -198,64 +198,68 @@ export function TourDetailModal({
                 const nameCopyKey = `name-${label}`;
                 const nameCopied = copiedId === nameCopyKey;
 
+                const passwordCopied = matchingModem ? copiedId === matchingModem.id : false;
+                const iconCopyClass = (copied: boolean) =>
+                  cn(
+                    "inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md transition hover:bg-surface-hover",
+                    copied ? "text-success" : "text-fg-subtle hover:text-fg"
+                  );
+
                 return (
-                  <li
-                    key={label}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-inset px-3.5 py-2.5"
-                  >
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <span className="shrink-0 rounded-md border border-accent-border bg-accent-bg px-2 py-0.5 font-mono text-sm font-bold text-accent">
-                        {label}
-                      </span>
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="text-sm font-semibold text-fg">{modemFullName}</span>
-                          {matchingModem && (
+                  <li key={label} className="flex items-start gap-2.5 rounded-lg border border-line bg-inset px-3 py-2">
+                    <span className="mt-0.5 shrink-0 rounded-md border border-accent-border bg-accent-bg px-1.5 py-0.5 font-mono text-xs font-bold text-accent">
+                      {label}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1">
+                        <span className="truncate text-sm font-semibold text-fg" title={modemFullName}>
+                          {modemFullName}
+                        </span>
+                        {matchingModem && (
+                          <button
+                            type="button"
+                            onClick={() => onCopy(deviceOnlyName, nameCopyKey)}
+                            className={iconCopyClass(nameCopied)}
+                            aria-label={`Copy device name ${deviceOnlyName}`}
+                            title={nameCopied ? "Copied!" : `Copy ${deviceOnlyName} (for the MyOrbit app)`}
+                          >
+                            {nameCopied ? <Check size={13} /> : <Copy size={13} />}
+                          </button>
+                        )}
+                      </div>
+                      {matchingModem ? (
+                        <div className="flex flex-wrap items-center gap-x-2 text-xs text-fg-muted">
+                          <span className="font-mono">{matchingModem.number}</span>
+                          <span aria-hidden className="text-fg-subtle">·</span>
+                          <span className="inline-flex items-center gap-0.5">
+                            <span className="sr-only">WiFi password:</span>
+                            <span className="font-mono">{matchingModem.password}</span>
                             <button
                               type="button"
-                              onClick={() => onCopy(deviceOnlyName, nameCopyKey)}
-                              className={cn(
-                                "inline-flex cursor-pointer items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs font-semibold",
-                                nameCopied
-                                  ? "border-success-border bg-success-bg text-success"
-                                  : "border-accent-border bg-accent-bg text-accent"
-                              )}
-                              title={`Copy ${deviceOnlyName} to clipboard for MyOrbit app`}
+                              onClick={() => onCopy(matchingModem.password, matchingModem.id)}
+                              className={iconCopyClass(passwordCopied)}
+                              aria-label={`Copy WiFi password for ${label}`}
+                              title={passwordCopied ? "Copied!" : "Copy WiFi password"}
                             >
-                              {nameCopied ? <Check size={12} aria-hidden /> : <Copy size={12} aria-hidden />}
-                              {nameCopied ? `Copied ${deviceOnlyName}!` : `Copy ${deviceOnlyName}`}
+                              {passwordCopied ? <Check size={12} /> : <Copy size={12} />}
                             </button>
+                          </span>
+                          {paxName && (
+                            <>
+                              <span aria-hidden className="text-fg-subtle">·</span>
+                              <span className="inline-flex min-w-0 items-center gap-1 text-fg">
+                                <User size={12} aria-hidden className="shrink-0 text-fg-subtle" />
+                                <span className="truncate">{paxName}</span>
+                              </span>
+                            </>
                           )}
                         </div>
-                        {paxName ? (
-                          <div className="mt-0.5 flex items-center gap-1 text-xs font-semibold text-accent">
-                            <User size={12} aria-hidden /> Guest Pax: {paxName}
-                          </div>
-                        ) : matchingModem ? (
-                          <div className="font-mono text-xs text-fg-muted">SIM: {matchingModem.number}</div>
-                        ) : null}
-                      </div>
+                      ) : paxName ? (
+                        <div className="flex items-center gap-1 text-xs text-fg">
+                          <User size={12} aria-hidden className="text-fg-subtle" /> {paxName}
+                        </div>
+                      ) : null}
                     </div>
-
-                    {matchingModem && (
-                      <div className="flex items-center gap-1.5">
-                        <code className="rounded-md border border-line bg-surface px-2 py-0.5 font-mono text-xs font-semibold text-fg">
-                          {matchingModem.password}
-                        </code>
-                        <button
-                          type="button"
-                          onClick={() => onCopy(matchingModem.password, matchingModem.id)}
-                          className={cn(
-                            "inline-flex size-8 cursor-pointer items-center justify-center rounded-md hover:bg-surface-hover",
-                            copiedId === matchingModem.id ? "text-success" : "text-fg-subtle"
-                          )}
-                          aria-label={`Copy WiFi password for ${label}`}
-                          title="Copy WiFi password"
-                        >
-                          {copiedId === matchingModem.id ? <Check size={14} /> : <Copy size={14} />}
-                        </button>
-                      </div>
-                    )}
                   </li>
                 );
               })}
