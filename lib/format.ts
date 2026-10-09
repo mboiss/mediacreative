@@ -3,8 +3,8 @@
 
 const rupiahFormatter = new Intl.NumberFormat("id-ID", { maximumFractionDigits: 0 });
 const compactFormatter = new Intl.NumberFormat("id-ID", { notation: "compact", maximumFractionDigits: 1 });
-const dateFormatter = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
-const shortDateFormatter = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
+// Fixed 3-letter months (Intl's en-GB gives "Sept"), always "7 Oct 2026".
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /** "Rp 683.645.908" */
 export function formatRupiah(amount: number | null | undefined): string {
@@ -31,13 +31,13 @@ function toDate(value: string | Date | null | undefined): Date | null {
 /** "7 Oct 2026" */
 export function formatDate(value: string | Date | null | undefined): string {
   const d = toDate(value);
-  return d ? dateFormatter.format(d) : typeof value === "string" && value ? value : "—";
+  return d ? `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}` : typeof value === "string" && value ? value : "—";
 }
 
 /** "7 Oct" — when the year is obvious from context. */
 export function formatShortDate(value: string | Date | null | undefined): string {
   const d = toDate(value);
-  return d ? shortDateFormatter.format(d) : "—";
+  return d ? `${d.getDate()} ${MONTHS[d.getMonth()]}` : "—";
 }
 
 /** Whole days from today to the given date (negative = in the past). */

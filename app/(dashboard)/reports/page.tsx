@@ -27,7 +27,8 @@ import { StatCard, StatGrid } from "@/components/ui/stat-card";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { TableWrap } from "@/components/ui/data-table";
 import { Field, SearchInput, SelectInput } from "@/components/ui/field";
-import { cn } from "@/lib/utils";
+import { formatDate, formatRupiah, formatRupiahCompact } from "@/lib/format";
+import { MobileList, ListCard } from "@/components/ui/list-card";
 
 // Recharts takes tooltip styling as props; theme tokens keep it readable in dark and light mode.
 const tooltipContentStyle = {
@@ -65,31 +66,6 @@ type Invoice = {
   clients?: Client;
   invoice_items?: InvoiceItem[];
 };
-
-function formatCurrency(amount: number) {
-  return "Rp " + Number(amount || 0).toLocaleString("id-ID");
-}
-
-function formatShortDate(dateStr?: string) {
-  if (!dateStr) return "—";
-  const parts = dateStr.split("T")[0].split("-");
-  if (parts.length === 3 && parts[0].length === 4) {
-    const day = parseInt(parts[2], 10);
-    const monthIdx = parseInt(parts[1], 10) - 1;
-    const year2Digits = parts[0].slice(2);
-    const months = ["Jan.", "Feb.", "Mar.", "Apr.", "May.", "Jun.", "Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."];
-    if (monthIdx >= 0 && monthIdx < 12) {
-      return `${day} ${months[monthIdx]} ${year2Digits}`;
-    }
-  }
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  const day = d.getDate();
-  const months = ["Jan.", "Feb.", "Mar.", "Apr.", "May.", "Jun.", "Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."];
-  const month = months[d.getMonth()];
-  const year2Digits = String(d.getFullYear()).slice(2);
-  return `${day} ${month} ${year2Digits}`;
-}
 
 const MONTH_NAMES = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -315,12 +291,8 @@ export default function ReportsPage() {
   const hasActiveFilters =
     selectedYear !== "ALL" || selectedMonth !== "ALL" || selectedClient !== "ALL" || selectedStatus !== "ALL" || search !== "";
 
-  /** Long currency values shrink on narrow cards instead of overflowing. */
-  const kpiValue = (amount: number, className?: string) => (
-    <span className={cn("block text-lg leading-tight [overflow-wrap:anywhere] sm:text-xl xl:text-2xl", className)}>
-      {formatCurrency(amount)}
-    </span>
-  );
+  /** KPI tiles show the compact amount; the exact figure is in the tooltip. */
+  const kpiValue = (amount: number) => <span title={formatRupiah(amount)}>{formatRupiahCompact(amount)}</span>;
 
   return (
     <div className="flex flex-col gap-6">
@@ -423,7 +395,7 @@ export default function ReportsPage() {
         />
         <StatCard
           label={`Paid (${metrics.paidCount})`}
-          value={kpiValue(metrics.paidRevenue, "text-success")}
+          value={kpiValue(metrics.paidRevenue)}
           hint="Collected payments"
           icon={<CheckCircle2 size={20} />}
           tone="success"
@@ -431,7 +403,7 @@ export default function ReportsPage() {
         />
         <StatCard
           label={`Pending / Unpaid (${metrics.pendingCount})`}
-          value={kpiValue(metrics.pendingRevenue, "text-warning")}
+          value={kpiValue(metrics.pendingRevenue)}
           hint="Outstanding invoices"
           icon={<Clock size={20} />}
           tone="warning"
@@ -439,7 +411,7 @@ export default function ReportsPage() {
         />
         <StatCard
           label="Est. PPN Tax (11%)"
-          value={kpiValue(metrics.taxEstimate, "text-purple")}
+          value={kpiValue(metrics.taxEstimate)}
           hint="Calculated value-added tax"
           icon={<DollarSign size={20} />}
           tone="purple"
@@ -459,12 +431,6 @@ export default function ReportsPage() {
           <div className="h-64 w-full sm:h-72" role="img" aria-label="Bar chart of revenue per month">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={monthlyChartData} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="reportsRevenueBar" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--accent-cyan)" />
-                    <stop offset="100%" stopColor="var(--accent-purple)" />
-                  </linearGradient>
-                </defs>
                 <CartesianGrid vertical={false} stroke="var(--border)" />
                 <XAxis
                   dataKey="month"
@@ -487,11 +453,11 @@ export default function ReportsPage() {
                   itemStyle={tooltipItemStyle}
                   cursor={{ fill: "var(--bg-glass-hover)" }}
                   formatter={(value, _name, item) => [
-                    `${formatCurrency(Number(value))} (${(item?.payload as { invoices?: number })?.invoices ?? 0} invoices)`,
+                    `${formatRupiah(Number(value))} (${(item?.payload as { invoices?: number })?.invoices ?? 0} invoices)`,
                     "Revenue",
                   ]}
                 />
-                <Bar dataKey="revenue" fill="url(#reportsRevenueBar)" radius={[6, 6, 0, 0]} maxBarSize={40} />
+                <Bar dataKey="revenue" fill="var(--accent-cyan)" radius={[6, 6, 0, 0]} maxBarSize={40} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -509,7 +475,7 @@ export default function ReportsPage() {
                       <span className="mr-1 text-fg-subtle">#{idx + 1}</span>
                       <span className="break-words">{cl.name}</span>
                     </span>
-                    <span className="shrink-0 text-sm font-bold text-success">{formatCurrency(cl.revenue)}</span>
+                    <span className="shrink-0 text-sm font-semibold tabular-nums text-fg">{formatRupiah(cl.revenue)}</span>
                   </div>
                   <div className="flex items-center justify-between text-xs text-fg-muted">
                     <span>{cl.count} invoices</span>
@@ -534,7 +500,7 @@ export default function ReportsPage() {
         icon={<FileSpreadsheet size={16} />}
         actions={
           <span className="text-sm font-semibold text-fg">
-            Subtotal: <span className="text-accent">{formatCurrency(metrics.totalRevenue)}</span>
+            Subtotal: <span className="tabular-nums">{formatRupiah(metrics.totalRevenue)}</span>
           </span>
         }
       >
@@ -555,7 +521,8 @@ export default function ReportsPage() {
               }
             />
           ) : (
-            <TableWrap>
+            <>
+            <TableWrap className="hidden md:block">
               <table className="data-table min-w-[860px]">
                 <thead>
                   <tr>
@@ -565,7 +532,7 @@ export default function ReportsPage() {
                     <th>Products / Services</th>
                     <th className="text-right!">Amount</th>
                     <th className="text-center!">Status</th>
-                    <th className="text-right!">Actions</th>
+                    <th className="text-right!"><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -576,15 +543,17 @@ export default function ReportsPage() {
 
                     return (
                       <tr key={inv.id}>
-                        <td className="whitespace-nowrap tabular-nums">{formatShortDate(inv.invoice_date)}</td>
+                        <td className="whitespace-nowrap tabular-nums">{formatDate(inv.invoice_date)}</td>
                         <td>
-                          <span className="whitespace-nowrap font-mono text-sm font-semibold text-accent">{inv.invoice_number}</span>
+                          <Link href={`/invoices/${inv.id}`} className="whitespace-nowrap font-mono text-sm font-semibold text-accent hover:underline">
+                            {inv.invoice_number}
+                          </Link>
                         </td>
                         <td className="font-semibold text-fg">{clientName}</td>
                         <td className="max-w-xs truncate" title={prodDesc}>
                           {prodDesc}
                         </td>
-                        <td className="whitespace-nowrap text-right font-semibold text-fg">{formatCurrency(amount)}</td>
+                        <td className="whitespace-nowrap text-right font-semibold tabular-nums text-fg">{formatRupiah(amount)}</td>
                         <td className="text-center">
                           <StatusBadge status={inv.status} />
                         </td>
@@ -603,6 +572,28 @@ export default function ReportsPage() {
                 </tbody>
               </table>
             </TableWrap>
+            <MobileList>
+              {pageItems.map((inv) => {
+                const prodDesc = (inv.invoice_items || []).map((i) => i.description).join(", ") || "Item";
+                return (
+                  <ListCard
+                    key={inv.id}
+                    href={`/invoices/${inv.id}`}
+                    title={<span className="font-mono">{inv.invoice_number}</span>}
+                    subtitle={inv.clients?.company || inv.clients?.full_name || "—"}
+                    value={formatRupiah(getInvoiceTotal(inv))}
+                    meta={
+                      <>
+                        <StatusBadge status={inv.status} />
+                        <span className="tabular-nums">{formatDate(inv.invoice_date)}</span>
+                        <span className="min-w-0 truncate text-fg-subtle">{prodDesc}</span>
+                      </>
+                    }
+                  />
+                );
+              })}
+            </MobileList>
+            </>
           )}
           {!loading && (
             <Pagination

@@ -85,9 +85,9 @@ export default function UserMenu() {
         aria-haspopup="menu"
         aria-expanded={isOpen}
         title="Account menu"
-        className="flex items-center gap-2 rounded-full border border-line bg-surface p-1 text-fg transition hover:border-line-accent hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-accent sm:pr-2.5"
+        className="flex items-center gap-2 rounded-full border border-line bg-surface p-1 text-fg transition hover:border-line-strong hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-accent sm:pr-2.5"
       >
-        <span className="flex size-7 items-center justify-center rounded-full bg-[image:var(--accent-gradient)] text-xs font-extrabold text-on-accent">
+        <span className="flex size-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-on-primary">
           {initial}
         </span>
         <span className="hidden max-w-[130px] truncate text-xs font-semibold text-fg-muted sm:inline">
@@ -104,14 +104,14 @@ export default function UserMenu() {
       {isOpen && (
         <div
           role="menu"
-          className="absolute right-0 top-[calc(100%+8px)] z-[100] flex w-60 max-w-[calc(100vw-2rem)] animate-fade-in flex-col gap-1.5 rounded-xl border border-line bg-panel p-3 shadow-card"
+          className="absolute right-0 top-[calc(100%+8px)] z-[100] flex w-60 max-w-[calc(100vw-2rem)] animate-fade-in flex-col gap-1.5 rounded-xl border border-line bg-panel p-2 shadow-pop"
         >
           {/* USER INFO STRIP */}
           <div className="mb-1 border-b border-line px-2 pb-3 pt-1">
-            <span className="mb-1.5 inline-flex items-center gap-1 rounded-full border border-accent-border bg-accent-bg px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-accent">
+            <span className="mb-1.5 inline-flex items-center gap-1 rounded-full border border-line bg-inset px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-fg-muted">
               <ShieldCheck size={12} aria-hidden /> Admin
             </span>
-            <div className="truncate text-sm font-bold text-fg">{userEmail || "admin@mediacreative.id"}</div>
+            <div className="truncate text-sm font-semibold text-fg">{userEmail || "admin@mediacreative.id"}</div>
           </div>
 
           <Link
@@ -120,7 +120,7 @@ export default function UserMenu() {
             onClick={() => setIsOpen(false)}
             className={cn(menuItemClass, "text-fg-muted hover:bg-surface-hover hover:text-fg")}
           >
-            <Settings size={14} className="text-accent" aria-hidden />
+            <Settings size={14} aria-hidden />
             Account Settings
           </Link>
 
@@ -133,7 +133,7 @@ export default function UserMenu() {
             }}
             className={cn(
               menuItemClass,
-              "border border-accent-border bg-accent-bg text-accent hover:bg-[color-mix(in_srgb,var(--accent-cyan)_20%,transparent)]"
+              "text-fg-muted hover:bg-surface-hover hover:text-fg"
             )}
           >
             <RefreshCw size={14} aria-hidden />
@@ -146,7 +146,7 @@ export default function UserMenu() {
             onClick={handleLogout}
             className={cn(
               menuItemClass,
-              "border border-danger-border bg-danger-bg font-bold text-danger hover:bg-[color-mix(in_srgb,var(--danger)_20%,transparent)]"
+              "text-danger hover:bg-danger-bg"
             )}
           >
             <LogOut size={14} aria-hidden />

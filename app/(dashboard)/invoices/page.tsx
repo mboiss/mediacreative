@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
-import { Plus, Search, FileText, ArrowRight, RefreshCw, CheckCircle2, Send, Wallet } from "lucide-react";
+import { Plus, Search, FileText, ArrowRight, RefreshCw, CheckCircle2, Send, Wallet, Eye } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
 import { LoadingState } from "@/components/ui/loading-state";
@@ -16,10 +16,15 @@ import { SearchInput } from "@/components/ui/field";
 import { FilterBar, TableWrap } from "@/components/ui/data-table";
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 import { cn } from "@/lib/utils";
+import { formatDate, formatRupiah, formatRupiahCompact } from "@/lib/format";
+import { RowActions } from "@/components/ui/row-actions";
+import { MobileList, ListCard } from "@/components/ui/list-card";
 
 type Invoice = {
   id: string;
   invoice_number: string;
+  /** Number before the 2026 renumbering (INV-YYYYMM-…); still searchable. */
+  legacy_number?: string | null;
   status: string;
   invoice_date: string;
   due_date: string;
@@ -32,32 +37,6 @@ type Invoice = {
 
 const STATUS_OPTIONS = ["All", "Draft", "Sent", "Paid", "Overdue", "Cancelled"];
 const INVOICE_STATUSES = STATUS_OPTIONS.slice(1);
-
-function formatCurrency(amount?: number) {
-  if (!amount && amount !== 0) return "—";
-  return "Rp " + amount.toLocaleString("id-ID");
-}
-
-function formatDate(dateStr?: string) {
-  if (!dateStr) return "—";
-  const parts = dateStr.split("T")[0].split("-");
-  if (parts.length === 3 && parts[0].length === 4) {
-    const day = parseInt(parts[2], 10);
-    const monthIdx = parseInt(parts[1], 10) - 1;
-    const year2Digits = parts[0].slice(2);
-    const months = ["Jan.", "Feb.", "Mar.", "Apr.", "May.", "Jun.", "Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."];
-    if (monthIdx >= 0 && monthIdx < 12) {
-      return `${day} ${months[monthIdx]} ${year2Digits}`;
-    }
-  }
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  const day = d.getDate();
-  const months = ["Jan.", "Feb.", "Mar.", "Apr.", "May.", "Jun.", "Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."];
-  const month = months[d.getMonth()];
-  const year2Digits = String(d.getFullYear()).slice(2);
-  return `${day} ${month} ${year2Digits}`;
-}
 
 export default function InvoicesPage() {
   const toast = useToast();
@@ -102,7 +81,7 @@ export default function InvoicesPage() {
       message: (
         <>
           <strong>{invoice.invoice_number}</strong>
-          {invoice.clients?.full_name ? <> ({invoice.clients.full_name}, {formatCurrency(invoice.total_amount)})</> : null} will change
+          {invoice.clients?.full_name ? <> ({invoice.clients.full_name}, {formatRupiah(invoice.total_amount)})</> : null} will change
           from <strong>{invoice.status}</strong> to <strong>{newStatus}</strong>.
         </>
       ),
@@ -137,6 +116,7 @@ export default function InvoicesPage() {
   const filtered = invoices.filter((inv) => {
     const matchSearch =
       inv.invoice_number?.toLowerCase().includes(search.toLowerCase()) ||
+      inv.legacy_number?.toLowerCase().includes(search.toLowerCase()) ||
       inv.clients?.full_name?.toLowerCase().includes(search.toLowerCase()) ||
       inv.clients?.company?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "All" || inv.status === statusFilter;
@@ -197,7 +177,8 @@ export default function InvoicesPage() {
         <StatCard label="Sent / Pending" value={stats.sent} icon={<Send size={18} />} tone="info" loading={loading} />
         <StatCard
           label="Revenue (Paid)"
-          value={<span className="block break-words text-lg sm:text-2xl">{formatCurrency(stats.revenue)}</span>}
+          value={<span title={formatRupiah(stats.revenue)}>{formatRupiahCompact(stats.revenue)}</span>}
+          hint={`${stats.paid} paid invoices`}
           icon={<Wallet size={18} />}
           tone="warning"
           loading={loading}
@@ -257,7 +238,8 @@ export default function InvoicesPage() {
             }
           />
         ) : (
-          <TableWrap>
+          <>
+          <TableWrap className="hidden md:block">
             <table className="data-table">
               <thead>
                 <tr>
@@ -290,7 +272,7 @@ export default function InvoicesPage() {
                     <td className="whitespace-nowrap tabular-nums">{formatDate(invoice.invoice_date)}</td>
                     <td className="whitespace-nowrap tabular-nums">{formatDate(invoice.due_date)}</td>
                     <td className="whitespace-nowrap text-right font-semibold tabular-nums text-fg">
-                      {formatCurrency(invoice.total_amount)}
+                      {formatRupiah(invoice.total_amount)}
                     </td>
                     <td>
                       <BadgeSelect
@@ -317,6 +299,41 @@ export default function InvoicesPage() {
               </tbody>
             </table>
           </TableWrap>
+          <MobileList>
+            {pageItems.map((invoice) => (
+              <ListCard
+                key={invoice.id}
+                title={
+                  <Link href={`/invoices/${invoice.id}`} className="font-mono font-semibold text-accent hover:underline">
+                    {invoice.invoice_number}
+                  </Link>
+                }
+                subtitle={[invoice.clients?.full_name, invoice.clients?.company].filter(Boolean).join(" · ") || "—"}
+                value={formatRupiah(invoice.total_amount)}
+                meta={
+                  <>
+                    <BadgeSelect
+                      value={invoice.status}
+                      options={INVOICE_STATUSES}
+                      onChange={(next) => updateStatus(invoice, next)}
+                      disabled={updatingId === invoice.id}
+                      label={`Status for ${invoice.invoice_number}`}
+                      title="Change status (e.g. mark as Paid)"
+                    />
+                    <span className="tabular-nums">{formatDate(invoice.invoice_date)}</span>
+                    <span className="text-fg-subtle">· due {formatDate(invoice.due_date)}</span>
+                  </>
+                }
+                actions={
+                  <RowActions
+                    label={`Actions for ${invoice.invoice_number}`}
+                    actions={[{ label: "View", icon: <Eye />, href: `/invoices/${invoice.id}` }]}
+                  />
+                }
+              />
+            ))}
+          </MobileList>
+          </>
         )}
         {!loading && filtered.length > 0 && (
           <Pagination

@@ -1,6 +1,7 @@
 "use client";
 
-import { Calendar, Check, CheckCircle2, Clock, Copy, Edit2, FileText, Info, MapPin, User, Wifi } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Calendar, Check, CheckCircle2, Clock, Copy, Edit2, FileText, Info, MapPin, RotateCcw, User, Wifi } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Modal } from "@/components/ui/modal";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -17,10 +18,67 @@ type TourDetailModalProps = {
   onClose: () => void;
   onStatusChange: (tourcode: string, status: TourStatus) => void;
   onInvoiceStatusChange: (tourcode: string, status: InvoiceStatus) => void;
-  onNotesChange: (tourcode: string, notes: string) => void;
+  /** Saves the notes (same PUT as before); resolves true when saved. */
+  onNotesChange: (tourcode: string, notes: string) => Promise<boolean>;
   onToggleFinish: (tourcode: string) => void;
   onEdit: (tour: TourRentalLog) => void;
 };
+
+const NOTES_SAVE_DELAY_MS = 600;
+
+type SaveState = "idle" | "saving" | "saved" | "error";
+
+/**
+ * Notes are saved after a short pause in typing (and on blur / close) instead of on every keystroke.
+ * The textarea keeps its own draft so a reload after saving never overwrites what is being typed.
+ */
+function useNotesAutosave(tourcode: string, initial: string, save: (tourcode: string, notes: string) => Promise<boolean>) {
+  const [draft, setDraft] = useState(initial);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const draftRef = useRef(initial);
+  const savedRef = useRef(initial);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveRef = useRef(save);
+
+  useEffect(() => {
+    saveRef.current = save;
+  }, [save]);
+
+  const flush = useCallback(async () => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    const value = draftRef.current;
+    if (value === savedRef.current) return;
+    const previous = savedRef.current;
+    savedRef.current = value;
+    setSaveState("saving");
+    const ok = await saveRef.current(tourcode, value);
+    if (!ok) savedRef.current = previous;
+    setSaveState(ok ? (draftRef.current === value ? "saved" : "idle") : "error");
+  }, [tourcode]);
+
+  const onChange = useCallback(
+    (value: string) => {
+      draftRef.current = value;
+      setDraft(value);
+      setSaveState("idle");
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => void flush(), NOTES_SAVE_DELAY_MS);
+    },
+    [flush]
+  );
+
+  // Save anything still pending when the modal closes.
+  useEffect(() => {
+    return () => {
+      void flush();
+    };
+  }, [flush]);
+
+  return { draft, saveState, onChange, onBlur: flush };
+}
 
 function DetailTile({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -43,11 +101,13 @@ export function TourDetailModal({
   onToggleFinish,
   onEdit,
 }: TourDetailModalProps) {
+  const notes = useNotesAutosave(tour.tourcode, tour.notes || "", onNotesChange);
+
   return (
     <Modal isOpen={!!tour} onClose={onClose} title={`Tour Details — ${tour.tourcode}`} maxWidth={640}>
       <div className="flex flex-col gap-4">
         {/* TOP SUMMARY STRIP */}
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent-border bg-accent-bg px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-inset px-4 py-3">
           <div className="min-w-0">
             <div className="text-xs font-semibold uppercase tracking-wide text-fg-muted">Tour Leader</div>
             <div className="flex items-center gap-1.5 text-lg font-bold text-fg">
@@ -71,8 +131,8 @@ export function TourDetailModal({
             <span className="flex flex-wrap items-center gap-1.5">
               <Calendar size={14} className="shrink-0 text-accent" aria-hidden />
               <span>{formatDateRange(tour.start_date, tour.end_date)}</span>
-              <StatusBadge tone="warning" icon={<Clock size={11} aria-hidden />}>
-                {tour.days} Days
+              <StatusBadge tone="neutral" icon={<Clock size={11} aria-hidden />}>
+                {tour.days} days
               </StatusBadge>
             </span>
           </DetailTile>
@@ -91,25 +151,32 @@ export function TourDetailModal({
         </div>
 
         {/* FIELD NOTES */}
-        <div className="flex flex-col gap-2 rounded-xl border border-warning-border bg-warning-bg/40 px-3.5 py-3">
+        <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
-            <label htmlFor="tour-detail-notes" className="flex items-center gap-1.5 text-sm font-bold text-warning">
-              <FileText size={15} aria-hidden />
+            <label htmlFor="tour-detail-notes" className="flex items-center gap-1.5 text-sm font-semibold text-fg">
+              <FileText size={15} className="text-fg-subtle" aria-hidden />
               Notes
             </label>
-            {tour.notes && <StatusBadge tone="warning">Note active</StatusBadge>}
+            <span className="text-xs text-fg-subtle" aria-live="polite">
+              {notes.saveState === "saving" && "Saving…"}
+              {notes.saveState === "saved" && (
+                <span className="inline-flex items-center gap-1 text-success">
+                  <Check size={12} aria-hidden /> Saved
+                </span>
+              )}
+              {notes.saveState === "error" && <span className="text-danger">Not saved</span>}
+            </span>
           </div>
           <TextArea
             id="tour-detail-notes"
             rows={2}
-            className={cn("min-h-16", tour.notes && "border-warning-border!")}
-            placeholder="Ketik catatan khusus / field note untuk tour ini (misal: perlu tambahan charger, instruksi penyerahan modem, info lokasi)..."
-            value={tour.notes || ""}
-            onChange={(e) => onNotesChange(tour.tourcode, e.target.value)}
+            className={cn("min-h-16", notes.draft && "border-warning-border!")}
+            placeholder="Field notes for this tour (e.g. extra charger needed, modem hand-over instructions, location info)…"
+            value={notes.draft}
+            onChange={(e) => notes.onChange(e.target.value)}
+            onBlur={() => void notes.onBlur()}
           />
-          <p className="text-xs text-fg-subtle">
-            Catatan tersimpan otomatis dan akan memunculkan indikator note di daftar tour.
-          </p>
+          <p className="text-xs text-fg-subtle">Notes save automatically and show a note indicator in the tour list.</p>
         </div>
 
         {/* ASSIGNED MODEM UNITS */}
@@ -194,11 +261,9 @@ export function TourDetailModal({
               })}
             </ul>
           ) : (
-            <div className="flex items-center gap-2 rounded-xl border border-dashed border-warning-border bg-warning-bg/50 px-3.5 py-3 text-sm text-fg-muted">
-              <Info size={16} className="shrink-0 text-warning" aria-hidden />
-              <span>
-                Belum ada unit modem yang dipilih untuk tour ini. Anda dapat memilih modem kapan saja melalui &quot;Edit Tour Details&quot;.
-              </span>
+            <div className="flex items-center gap-2 rounded-xl border border-dashed border-line-strong bg-inset px-3.5 py-3 text-sm text-fg-muted">
+              <Info size={16} className="shrink-0 text-fg-subtle" aria-hidden />
+              <span>No modems assigned to this tour yet. You can assign modems at any time via &quot;Edit Tour&quot;.</span>
             </div>
           )}
         </div>
@@ -208,12 +273,12 @@ export function TourDetailModal({
         {/* MODAL FOOTER */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              className={tour.status === "Finish" ? "btn btn-ghost btn-sm" : "btn btn-success btn-sm"}
-              onClick={() => onToggleFinish(tour.tourcode)}
-            >
-              <CheckCircle2 size={14} aria-hidden />
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => onToggleFinish(tour.tourcode)}>
+              {tour.status === "Finish" ? (
+                <RotateCcw size={14} aria-hidden />
+              ) : (
+                <CheckCircle2 size={14} className="text-success" aria-hidden />
+              )}
               {tour.status === "Finish" ? "Re-open Tour" : "Mark Finished (Free Modems)"}
             </button>
             <button type="button" className="btn btn-primary btn-sm" onClick={() => onEdit(tour)}>

@@ -35,6 +35,8 @@ import { Panel } from "@/components/ui/panel";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Field, SelectInput, TextArea, TextInput } from "@/components/ui/field";
 import { getPaymentAccounts, formatAccountTransferText } from "@/lib/payment-accounts";
+import { formatDate, formatRupiah } from "@/lib/format";
+import { RowActions } from "@/components/ui/row-actions";
 
 type Client = {
   id: string;
@@ -64,6 +66,7 @@ type InvoiceItem = {
 type Invoice = {
   id: string;
   invoice_number: string;
+  legacy_number?: string | null;
   status: string;
   invoice_date: string;
   due_date?: string;
@@ -74,32 +77,6 @@ type Invoice = {
 };
 
 const STATUS_FLOW = ["Draft", "Sent", "Paid"];
-
-function formatCurrency(amount?: number) {
-  if (amount === undefined || amount === null) return "Rp 0";
-  return "Rp " + Number(amount).toLocaleString("id-ID");
-}
-
-function formatDate(dateStr?: string) {
-  if (!dateStr) return "—";
-  const parts = dateStr.split("T")[0].split("-");
-  if (parts.length === 3 && parts[0].length === 4) {
-    const day = parseInt(parts[2], 10);
-    const monthIdx = parseInt(parts[1], 10) - 1;
-    const year2Digits = parts[0].slice(2);
-    const months = ["Jan.", "Feb.", "Mar.", "Apr.", "May.", "Jun.", "Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."];
-    if (monthIdx >= 0 && monthIdx < 12) {
-      return `${day} ${months[monthIdx]} ${year2Digits}`;
-    }
-  }
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  const day = d.getDate();
-  const months = ["Jan.", "Feb.", "Mar.", "Apr.", "May.", "Jun.", "Jul.", "Aug.", "Sep.", "Oct.", "Nov.", "Dec."];
-  const month = months[d.getMonth()];
-  const year2Digits = String(d.getFullYear()).slice(2);
-  return `${day} ${month} ${year2Digits}`;
-}
 
 export default function InvoiceDetailPage() {
   const params = useParams();
@@ -207,7 +184,7 @@ export default function InvoiceDetailPage() {
     if (!invoice) return;
     const phone = overridePhone || formatWhatsAppPhone(invoice.clients?.phone || manualPhone);
     const clientName = invoice.clients?.full_name || "Client";
-    const formattedAmount = formatCurrency(invoice.total_amount ?? subtotal);
+    const formattedAmount = formatRupiah(invoice.total_amount ?? subtotal);
     const formattedDueDate = formatDate(invoice.due_date);
     const invoiceUrl = getPublicInvoiceUrl();
     const payment = getPaymentDetailsText(invoice.notes);
@@ -225,7 +202,7 @@ export default function InvoiceDetailPage() {
     if (!invoice) return;
     const email = overrideEmail || invoice.clients?.email || manualEmail || "";
     const clientName = invoice.clients?.full_name || "Valued Client";
-    const formattedAmount = formatCurrency(invoice.total_amount ?? subtotal);
+    const formattedAmount = formatRupiah(invoice.total_amount ?? subtotal);
     const formattedDate = formatDate(invoice.invoice_date);
     const formattedDueDate = formatDate(invoice.due_date);
     const invoiceUrl = getPublicInvoiceUrl();
@@ -562,7 +539,7 @@ export default function InvoiceDetailPage() {
   const spinner = <Loader2 size={14} className="animate-spin" />;
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+    <div className="flex w-full max-w-4xl flex-col gap-6">
       {/* BACK LINK */}
       <div className="no-print animate-fade-in">
         <Link href="/invoices" className="btn btn-ghost btn-sm">
@@ -575,7 +552,16 @@ export default function InvoiceDetailPage() {
       <PageHeader
         className="no-print"
         title={<span className="break-all font-mono">{invoice.invoice_number}</span>}
-        meta={<StatusBadge status={invoice.status} />}
+        meta={
+          <>
+            <StatusBadge status={invoice.status} />
+            {invoice.legacy_number && (
+              <span className="text-xs text-fg-subtle" title="Invoice number before renumbering">
+                Formerly <span className="font-mono">{invoice.legacy_number}</span>
+              </span>
+            )}
+          </>
+        }
         description={
           <span className="flex flex-wrap gap-x-5 gap-y-1">
             <span className="inline-flex items-center gap-1.5">
@@ -614,8 +600,8 @@ export default function InvoiceDetailPage() {
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div className="min-w-0">
               <div className="text-xs font-semibold uppercase tracking-wide text-fg-muted">Grand Total</div>
-              <div className="mt-1 break-words text-2xl font-bold tabular-nums text-accent sm:text-3xl">
-                {formatCurrency(invoice.total_amount ?? subtotal)}
+              <div className="mt-1 break-words text-2xl font-bold tabular-nums text-fg sm:text-3xl">
+                {formatRupiah(invoice.total_amount ?? subtotal)}
               </div>
             </div>
             {invoice.clients && (
@@ -687,38 +673,33 @@ export default function InvoiceDetailPage() {
                   Mark as {nextStatus}
                 </button>
               )}
-              {isEditable && (
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={openHeaderEditModal}
-                  title="Edit client, due date, or notes"
-                >
-                  <Edit2 size={14} />
-                  Edit Details
-                </button>
-              )}
-              {invoice.status !== "Cancelled" && invoice.status !== "Paid" && (
-                <button
-                  type="button"
-                  className="btn btn-ghost text-danger"
-                  onClick={() => updateStatus("Cancelled")}
-                  disabled={updating}
-                >
-                  <X size={14} />
-                  Cancel Invoice
-                </button>
-              )}
-              <button
-                type="button"
-                className="btn btn-danger btn-icon"
-                onClick={deleteInvoice}
-                disabled={deleting}
-                aria-label="Delete invoice"
-                title="Delete invoice"
-              >
-                {deleting ? spinner : <Trash2 size={14} />}
-              </button>
+              <RowActions
+                label="More invoice actions"
+                className="size-9 border border-line"
+                actions={[
+                  {
+                    label: "Edit details",
+                    icon: <Edit2 />,
+                    onSelect: openHeaderEditModal,
+                    hidden: !isEditable,
+                  },
+                  {
+                    label: "Cancel invoice",
+                    icon: <X />,
+                    onSelect: () => updateStatus("Cancelled"),
+                    disabled: updating,
+                    hidden: invoice.status === "Cancelled" || invoice.status === "Paid",
+                    danger: true,
+                  },
+                  {
+                    label: deleting ? "Deleting..." : "Delete invoice",
+                    icon: deleting ? <Loader2 className="animate-spin" /> : <Trash2 />,
+                    onSelect: deleteInvoice,
+                    disabled: deleting,
+                    danger: true,
+                  },
+                ]}
+              />
             </div>
           </div>
         </div>
@@ -746,7 +727,7 @@ export default function InvoiceDetailPage() {
           title={`Manage Invoice Items (${items.length})`}
           icon={<Package size={15} />}
           actions={
-            <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowAddItem((v) => !v)}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowAddItem((v) => !v)}>
               {showAddItem ? <X size={13} /> : <Plus size={13} />}
               {showAddItem ? "Cancel" : "Add Line Item"}
             </button>
@@ -756,7 +737,7 @@ export default function InvoiceDetailPage() {
             {showAddItem && (
               <form
                 onSubmit={addItem}
-                className="flex flex-col gap-3 rounded-xl border border-accent-border bg-accent-bg p-4"
+                className="flex flex-col gap-3 rounded-xl border border-line bg-inset p-4"
               >
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <Field label="Product catalog (optional)" htmlFor="add-item-product">
@@ -768,7 +749,7 @@ export default function InvoiceDetailPage() {
                       <option value="">— Custom item —</option>
                       {products.map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.product_name} — Rp {p.price.toLocaleString("id-ID")}
+                          {p.product_name} — {formatRupiah(p.price)}
                         </option>
                       ))}
                     </SelectInput>
@@ -812,8 +793,8 @@ export default function InvoiceDetailPage() {
                 {itemForm.quantity && itemForm.unit_price && (
                   <div className="rounded-lg bg-surface px-3 py-2 text-sm text-fg-muted">
                     Subtotal:{" "}
-                    <strong className="text-accent">
-                      {formatCurrency(Number(itemForm.quantity) * Number(itemForm.unit_price))}
+                    <strong className="tabular-nums text-fg">
+                      {formatRupiah(Number(itemForm.quantity) * Number(itemForm.unit_price))}
                     </strong>
                   </div>
                 )}
@@ -842,12 +823,12 @@ export default function InvoiceDetailPage() {
                         {item.description || item.products?.product_name || "—"}
                       </div>
                       <div className="text-xs text-fg-subtle tabular-nums">
-                        {item.quantity} × {formatCurrency(item.unit_price)} = {formatCurrency(item.total)}
+                        {item.quantity} × {formatRupiah(item.unit_price)} = {formatRupiah(item.total)}
                       </div>
                     </div>
                     <button
                       type="button"
-                      className="btn btn-danger btn-icon shrink-0"
+                      className="btn btn-ghost btn-icon shrink-0 hover:text-danger"
                       onClick={() => deleteItem(item.id)}
                       disabled={deletingItemId === item.id}
                       aria-label={`Remove line item ${idx + 1}`}
@@ -945,10 +926,10 @@ export default function InvoiceDetailPage() {
           </div>
 
           {/* WhatsApp */}
-          <div className="flex flex-col gap-1.5 rounded-xl border border-success-border bg-success-bg p-4">
+          <div className="flex flex-col gap-1.5 rounded-xl border border-line bg-inset p-4">
             <label
               htmlFor="share-phone"
-              className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-success"
+              className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-fg-muted"
             >
               <MessageSquare size={14} /> Send via WhatsApp
             </label>
@@ -971,10 +952,10 @@ export default function InvoiceDetailPage() {
           </div>
 
           {/* Email */}
-          <div className="flex flex-col gap-1.5 rounded-xl border border-info-border bg-info-bg p-4">
+          <div className="flex flex-col gap-1.5 rounded-xl border border-line bg-inset p-4">
             <label
               htmlFor="share-email"
-              className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-info"
+              className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-fg-muted"
             >
               <Mail size={14} /> Send via Email
             </label>
@@ -988,7 +969,7 @@ export default function InvoiceDetailPage() {
               />
               <button
                 type="button"
-                className="btn btn-primary justify-center"
+                className="btn btn-ghost justify-center"
                 onClick={() => handleSendEmail(manualEmail || undefined)}
               >
                 Send Email

@@ -14,7 +14,7 @@ export default async function LoginPage({
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-page px-4 py-10 sm:px-6">
-      <Panel className="w-full max-w-md backdrop-blur-2xl" bodyClassName="p-6 sm:p-8">
+      <Panel className="w-full max-w-md" bodyClassName="p-6 sm:p-8">
         <div className="mb-6 flex flex-col items-center text-center">
           <Image
             src="/logo.png"
@@ -24,7 +24,7 @@ export default async function LoginPage({
             className="mb-4 h-auto w-[160px] object-contain sm:w-[180px]"
             priority
           />
-          <h1 className="gradient-text text-2xl font-bold">Control Center Login</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-fg">Control Center Login</h1>
           <p className="mt-1.5 text-sm text-fg-muted">Enter your admin credentials to access the workspace</p>
         </div>
 

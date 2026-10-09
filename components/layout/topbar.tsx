@@ -5,6 +5,7 @@ import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import UserMenu from "./UserMenu";
+import CommandPalette from "./command-palette";
 
 const routeLabels: Record<string, string> = {
   "/dashboard": "Dashboard",
@@ -77,6 +78,9 @@ export default function Topbar() {
 
       {/* Right: controls */}
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        {/* Global search (Ctrl+K / ⌘K) */}
+        <CommandPalette />
+
         {/* Today's date (no ticking clock — calmer, and the OS already shows the time) */}
         {mounted && dateStr && (
           <span className="hidden items-center gap-1.5 whitespace-nowrap text-xs font-medium text-fg-muted lg:flex">

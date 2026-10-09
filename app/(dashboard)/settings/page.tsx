@@ -33,6 +33,7 @@ import {
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 import { useToast } from "@/components/ui/toast";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { RowActions } from "@/components/ui/row-actions";
 
 type SettingsForm = {
   company_name: string;
@@ -52,7 +53,7 @@ const DEFAULT_SETTINGS: SettingsForm = {
   phone: "+62 812-3456-7890",
   address: "Jl. Sudirman No. 88, Jakarta Selatan 12190",
   tax_id: "01.234.567.8-012.000",
-  invoice_prefix: "INV-2026-",
+  invoice_prefix: "INV-MC{YYYY}-",
   tax_rate: "11",
   currency: "IDR (Rp)",
   payment_terms_days: "14",
@@ -355,7 +356,7 @@ export default function SettingsPage() {
 
 
   return (
-    <div className="flex w-full max-w-5xl flex-col gap-6">
+    <div className="flex w-full max-w-4xl flex-col gap-6">
       <PageHeader
         title="Settings"
         description="Company profile, payment bank accounts, Tour Leaders and invoicing defaults."
@@ -439,7 +440,7 @@ export default function SettingsPage() {
           description="Bank transfer accounts shown in the payment instructions on invoices."
           icon={<CreditCard size={16} />}
           actions={
-            <button type="button" className="btn btn-primary btn-sm" onClick={handleOpenAddAccount}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={handleOpenAddAccount}>
               <Plus size={14} aria-hidden /> New Account
             </button>
           }
@@ -451,8 +452,8 @@ export default function SettingsPage() {
           ) : (
             <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-inset">
               {paymentAccounts.map((acc) => (
-                <li key={acc.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 hover:bg-surface-hover">
-                  <div className="min-w-0 flex-1 basis-56">
+                <li key={acc.id} className="flex items-start gap-3 px-4 py-3 hover:bg-surface-hover">
+                  <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-semibold text-fg">{acc.bank_name}</span>
                       {acc.is_default && (
@@ -466,36 +467,19 @@ export default function SettingsPage() {
                     {acc.notes && <div className="mt-0.5 text-xs text-fg-subtle">{acc.notes}</div>}
                   </div>
 
-                  <div className="flex items-center gap-1.5">
-                    {!acc.is_default && (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => handleSetDefaultAccount(acc.id)}
-                        aria-label={`Make ${acc.bank_name} ${acc.account_number} the default account`}
-                      >
-                        <Star size={14} aria-hidden /> Make Default
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-icon"
-                      onClick={() => handleOpenEditAccount(acc)}
-                      aria-label={`Edit ${acc.bank_name} ${acc.account_number}`}
-                      title="Edit"
-                    >
-                      <Edit2 size={16} aria-hidden />
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-danger btn-icon"
-                      onClick={() => handleDeleteAccount(acc.id)}
-                      aria-label={`Delete ${acc.bank_name} ${acc.account_number}`}
-                      title="Delete"
-                    >
-                      <Trash2 size={16} aria-hidden />
-                    </button>
-                  </div>
+                  <RowActions
+                    label={`Actions for ${acc.bank_name} ${acc.account_number}`}
+                    actions={[
+                      {
+                        label: "Make default",
+                        icon: <Star />,
+                        onSelect: () => handleSetDefaultAccount(acc.id),
+                        hidden: acc.is_default,
+                      },
+                      { label: "Edit", icon: <Edit2 />, onSelect: () => handleOpenEditAccount(acc) },
+                      { label: "Delete", icon: <Trash2 />, onSelect: () => handleDeleteAccount(acc.id), danger: true },
+                    ]}
+                  />
                 </li>
               ))}
             </ul>
@@ -507,13 +491,13 @@ export default function SettingsPage() {
           title={
             <>
               Tour Leaders
-              <StatusBadge tone="accent">{tourLeaders.length} registered</StatusBadge>
+              <StatusBadge tone="neutral">{tourLeaders.length} registered</StatusBadge>
             </>
           }
           description="Pre-configured Tour Leaders for quick selection on modem rental orders."
           icon={<UserCheck size={16} />}
           actions={
-            <button type="button" className="btn btn-primary btn-sm" onClick={handleOpenAddTl}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={handleOpenAddTl}>
               <Plus size={14} aria-hidden /> New Tour Leader
             </button>
           }
@@ -527,7 +511,7 @@ export default function SettingsPage() {
               {tourLeaders.map((tl, idx) => (
                 <li key={tl.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-hover">
                   <span
-                    className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent-bg text-xs font-bold text-accent"
+                    className="flex size-7 shrink-0 items-center justify-center rounded-full bg-surface-hover text-xs font-semibold text-fg-muted"
                     aria-hidden
                   >
                     {idx + 1}
@@ -539,26 +523,13 @@ export default function SettingsPage() {
                       {tl.notes && <span> · {tl.notes}</span>}
                     </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-icon"
-                      onClick={() => handleOpenEditTl(tl)}
-                      aria-label={`Edit ${tl.name}`}
-                      title="Edit"
-                    >
-                      <Edit2 size={16} aria-hidden />
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-danger btn-icon"
-                      onClick={() => handleDeleteTl(tl.id)}
-                      aria-label={`Delete ${tl.name}`}
-                      title="Delete"
-                    >
-                      <Trash2 size={16} aria-hidden />
-                    </button>
-                  </div>
+                  <RowActions
+                    label={`Actions for ${tl.name}`}
+                    actions={[
+                      { label: "Edit", icon: <Edit2 />, onSelect: () => handleOpenEditTl(tl) },
+                      { label: "Delete", icon: <Trash2 />, onSelect: () => handleDeleteTl(tl.id), danger: true },
+                    ]}
+                  />
                 </li>
               ))}
             </ul>
@@ -568,7 +539,24 @@ export default function SettingsPage() {
         {/* SYSTEM INVOICING PREFERENCES */}
         <Panel title="Invoicing Preferences" icon={<Sliders size={16} />}>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Field label="Invoice Number Prefix" htmlFor="settings-prefix">
+            <Field
+              label="Invoice Number Prefix"
+              htmlFor="settings-prefix"
+              hint={
+                <>
+                  Use {"{YYYY}"} for the current year — e.g. INV-MC{"{YYYY}"}- → INV-MC2026-0001.
+                  {form.invoice_prefix && (
+                    <>
+                      {" "}
+                      Next number looks like{" "}
+                      <span className="font-mono text-fg-muted">
+                        {form.invoice_prefix.replace(/\{YYYY\}/g, String(new Date().getFullYear()))}0001
+                      </span>
+                    </>
+                  )}
+                </>
+              }
+            >
               <TextInput
                 id="settings-prefix"
                 value={form.invoice_prefix}

@@ -16,6 +16,9 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { FilterBar, TableWrap } from "@/components/ui/data-table";
 import { Field, SearchInput, TextArea, TextInput } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
+import { formatRupiah } from "@/lib/format";
+import { RowActions, type RowAction } from "@/components/ui/row-actions";
+import { MobileList, ListCard } from "@/components/ui/list-card";
 
 type Product = {
   id: string;
@@ -45,10 +48,6 @@ const EMPTY_FORM = {
   stock: "10",
   description: "",
 };
-
-function formatCurrency(amount: number) {
-  return "Rp " + Number(amount || 0).toLocaleString("id-ID");
-}
 
 export default function ProductsPage() {
   const toast = useToast();
@@ -204,6 +203,17 @@ export default function ProductsPage() {
     `${activeTab}|${search}`
   );
 
+  const productActions = (product: Product): RowAction[] => [
+    { label: "Edit", icon: <Edit2 />, onSelect: () => openEditModal(product) },
+    {
+      label: deletingId === product.id ? "Deleting..." : "Delete",
+      icon: deletingId === product.id ? <Loader2 className="animate-spin" /> : <Trash2 />,
+      onSelect: () => deleteProduct(product.id),
+      disabled: deletingId === product.id,
+      danger: true,
+    },
+  ];
+
   // Calculate statistics
   const goodsList = products.filter((p) => !isServiceItem(p));
   const servicesList = products.filter((p) => isServiceItem(p));
@@ -320,7 +330,8 @@ export default function ProductsPage() {
             }
           />
         ) : (
-          <TableWrap>
+          <>
+          <TableWrap className="hidden md:block">
             <table className="data-table min-w-[960px]">
               <thead>
                 <tr>
@@ -332,7 +343,7 @@ export default function ProductsPage() {
                   <th className="text-right!">Selling Price</th>
                   <th className="text-right!">Est. Margin</th>
                   <th className="text-right!">Stock</th>
-                  <th className="text-right!">Actions</th>
+                  <th className="text-right!"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -389,12 +400,12 @@ export default function ProductsPage() {
                       </td>
 
                       {/* COST PRICE */}
-                      <td className="whitespace-nowrap text-right">
-                        {isSvc ? <span className="text-xs text-fg-subtle">N/A</span> : formatCurrency(cost)}
+                      <td className="whitespace-nowrap text-right tabular-nums">
+                        {isSvc ? <span className="text-xs text-fg-subtle">N/A</span> : formatRupiah(cost)}
                       </td>
 
                       {/* SELLING PRICE */}
-                      <td className="whitespace-nowrap text-right font-semibold text-fg">{formatCurrency(price)}</td>
+                      <td className="whitespace-nowrap text-right font-semibold tabular-nums text-fg">{formatRupiah(price)}</td>
 
                       {/* EST. MARGIN */}
                       <td className="whitespace-nowrap text-right">
@@ -403,7 +414,7 @@ export default function ProductsPage() {
                         ) : marginPct !== null ? (
                           <div className="flex flex-col items-end">
                             <span className={cn("text-sm font-semibold", profit >= 0 ? "text-success" : "text-danger")}>
-                              +{formatCurrency(profit)}
+                              {profit >= 0 ? "+" : ""}{formatRupiah(profit)}
                             </span>
                             <span className="text-xs text-fg-subtle">{marginPct}% margin</span>
                           </div>
@@ -423,29 +434,7 @@ export default function ProductsPage() {
 
                       {/* ACTIONS */}
                       <td className="text-right">
-                        <div className="flex justify-end gap-1.5">
-                          <button
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => openEditModal(product)}
-                            aria-label={`Edit ${product.product_name}`}
-                            title="Edit"
-                          >
-                            <Edit2 size={14} aria-hidden /> Edit
-                          </button>
-                          <button
-                            className="btn btn-danger btn-sm btn-icon"
-                            onClick={() => deleteProduct(product.id)}
-                            disabled={deletingId === product.id}
-                            aria-label={`Delete ${product.product_name}`}
-                            title="Delete"
-                          >
-                            {deletingId === product.id ? (
-                              <Loader2 size={14} className="animate-spin" aria-hidden />
-                            ) : (
-                              <Trash2 size={14} aria-hidden />
-                            )}
-                          </button>
-                        </div>
+                        <RowActions label={`Actions for ${product.product_name}`} actions={productActions(product)} />
                       </td>
                     </tr>
                   );
@@ -453,6 +442,38 @@ export default function ProductsPage() {
               </tbody>
             </table>
           </TableWrap>
+          <MobileList>
+            {pageItems.map((product) => {
+              const isSvc = isServiceItem(product);
+              return (
+                <ListCard
+                  key={product.id}
+                  title={product.product_name}
+                  subtitle={[product.product_code, product.category].filter(Boolean).join(" · ") || undefined}
+                  value={formatRupiah(Number(product.price || 0))}
+                  meta={
+                    isSvc ? (
+                      <StatusBadge tone="purple" icon={<Wrench size={12} aria-hidden />}>
+                        Service
+                      </StatusBadge>
+                    ) : (
+                      <>
+                        <StatusBadge tone="success" icon={<Box size={12} aria-hidden />}>
+                          Goods
+                        </StatusBadge>
+                        <StatusBadge tone={product.stock > 0 ? "success" : "danger"}>{product.stock} pcs</StatusBadge>
+                        {Number(product.cost || 0) > 0 && (
+                          <span className="tabular-nums">Cost {formatRupiah(Number(product.cost || 0))}</span>
+                        )}
+                      </>
+                    )
+                  }
+                  actions={<RowActions label={`Actions for ${product.product_name}`} actions={productActions(product)} />}
+                />
+              );
+            })}
+          </MobileList>
+          </>
         )}
         {!loading && (
           <Pagination
@@ -602,7 +623,7 @@ export default function ProductsPage() {
                 <TrendingUp size={14} aria-hidden /> Est. profit per unit
               </div>
               <div className={cn("font-bold", formProfit >= 0 ? "text-success" : "text-danger")}>
-                {formatCurrency(formProfit)} ({formMarginPct}% margin)
+                {formatRupiah(formProfit)} ({formMarginPct}% margin)
               </div>
             </div>
           )}

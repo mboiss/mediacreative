@@ -1,3 +1,4 @@
+import { formatDate, formatShortDate } from "@/lib/format";
 import type { ModemItem, TourRentalLog } from "./types";
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -30,32 +31,46 @@ function toDisplay(d: Date): string {
   return `${String(d.getDate()).padStart(2, "0")}-${MONTHS[d.getMonth()]}-${d.getFullYear()}`;
 }
 
-/**
- * Formats any stored tour date as "31-Jul-2026". Tour dates were saved in more than one format over time
- * ("2026-07-31" and "31-Jul-2026"); this is used everywhere in the UI so they look the same.
- * Unknown formats are returned unchanged.
- */
-export function formatDateDisplay(dateStr: string): string {
-  if (!dateStr) return "";
+/** Parses a stored tour date ("2026-07-31", "31-Jul-2026", "1-jul-26"…) as a local calendar date; null if unknown. */
+function toTourDate(dateStr?: string): Date | null {
+  if (!dateStr) return null;
   const s = dateStr.trim();
   // 2026-07-31 (date-input value / ISO) — build a local date so the day never shifts with the timezone.
   const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
-  if (iso) return toDisplay(new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3])));
+  if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
   // 31-Jul-2026 / 1-jul-26
   const dmy = /^(\d{1,2})-([A-Za-z]{3,})-(\d{2,4})$/.exec(s);
   if (dmy && MONTH_INDEX[dmy[2].toLowerCase().slice(0, 3)] !== undefined) {
     let year = Number(dmy[3]);
     if (year < 100) year += 2000;
-    return toDisplay(new Date(year, MONTH_INDEX[dmy[2].toLowerCase().slice(0, 3)], Number(dmy[1])));
+    return new Date(year, MONTH_INDEX[dmy[2].toLowerCase().slice(0, 3)], Number(dmy[1]));
   }
   const d = new Date(s);
-  if (isNaN(d.getTime())) return dateStr;
-  return toDisplay(d);
+  return isNaN(d.getTime()) ? null : d;
 }
 
-/** "31-Jul-2026 – 14-Aug-2026" */
+/**
+ * Formats any stored tour date as "31-Jul-2026" — the format tours are SAVED in. Use it only to build stored
+ * values; for display use `formatTourDate` / `formatDateRange`. Unknown formats are returned unchanged.
+ */
+export function formatDateDisplay(dateStr: string): string {
+  if (!dateStr) return "";
+  const d = toTourDate(dateStr);
+  return d ? toDisplay(d) : dateStr;
+}
+
+/** Display a stored tour date as "31 Jul 2026" (shared `formatDate`). Unknown formats are shown as stored. */
+export function formatTourDate(dateStr?: string): string {
+  const d = toTourDate(dateStr);
+  return d ? formatDate(d) : dateStr || "—";
+}
+
+/** Compact display range: "11 Oct – 23 Oct 2026", or "28 Dec 2026 – 4 Jan 2027" across years. */
 export function formatDateRange(start: string, end: string): string {
-  return `${formatDateDisplay(start)} – ${formatDateDisplay(end)}`;
+  const s = toTourDate(start);
+  const e = toTourDate(end);
+  if (s && e && s.getFullYear() === e.getFullYear()) return `${formatShortDate(s)} – ${formatDate(e)}`;
+  return `${formatTourDate(start)} – ${formatTourDate(end)}`;
 }
 
 /** Date converter for <input type="date" /> (YYYY-MM-DD). */

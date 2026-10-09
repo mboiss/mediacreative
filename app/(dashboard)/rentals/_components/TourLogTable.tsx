@@ -1,9 +1,11 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Calendar, CheckCircle2, Clock, Edit2, ExternalLink, Eye, FileText, MapPin, Plus, Share2, Trash2, User } from "lucide-react";
+import { ArrowDown, ArrowUp, CheckCircle2, Clock, Edit2, Eye, FileText, MapPin, Plus, RotateCcw, Share2, Trash2 } from "lucide-react";
 import { TableWrap } from "@/components/ui/data-table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { LoadingState } from "@/components/ui/loading-state";
+import { MobileList, ListCard } from "@/components/ui/list-card";
+import { RowActions, type RowAction } from "@/components/ui/row-actions";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { formatDateRange } from "../_lib/helpers";
 import type { DateSortOrder, InvoiceStatus, TourRentalLog, TourStatus } from "../_lib/types";
@@ -25,6 +27,31 @@ type TourLogTableProps = {
   onInvoiceStatusChange: (tourcode: string, status: InvoiceStatus) => void;
   onNewTour: () => void;
 };
+
+function modemCountLabel(qty: number): string {
+  return qty > 0 ? `${qty} modem${qty > 1 ? "s" : ""}` : "No modems";
+}
+
+/** Tour code that opens the detail modal, plus a small indicator when the tour has notes. */
+function TourCodeButton({ tour, onView }: { tour: TourRentalLog; onView: (tour: TourRentalLog) => void }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <button
+        type="button"
+        onClick={() => onView(tour)}
+        className="cursor-pointer rounded-sm font-mono font-semibold text-fg hover:text-accent hover:underline hover:underline-offset-2 focus-visible:outline-2 focus-visible:outline-accent"
+        title="Open tour details"
+      >
+        {tour.tourcode}
+      </button>
+      {tour.notes && (
+        <span role="img" aria-label="Has notes" title="Tour has notes" className="inline-flex shrink-0 text-warning">
+          <FileText size={13} aria-hidden />
+        </span>
+      )}
+    </span>
+  );
+}
 
 export function TourLogTable({
   loading,
@@ -50,176 +77,148 @@ export function TourLogTable({
         title="No tour logs match filter"
         description="Try clearing your search keyword or create a new tour rental order."
         action={
-          <button className="btn btn-primary" onClick={onNewTour}>
-            <Plus size={14} /> New Tour
+          <button type="button" className="btn btn-ghost" onClick={onNewTour}>
+            <Plus size={14} aria-hidden /> New Tour
           </button>
         }
       />
     );
   }
 
+  const actionsFor = (t: TourRentalLog, includeToggle: boolean): RowAction[] => [
+    { label: "View details", icon: <Eye />, onSelect: () => onView(t) },
+    { label: "Send via WhatsApp", icon: <Share2 />, onSelect: () => onWhatsApp(t) },
+    { label: "Edit", icon: <Edit2 />, onSelect: () => onEdit(t) },
+    {
+      label: t.status === "Finish" ? "Re-open tour" : "Mark finished",
+      icon: t.status === "Finish" ? <RotateCcw /> : <CheckCircle2 />,
+      onSelect: () => onToggleFinish(t.tourcode),
+      hidden: !includeToggle,
+    },
+    { label: "Delete", icon: <Trash2 />, onSelect: () => onDelete(t.tourcode), danger: true },
+  ];
+
   return (
-    <TableWrap>
-      <table className="data-table min-w-[1180px]">
-        <thead>
-          <tr>
-            <th>Tour Code</th>
-            <th aria-sort={dateSortOrder === "newest" ? "descending" : "ascending"}>
-              <button
-                type="button"
-                onClick={onToggleDateSort}
-                title="Sort by date"
-                className="inline-flex cursor-pointer items-center gap-1.5 uppercase tracking-wide text-accent focus-visible:outline-2 focus-visible:outline-accent"
-              >
-                Dates & Duration
-                {dateSortOrder === "newest" ? <ArrowDown size={13} aria-hidden /> : <ArrowUp size={13} aria-hidden />}
-              </button>
-            </th>
-            <th>Drop-off Hotel</th>
-            <th>Tour Leader</th>
-            <th>Assigned Modems</th>
-            <th>Tour Status</th>
-            <th>Invoice</th>
-            <th>Pax / Guest Remark</th>
-            <th className="text-right!">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {tours.map((t) => (
-            <tr key={t.tourcode}>
-              <td>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => onView(t)}
-                    className="inline-flex cursor-pointer items-center gap-1 font-mono font-bold text-accent underline underline-offset-2"
-                    title="Open tour details"
-                  >
-                    {t.tourcode}
-                    <ExternalLink size={11} aria-hidden />
-                  </button>
-                  {t.notes && (
-                    <button
-                      type="button"
-                      onClick={() => onView(t)}
-                      className="inline-flex cursor-pointer items-center justify-center rounded-md border border-warning-border bg-warning-bg p-1 text-warning"
-                      aria-label={`Tour ${t.tourcode} has notes — view details`}
-                      title="Tour has notes (click to view)"
-                    >
-                      <FileText size={12} aria-hidden />
-                    </button>
-                  )}
-                </div>
-                <div className="text-xs text-fg-subtle">
-                  {t.qty > 0 ? `${t.qty} modem${t.qty > 1 ? "s" : ""}` : "No modems"}
-                </div>
-              </td>
-              <td>
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center gap-1.5 whitespace-nowrap font-semibold text-fg">
-                    <Calendar size={13} className="shrink-0 text-accent" aria-hidden />
-                    <span>{formatDateRange(t.start_date, t.end_date)}</span>
-                  </div>
-                  <div>
-                    <StatusBadge tone="warning" icon={<Clock size={10} aria-hidden />}>
-                      {t.days} Days
-                    </StatusBadge>
-                  </div>
-                </div>
-              </td>
-              <td>
-                <div className="flex items-center gap-1.5 font-medium">
-                  <MapPin size={13} className="shrink-0 text-accent" aria-hidden />
-                  {t.location}
-                </div>
-              </td>
-              <td>
-                <div className="flex items-center gap-1.5 whitespace-nowrap font-semibold text-accent">
-                  <User size={13} aria-hidden />
-                  {t.tl}
-                </div>
-              </td>
-              <td>
-                {t.modems && t.modems.trim().length > 0 ? (
-                  <span className="inline-block rounded-md border border-accent-border bg-accent-bg px-2 py-0.5 font-mono text-xs font-semibold text-fg">
-                    {t.modems}
-                  </span>
-                ) : (
-                  <span className="inline-block rounded-md border border-dashed border-neutral-border bg-neutral-bg px-2 py-0.5 text-xs italic text-fg-subtle">
-                    Unassigned
-                  </span>
-                )}
-              </td>
+    <>
+      <TableWrap className="hidden md:block">
+        <table className="data-table min-w-[960px]">
+          <thead>
+            <tr>
+              <th>Tour</th>
+              <th aria-sort={dateSortOrder === "newest" ? "descending" : "ascending"}>
+                <button
+                  type="button"
+                  onClick={onToggleDateSort}
+                  title="Sort by date"
+                  className="inline-flex cursor-pointer items-center gap-1.5 uppercase tracking-wide text-accent focus-visible:outline-2 focus-visible:outline-accent"
+                >
+                  Dates
+                  {dateSortOrder === "newest" ? <ArrowDown size={13} aria-hidden /> : <ArrowUp size={13} aria-hidden />}
+                </button>
+              </th>
+              <th>Tour Leader / Hotel</th>
+              <th>Status</th>
+              <th>Invoice</th>
+              <th>Pax / Guest Remark</th>
+              <th className="text-right!">
+                <span className="sr-only">Actions</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {tours.map((t) => {
+              const hasModems = !!t.modems && t.modems.trim().length > 0;
+              return (
+                <tr key={t.tourcode}>
+                  <td className="align-top">
+                    <TourCodeButton tour={t} onView={onView} />
+                    <div className="max-w-44 truncate text-xs text-fg-subtle" title={hasModems ? t.modems : undefined}>
+                      {modemCountLabel(t.qty)}
+                      {hasModems && <span className="font-mono"> · {t.modems}</span>}
+                    </div>
+                  </td>
+                  <td className="align-top">
+                    <div className="whitespace-nowrap font-medium tabular-nums text-fg">{formatDateRange(t.start_date, t.end_date)}</div>
+                    <div className="mt-1">
+                      <StatusBadge tone="neutral" icon={<Clock size={10} aria-hidden />}>
+                        {t.days} days
+                      </StatusBadge>
+                    </div>
+                  </td>
+                  <td className="align-top">
+                    <div className="max-w-48 truncate font-medium text-fg" title={t.tl}>
+                      {t.tl}
+                    </div>
+                    <div className="flex max-w-48 items-center gap-1 text-xs text-fg-subtle" title={t.location}>
+                      <MapPin size={12} className="shrink-0" aria-hidden />
+                      <span className="truncate">{t.location}</span>
+                    </div>
+                  </td>
+                  <td className="align-top">
+                    <TourStatusSelect tourcode={t.tourcode} value={t.status} onChange={(s) => onStatusChange(t.tourcode, s)} />
+                  </td>
+                  <td className="align-top">
+                    <InvoiceStatusSelect
+                      tourcode={t.tourcode}
+                      value={t.invoice_status}
+                      onChange={(s) => onInvoiceStatusChange(t.tourcode, s)}
+                    />
+                  </td>
+                  <td className="align-top">
+                    <div className="line-clamp-2 max-w-56 text-xs" title={t.remark || undefined}>
+                      {t.remark || "—"}
+                    </div>
+                  </td>
+                  <td className="align-top">
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => onToggleFinish(t.tourcode)}
+                        title={t.status === "Finish" ? "Re-open tour" : "Mark tour finished"}
+                        aria-label={t.status === "Finish" ? `Re-open tour ${t.tourcode}` : `Mark tour ${t.tourcode} finished`}
+                      >
+                        {t.status === "Finish" ? (
+                          <RotateCcw size={13} aria-hidden />
+                        ) : (
+                          <CheckCircle2 size={13} className="text-success" aria-hidden />
+                        )}
+                        {t.status === "Finish" ? "Re-open" : "Finish"}
+                      </button>
+                      <RowActions actions={actionsFor(t, false)} label={`Actions for tour ${t.tourcode}`} />
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </TableWrap>
 
-              {/* TOUR STATUS INTERACTIVE SELECTOR */}
-              <td>
+      <MobileList>
+        {tours.map((t) => (
+          <ListCard
+            key={t.tourcode}
+            title={<TourCodeButton tour={t} onView={onView} />}
+            subtitle={`${t.tl} · ${t.location}`}
+            value={<span className="text-xs font-medium">{formatDateRange(t.start_date, t.end_date)}</span>}
+            meta={
+              <>
                 <TourStatusSelect tourcode={t.tourcode} value={t.status} onChange={(s) => onStatusChange(t.tourcode, s)} />
-              </td>
-
-              {/* INVOICE PAID / UNPAID INTERACTIVE SELECTOR */}
-              <td>
                 <InvoiceStatusSelect
                   tourcode={t.tourcode}
                   value={t.invoice_status}
                   onChange={(s) => onInvoiceStatusChange(t.tourcode, s)}
                 />
-              </td>
-              <td>
-                <div className="text-xs">{t.remark || "—"}</div>
-              </td>
-              <td>
-                <div className="flex justify-end gap-1.5">
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-icon text-accent!"
-                    onClick={() => onView(t)}
-                    aria-label={`View tour ${t.tourcode}`}
-                    title="View details"
-                  >
-                    <Eye size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-icon text-success!"
-                    onClick={() => onWhatsApp(t)}
-                    aria-label={`Send tour ${t.tourcode} via WhatsApp`}
-                    title="Send order info via WhatsApp"
-                  >
-                    <Share2 size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-icon text-accent!"
-                    onClick={() => onEdit(t)}
-                    aria-label={`Edit tour ${t.tourcode}`}
-                    title="Edit tour"
-                  >
-                    <Edit2 size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    className={t.status === "Finish" ? "btn btn-ghost btn-sm" : "btn btn-success btn-sm"}
-                    onClick={() => onToggleFinish(t.tourcode)}
-                    title={t.status === "Finish" ? "Re-open tour" : "Mark tour finished"}
-                  >
-                    <CheckCircle2 size={13} aria-hidden />
-                    {t.status === "Finish" ? "Re-open" : "Finish"}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-danger btn-icon"
-                    onClick={() => onDelete(t.tourcode)}
-                    aria-label={`Delete tour ${t.tourcode}`}
-                    title="Delete tour"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </TableWrap>
+                <span>
+                  {modemCountLabel(t.qty)} · {t.days} days
+                </span>
+              </>
+            }
+            actions={<RowActions actions={actionsFor(t, true)} label={`Actions for tour ${t.tourcode}`} />}
+          />
+        ))}
+      </MobileList>
+    </>
   );
 }

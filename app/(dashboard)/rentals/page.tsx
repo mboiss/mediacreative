@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Download, ExternalLink, Plus } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
@@ -51,6 +52,17 @@ const EMPTY_TOUR_FORM: TourFormState = {
   remark: "",
   notes: "",
 };
+
+/** Applies `?search=` (e.g. from the Ctrl+K palette or dashboard links) to the tour search box. */
+function SearchParamSync({ onSearch }: { onSearch: (q: string) => void }) {
+  const q = useSearchParams().get("search");
+  useEffect(() => {
+    if (q) onSearch(q);
+    // onSearch is recreated each render; only react to the URL value changing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q]);
+  return null;
+}
 
 export default function ModemWifiPage() {
   const toast = useToast();
@@ -463,7 +475,7 @@ export default function ModemWifiPage() {
     }
   }
 
-  async function updateTourNotes(tourcode: string, newNotes: string) {
+  async function updateTourNotes(tourcode: string, newNotes: string): Promise<boolean> {
     try {
       const res = await fetch("/api/tour-rentals", {
         method: "PUT",
@@ -472,14 +484,14 @@ export default function ModemWifiPage() {
       });
       if (!res.ok) {
         toast.error("Notes not saved", `Could not save notes for ${tourcode}`);
-      } else {
-        await loadData();
-        if (selectedTourDetail?.tourcode === tourcode) {
-          setSelectedTourDetail((prev) => (prev ? { ...prev, notes: newNotes } : null));
-        }
+        return false;
       }
+      await loadData();
+      setSelectedTourDetail((prev) => (prev && prev.tourcode === tourcode ? { ...prev, notes: newNotes } : prev));
+      return true;
     } catch (err) {
       console.error(err);
+      return false;
     }
   }
 
@@ -592,6 +604,14 @@ export default function ModemWifiPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <Suspense fallback={null}>
+        <SearchParamSync
+          onSearch={(q) => {
+            setSearch(q);
+            setActiveTab("tours");
+          }}
+        />
+      </Suspense>
       <PageHeader
         title="Modem WiFi & Tour Rentals"
         meta={<StatusBadge tone="accent">{modems.length} devices</StatusBadge>}
@@ -620,10 +640,10 @@ export default function ModemWifiPage() {
               href="https://www.myorbit.id/dashboard-devices"
               target="_blank"
               rel="noopener noreferrer"
-              className="btn border! border-warning-border! bg-warning-bg! text-warning! no-underline"
+              className="btn btn-ghost no-underline"
               title="Open MyOrbit dashboard in a new tab to top up modem quota"
             >
-              <ExternalLink size={15} aria-hidden />
+              <ExternalLink size={15} className="text-warning" aria-hidden />
               MyOrbit Top-up
             </a>
           </>
@@ -732,6 +752,7 @@ export default function ModemWifiPage() {
       {/* POPUP MODAL: TOUR DETAILS & ASSIGNED MODEMS */}
       {selectedTourDetail && (
         <TourDetailModal
+          key={selectedTourDetail.tourcode}
           tour={selectedTourDetail}
           modems={modems}
           copiedId={copiedId}

@@ -29,6 +29,9 @@ import { FilterBar, TableWrap } from "@/components/ui/data-table";
 import { Field, SearchInput, SelectInput, TextInput } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
 import { exportToCSV } from "@/lib/export-utils";
+import { formatDate, formatRupiah } from "@/lib/format";
+import { RowActions, type RowAction } from "@/components/ui/row-actions";
+import { MobileList, ListCard } from "@/components/ui/list-card";
 
 type EsimProfile = {
   id: string;
@@ -81,18 +84,6 @@ const INITIAL_PROFILES: EsimProfile[] = [
     expiry_date: "2026-07-20",
   },
 ];
-
-function formatCurrency(amount: number) {
-  return "Rp " + amount.toLocaleString("id-ID");
-}
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("id-ID", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
 
 export default function EsimPage() {
   const toast = useToast();
@@ -239,6 +230,12 @@ export default function EsimPage() {
     return matchSearch && matchStatus;
   });
 
+  const esimActions = (item: EsimProfile): RowAction[] => [
+    { label: "Show QR code", icon: <QrCode />, onSelect: () => setActiveQrModal(item) },
+    { label: "Copy activation code", icon: <Copy />, onSelect: () => copyActivationCode(item.activation_code) },
+    { label: "Remove", icon: <Trash2 />, onSelect: () => deleteProfile(item.id), danger: true },
+  ];
+
   const totalActive = profiles.filter((p) => p.status === "Active").length;
   const totalGb = profiles.reduce((s, p) => s + (p.status === "Active" ? p.data_gb : 0), 0);
   const totalRevenue = profiles.reduce((s, p) => s + p.price, 0);
@@ -267,7 +264,7 @@ export default function EsimPage() {
         <StatCard label="Total Profiles" value={profiles.length} icon={<Smartphone size={20} />} tone="accent" loading={loading} />
         <StatCard label="Active Connections" value={totalActive} icon={<CheckCircle2 size={20} />} tone="success" loading={loading} />
         <StatCard label="Active Bandwidth" value={`${totalGb} GB`} icon={<Globe size={20} />} tone="purple" loading={loading} />
-        <StatCard label="eSIM Sales Value" value={formatCurrency(totalRevenue)} icon={<Wallet size={20} />} tone="warning" loading={loading} />
+        <StatCard label="eSIM Sales Value" value={formatRupiah(totalRevenue)} icon={<Wallet size={20} />} tone="warning" loading={loading} />
       </StatGrid>
 
       <Panel padded={false}>
@@ -320,7 +317,8 @@ export default function EsimPage() {
             }
           />
         ) : (
-          <TableWrap>
+          <>
+          <TableWrap className="hidden md:block">
             <table className="data-table min-w-[900px]">
               <thead>
                 <tr>
@@ -331,7 +329,7 @@ export default function EsimPage() {
                   <th className="text-right!">Price</th>
                   <th>Expires</th>
                   <th>Status</th>
-                  <th className="text-right!">Actions</th>
+                  <th className="text-right!"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -343,20 +341,20 @@ export default function EsimPage() {
                         {item.iccid}
                       </div>
                     </td>
-                    <td className="font-semibold text-accent">{item.package_name}</td>
+                    <td className="font-medium text-fg">{item.package_name}</td>
                     <td>
                       <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
                         <Globe size={14} className="shrink-0 text-fg-subtle" aria-hidden /> {item.region}
                       </span>
                     </td>
-                    <td className="whitespace-nowrap font-semibold text-purple">{item.data_gb} GB</td>
-                    <td className="whitespace-nowrap text-right">{formatCurrency(item.price)}</td>
+                    <td className="whitespace-nowrap tabular-nums">{item.data_gb} GB</td>
+                    <td className="whitespace-nowrap text-right tabular-nums">{formatRupiah(item.price)}</td>
                     <td className="whitespace-nowrap tabular-nums">{formatDate(item.expiry_date)}</td>
                     <td>
                       <StatusBadge status={item.status} />
                     </td>
                     <td className="text-right">
-                      <div className="flex justify-end gap-1.5">
+                      <div className="flex items-center justify-end gap-1.5">
                         <button
                           className="btn btn-ghost btn-sm"
                           onClick={() => setActiveQrModal(item)}
@@ -365,14 +363,7 @@ export default function EsimPage() {
                         >
                           <QrCode size={14} aria-hidden /> QR Code
                         </button>
-                        <button
-                          className="btn btn-danger btn-sm btn-icon"
-                          onClick={() => deleteProfile(item.id)}
-                          aria-label={`Remove eSIM profile for ${item.user_name}`}
-                          title="Remove"
-                        >
-                          <Trash2 size={14} aria-hidden />
-                        </button>
+                        <RowActions label={`Actions for ${item.user_name}`} actions={esimActions(item)} />
                       </div>
                     </td>
                   </tr>
@@ -380,6 +371,27 @@ export default function EsimPage() {
               </tbody>
             </table>
           </TableWrap>
+          <MobileList>
+            {filtered.map((item) => (
+              <ListCard
+                key={item.id}
+                title={item.user_name}
+                subtitle={<span className="font-mono">{item.iccid}</span>}
+                value={formatRupiah(item.price)}
+                meta={
+                  <>
+                    <StatusBadge status={item.status} />
+                    <span>
+                      {item.package_name} · {item.data_gb} GB
+                    </span>
+                    <span className="tabular-nums text-fg-subtle">Expires {formatDate(item.expiry_date)}</span>
+                  </>
+                }
+                actions={<RowActions label={`Actions for ${item.user_name}`} actions={esimActions(item)} />}
+              />
+            ))}
+          </MobileList>
+          </>
         )}
       </Panel>
 
@@ -448,14 +460,14 @@ export default function EsimPage() {
       <Modal isOpen={!!activeQrModal} onClose={() => setActiveQrModal(null)} title="eSIM QR Code & Activation">
         {activeQrModal && (
           <div className="flex flex-col items-center gap-4 text-center">
-            <div className="rounded-2xl border-4 border-accent-border bg-inset p-4">
+            <div className="rounded-card border border-line bg-inset p-4">
               {/* Simulated QR pattern */}
               <div className="grid size-40 grid-cols-8 gap-0.5 rounded-lg bg-page p-2" aria-hidden>
                 {Array.from({ length: 64 }).map((_, i) => (
                   <div
                     key={i}
                     className={cn(
-                      (i * 13 + 7) % 3 === 0 ? "bg-accent" : (i * 7 + 3) % 2 === 0 ? "bg-purple" : "bg-page",
+                      (i * 13 + 7) % 3 === 0 || (i * 7 + 3) % 2 === 0 ? "bg-fg" : "bg-page",
                       i % 5 === 0 && "rounded-xs"
                     )}
                   />

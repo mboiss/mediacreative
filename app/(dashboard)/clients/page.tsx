@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, Plus, Trash2, Users, Loader2, Edit2, Mail, Phone, Building, Download, Save } from "lucide-react";
+import { Search, Plus, Trash2, Users, Loader2, Edit2, Mail, Phone, Building, Download, Save, Eye } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
@@ -15,6 +15,8 @@ import { Panel } from "@/components/ui/panel";
 import { FilterBar, TableWrap } from "@/components/ui/data-table";
 import { Field, SearchInput, TextArea, TextInput } from "@/components/ui/field";
 import { exportToCSV } from "@/lib/export-utils";
+import { RowActions, type RowAction } from "@/components/ui/row-actions";
+import { MobileList, ListCard } from "@/components/ui/list-card";
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 
 type Client = {
@@ -192,6 +194,18 @@ export default function ClientsPage() {
 
   const { pageItems, page, setPage, pageSize, setPageSize, totalPages, totalItems } = usePagination(filtered, search);
 
+  const clientActions = (client: Client): RowAction[] => [
+    { label: "View details", icon: <Eye />, href: `/clients/${client.id}` },
+    { label: "Edit", icon: <Edit2 />, onSelect: () => openEditModal(client) },
+    {
+      label: deletingId === client.id ? "Deleting..." : "Delete",
+      icon: deletingId === client.id ? <Loader2 className="animate-spin" /> : <Trash2 />,
+      onSelect: () => deleteClient(client.id),
+      disabled: deletingId === client.id,
+      danger: true,
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-6">
       <Suspense fallback={null}>
@@ -245,7 +259,8 @@ export default function ClientsPage() {
             }
           />
         ) : (
-          <TableWrap>
+          <>
+          <TableWrap className="hidden md:block">
             <table className="data-table min-w-[720px]">
               <thead>
                 <tr>
@@ -253,7 +268,7 @@ export default function ClientsPage() {
                   <th>Company</th>
                   <th>Email</th>
                   <th>Phone</th>
-                  <th className="text-right!">Actions</th>
+                  <th className="text-right!"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -277,37 +292,43 @@ export default function ClientsPage() {
                       <IconCell icon={<Phone size={14} />} value={client.phone} />
                     </td>
                     <td className="text-right">
-                      <div className="flex justify-end gap-1.5">
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => openEditModal(client)}
-                          aria-label={`Edit ${client.full_name}`}
-                          title="Edit"
-                        >
-                          <Edit2 size={14} aria-hidden />
-                          Edit
-                        </button>
-                        <button
-                          className="btn btn-danger btn-sm"
-                          onClick={() => deleteClient(client.id)}
-                          disabled={deletingId === client.id}
-                          aria-label={`Delete ${client.full_name}`}
-                          title="Delete"
-                        >
-                          {deletingId === client.id ? (
-                            <Loader2 size={14} className="animate-spin" aria-hidden />
-                          ) : (
-                            <Trash2 size={14} aria-hidden />
-                          )}
-                          Delete
-                        </button>
-                      </div>
+                      <RowActions label={`Actions for ${client.full_name}`} actions={clientActions(client)} />
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </TableWrap>
+          <MobileList>
+            {pageItems.map((client) => (
+              <ListCard
+                key={client.id}
+                href={`/clients/${client.id}`}
+                title={client.full_name}
+                subtitle={client.company || undefined}
+                meta={
+                  client.email || client.phone ? (
+                    <>
+                      {client.email && (
+                        <span className="flex min-w-0 items-center gap-1">
+                          <Mail size={12} aria-hidden className="shrink-0 text-fg-subtle" />
+                          <span className="truncate">{client.email}</span>
+                        </span>
+                      )}
+                      {client.phone && (
+                        <span className="flex items-center gap-1 whitespace-nowrap">
+                          <Phone size={12} aria-hidden className="shrink-0 text-fg-subtle" />
+                          {client.phone}
+                        </span>
+                      )}
+                    </>
+                  ) : undefined
+                }
+                actions={<RowActions label={`Actions for ${client.full_name}`} actions={clientActions(client)} />}
+              />
+            ))}
+          </MobileList>
+          </>
         )}
         {!loading && (
           <Pagination

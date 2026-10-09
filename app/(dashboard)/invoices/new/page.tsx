@@ -30,6 +30,7 @@ import { Panel } from "@/components/ui/panel";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Field, SearchInput, SelectInput, TextArea, TextInput } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
+import { formatRupiah } from "@/lib/format";
 import {
   getPaymentAccounts,
   fetchPaymentAccounts,
@@ -239,10 +240,6 @@ export default function NewInvoicePage() {
   const taxAmount = (rawSubtotal * taxPercent) / 100;
   const grandTotal = Math.max(0, rawSubtotal + taxAmount - discountAmount);
 
-  function formatCurrency(num: number) {
-    return "Rp " + Math.round(num).toLocaleString("id-ID");
-  }
-
   // Quick Client Creation
   async function handleCreateClient(e: React.FormEvent) {
     e.preventDefault();
@@ -330,10 +327,10 @@ export default function NewInvoicePage() {
 
   const chip = "inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold transition-colors";
   const chipIdle = "border-line bg-surface text-fg-muted hover:border-line-accent hover:text-fg";
-  const chipAccent = "border-accent-border bg-accent-bg text-accent hover:border-line-accent";
+  const chipAccent = "border-line bg-surface text-fg hover:border-line-accent hover:bg-surface-hover";
 
   return (
-    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6">
+    <div className="flex w-full max-w-[1400px] flex-col gap-6">
       {/* TOP HEADER */}
       <PageHeader
         title={
@@ -504,7 +501,7 @@ export default function NewInvoicePage() {
                   <div className="flex flex-wrap gap-1.5">
                     {products.slice(0, 5).map((p) => (
                       <button key={p.id} type="button" onClick={() => handleAddLineItem(p)} className={cn(chip, chipAccent)}>
-                        <Plus size={12} /> {p.product_name} ({formatCurrency(p.price)})
+                        <Plus size={12} /> {p.product_name} ({formatRupiah(p.price)})
                       </button>
                     ))}
                   </div>
@@ -513,9 +510,9 @@ export default function NewInvoicePage() {
 
               {/* Modem rental from active tour */}
               {tourLogs.length > 0 && (
-                <div className="flex flex-col gap-2 rounded-xl border border-accent-border bg-accent-bg p-3">
-                  <span className="flex items-start gap-1.5 text-xs font-semibold text-accent">
-                    <Wifi size={14} className="mt-px shrink-0" />
+                <div className="flex flex-col gap-2 rounded-xl border border-line bg-inset p-3">
+                  <span className="flex items-start gap-1.5 text-xs font-semibold text-fg-muted">
+                    <Wifi size={14} className="mt-px shrink-0 text-accent" />
                     Quick add modem rental from an active tour (sets qty and Rp 600.000 automatically)
                   </span>
                   <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
@@ -524,7 +521,7 @@ export default function NewInvoicePage() {
                         key={t.tourcode}
                         type="button"
                         onClick={() => addModemRentalItemFromTour(t)}
-                        className={cn(chip, "border-accent-border bg-surface text-accent hover:bg-surface-hover")}
+                        className={cn(chip, chipAccent)}
                         title={`Add modem rental for ${t.tourcode} (${t.qty} modems assigned)`}
                       >
                         <Plus size={12} /> {t.tourcode} ({t.qty} modem{t.qty > 1 ? "s" : ""})
@@ -543,7 +540,7 @@ export default function NewInvoicePage() {
                       <button
                         type="button"
                         onClick={() => handleRemoveLineItem(item.id)}
-                        className="btn btn-danger btn-icon"
+                        className="btn btn-ghost btn-icon hover:text-danger"
                         aria-label={`Remove item ${idx + 1}`}
                         title="Remove line item"
                       >
@@ -560,7 +557,7 @@ export default function NewInvoicePage() {
                         <option value="">— Custom description (or pick a catalog product) —</option>
                         {products.map((p) => (
                           <option key={p.id} value={p.id}>
-                            {p.product_name} — Rp {p.price.toLocaleString("id-ID")}
+                            {p.product_name} — {formatRupiah(p.price)}
                           </option>
                         ))}
                       </SelectInput>
@@ -602,7 +599,7 @@ export default function NewInvoicePage() {
                       <div className="col-span-2 flex items-baseline justify-between gap-2 border-t border-line pt-2 sm:col-span-1 sm:block sm:border-0 sm:pt-0 sm:text-right">
                         <span className="block text-xs font-semibold uppercase tracking-wide text-fg-subtle">Total</span>
                         <span className="whitespace-nowrap text-base font-bold tabular-nums text-fg">
-                          {formatCurrency((Number(item.quantity) || 0) * (Number(item.unit_price) || 0))}
+                          {formatRupiah((Number(item.quantity) || 0) * (Number(item.unit_price) || 0))}
                         </span>
                       </div>
                     </div>
@@ -613,7 +610,7 @@ export default function NewInvoicePage() {
               <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                 <button
                   type="button"
-                  className="btn btn-ghost justify-center whitespace-normal border-accent-border text-accent"
+                  className="btn btn-ghost justify-center whitespace-normal"
                   onClick={addGenericModemRentalItem}
                 >
                   <Wifi size={14} />
@@ -710,23 +707,23 @@ export default function NewInvoicePage() {
               <dl className="flex flex-col gap-1.5 rounded-xl border border-line bg-inset px-4 py-3 text-sm">
                 <div className="flex justify-between gap-3 text-fg-muted">
                   <dt>Subtotal</dt>
-                  <dd className="tabular-nums">{formatCurrency(rawSubtotal)}</dd>
+                  <dd className="tabular-nums">{formatRupiah(rawSubtotal)}</dd>
                 </div>
                 {taxPercent > 0 && (
                   <div className="flex justify-between gap-3 text-fg-muted">
                     <dt>Tax ({taxPercent}%)</dt>
-                    <dd className="tabular-nums">{formatCurrency(taxAmount)}</dd>
+                    <dd className="tabular-nums">{formatRupiah(taxAmount)}</dd>
                   </div>
                 )}
                 {discountAmount > 0 && (
                   <div className="flex justify-between gap-3 text-fg-muted">
                     <dt>Discount</dt>
-                    <dd className="tabular-nums">− {formatCurrency(discountAmount)}</dd>
+                    <dd className="tabular-nums">− {formatRupiah(discountAmount)}</dd>
                   </div>
                 )}
                 <div className="mt-1 flex justify-between gap-3 border-t border-line pt-2 font-bold text-fg">
                   <dt>Grand total</dt>
-                  <dd className="tabular-nums text-accent">{formatCurrency(grandTotal)}</dd>
+                  <dd className="tabular-nums">{formatRupiah(grandTotal)}</dd>
                 </div>
               </dl>
             </div>
