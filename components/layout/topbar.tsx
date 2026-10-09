@@ -1,6 +1,6 @@
 "use client";
 
-import { Moon, Sun, Menu, Clock } from "lucide-react";
+import { Moon, Sun, Menu, CalendarDays } from "lucide-react";
 import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -34,38 +34,12 @@ export default function Topbar() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [dateStr, setDateStr] = useState("");
-  const [digitalTime, setDigitalTime] = useState("");
-  const [ampm, setAmpm] = useState("");
   const pathname = usePathname();
 
   useEffect(() => {
     setMounted(true);
-    const updateTime = () => {
-      const now = new Date();
-
-      // English Date: Mon, 27 Jul 2026
-      const weekday = now.toLocaleDateString("en-US", { weekday: "short" });
-      const month = now.toLocaleDateString("en-US", { month: "short" });
-      const day = now.getDate();
-      const year = now.getFullYear();
-      setDateStr(`${weekday}, ${day} ${month} ${year}`);
-
-      // 12-hour Time format with AM/PM
-      let hours = now.getHours();
-      const minutes = String(now.getMinutes()).padStart(2, "0");
-      const seconds = String(now.getSeconds()).padStart(2, "0");
-      const period = hours >= 12 ? "PM" : "AM";
-      hours = hours % 12;
-      hours = hours ? hours : 12; // 0 becomes 12
-      const formattedHours = String(hours).padStart(2, "0");
-
-      setDigitalTime(`${formattedHours}:${minutes}:${seconds}`);
-      setAmpm(period);
-    };
-
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
+    const now = new Date();
+    setDateStr(now.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" }));
   }, []);
 
   function handleOpenMobileSidebar() {
@@ -103,25 +77,12 @@ export default function Topbar() {
 
       {/* Right: controls */}
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-        {/* Clock — hidden on small screens to keep the bar from overflowing */}
-        {mounted && (
-          <div className="hidden items-center gap-2 rounded-control border border-line bg-surface px-3 py-1 lg:flex">
-            <div className="flex items-center gap-1.5">
-              <span aria-hidden className="inline-block size-[7px] rounded-full bg-success shadow-[0_0_8px_var(--success)]" />
-              <Clock size={14} className="text-accent" aria-hidden />
-            </div>
-
-            <span className="whitespace-nowrap text-xs font-semibold tracking-wide text-fg-muted">{dateStr}</span>
-
-            <span aria-hidden className="h-3.5 w-px bg-line-strong" />
-
-            <div className="flex items-center gap-1">
-              <span className="font-mono text-[0.8125rem] font-bold tabular-nums tracking-wider text-fg">{digitalTime}</span>
-              <span className="rounded border border-accent-border bg-accent-bg px-1 text-xs font-extrabold uppercase leading-tight text-accent">
-                {ampm}
-              </span>
-            </div>
-          </div>
+        {/* Today's date (no ticking clock — calmer, and the OS already shows the time) */}
+        {mounted && dateStr && (
+          <span className="hidden items-center gap-1.5 whitespace-nowrap text-xs font-medium text-fg-muted lg:flex">
+            <CalendarDays size={14} className="text-fg-subtle" aria-hidden />
+            {dateStr}
+          </span>
         )}
 
         {/* Theme toggle */}

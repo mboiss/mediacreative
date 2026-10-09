@@ -11,23 +11,27 @@
    ============================================ */
 :root, html.dark {
   /* Surfaces */
-  --bg-primary: #060d1a;          /* page background */
-  --bg-secondary: #0a1628;        /* solid panels, select options */
-  --bg-card: rgba(10, 22, 45, 0.7);
-  --bg-glass: rgba(255, 255, 255, 0.04);       /* cards */
-  --bg-glass-hover: rgba(255, 255, 255, 0.08); /* hovered rows / cards */
-  --bg-inset: rgba(255, 255, 255, 0.025);      /* inputs, nested blocks */
-  --table-head-bg: rgba(2, 6, 23, 0.75);
+  --bg-primary: #0a0e15;          /* page background */
+  --bg-secondary: #121824;        /* solid panels, menus, select options */
+  --bg-card: #10151f;
+  --bg-glass: #10151f;            /* cards */
+  --bg-glass-hover: #161d2a;      /* hovered rows / cards */
+  --bg-inset: #0c1119;            /* inputs, nested blocks */
+  --table-head-bg: #0d121b;
 
   /* Text (all pass WCAG AA on --bg-primary) */
-  --text-primary: #f0f6ff;
-  --text-secondary: #9fb3d1;
-  --text-muted: #7088a8;
+  --text-primary: #e9eef6;
+  --text-secondary: #a4afc0;
+  --text-muted: #7d8899;
   --text-on-accent: #ffffff;
 
   /* Brand */
-  --accent-cyan: #00d4ff;
-  --accent-cyan-dim: rgba(0, 212, 255, 0.15);
+  --accent-cyan: #22d3ee;
+  --accent-cyan-dim: rgba(34, 211, 238, 0.14);
+  /* Primary button: one solid accent, no gradient */
+  --primary-bg: #22d3ee;
+  --primary-bg-hover: #67e8f9;
+  --primary-fg: #04161d;
   --accent-purple: #8b5cf6;
   --accent-purple-dim: rgba(139, 92, 246, 0.15);
   --accent-gradient: linear-gradient(135deg, #00b8e6, #7c3aed);
@@ -44,24 +48,25 @@
   --accent-amber: var(--warning);
   --accent-red: var(--danger);
 
-  --border: rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.14);
-  --border-accent: rgba(0, 212, 255, 0.3);
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.13);
+  --border-accent: rgba(34, 211, 238, 0.35);
 
-  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4), 0 1px 4px rgba(0, 0, 0, 0.2);
-  --shadow-glow: 0 0 30px rgba(0, 212, 255, 0.1);
-  --page-glow-1: rgba(0, 212, 255, 0.10);
-  --page-glow-2: rgba(124, 58, 237, 0.08);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-glow: 0 0 0 1px var(--border-accent);
+  --page-glow-1: transparent;
+  --page-glow-2: transparent;
 
-  --sidebar-bg: rgba(6, 13, 26, 0.85);
-  --topbar-bg: rgba(6, 13, 26, 0.7);
-  --modal-bg: #0d1f3c;
-  --tooltip-bg: rgba(15, 23, 42, 0.95);
+  --sidebar-bg: #0c111a;
+  --topbar-bg: rgba(10, 14, 21, 0.85);
+  --modal-bg: #121824;
+  --tooltip-bg: #121824;
 
-  --radius-sm: 10px;
-  --radius-md: 14px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -69,7 +74,7 @@
 }
 
 html.light {
-  --bg-primary: #f4f6fa;
+  --bg-primary: #f6f7f9;
   --bg-secondary: #ffffff;
   --bg-card: #ffffff;
   --bg-glass: #ffffff;
@@ -84,6 +89,9 @@ html.light {
 
   --accent-cyan: #0369a1;
   --accent-cyan-dim: rgba(3, 105, 161, 0.1);
+  --primary-bg: #0369a1;
+  --primary-bg-hover: #075985;
+  --primary-fg: #ffffff;
   --accent-purple: #6d28d9;
   --accent-purple-dim: rgba(109, 40, 217, 0.1);
   --accent-gradient: linear-gradient(135deg, #0284c7, #6d28d9);
@@ -98,12 +106,13 @@ html.light {
   --border-strong: rgba(15, 23, 42, 0.18);
   --border-accent: rgba(3, 105, 161, 0.35);
 
-  --shadow-card: 0 4px 20px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
-  --shadow-glow: 0 0 30px rgba(3, 105, 161, 0.08);
-  --page-glow-1: rgba(3, 105, 161, 0.06);
-  --page-glow-2: rgba(109, 40, 217, 0.04);
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.03);
+  --shadow-pop: 0 12px 32px rgba(15, 23, 42, 0.12), 0 2px 6px rgba(15, 23, 42, 0.06);
+  --shadow-glow: 0 0 0 1px var(--border-accent);
+  --page-glow-1: transparent;
+  --page-glow-2: transparent;
 
-  --sidebar-bg: rgba(255, 255, 255, 0.92);
+  --sidebar-bg: #ffffff;
   --topbar-bg: rgba(255, 255, 255, 0.85);
   --modal-bg: #ffffff;
   --tooltip-bg: #ffffff;
@@ -174,6 +183,9 @@ html.light {
   --radius-control: var(--radius-sm);
 
   --shadow-card: var(--shadow-card);
+  --shadow-pop: var(--shadow-pop);
+  --color-primary: var(--primary-bg);
+  --color-on-primary: var(--primary-fg);
 }
 
 /* ============================================
@@ -239,8 +251,7 @@ body {
   background: var(--bg-glass-hover);
   border-color: var(--border-accent);
   box-shadow: var(--shadow-card), var(--shadow-glow);
-  transform: translateY(-1px);
-}
+  }
 
 /* ============================================
    STATUS BADGES
@@ -424,22 +435,20 @@ select option {
 }
 .data-table thead {
   background: var(--table-head-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 .data-table th {
   font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--text-primary);
-  opacity: 0.9;
-  padding: 14px 16px;
+  color: var(--text-muted);
+  padding: 10px 16px;
+  white-space: nowrap;
   text-align: left;
   border-bottom: 1px solid var(--border);
 }
 .data-table td {
-  padding: 14px 16px;
+  padding: 12px 16px;
   font-size: 0.875rem;
   color: var(--text-secondary);
   border-bottom: 1px solid var(--border);
@@ -460,10 +469,10 @@ select option {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 18px;
+  padding: 8px 14px;
   border-radius: var(--radius-sm);
   font-size: 0.875rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   border: none;
   transition: all var(--transition-fast);
@@ -476,13 +485,12 @@ select option {
 }
 
 .btn-primary {
-  background: var(--accent-gradient);
-  color: var(--text-on-accent);
-  box-shadow: 0 4px 16px var(--accent-cyan-dim);
+  background: var(--primary-bg);
+  color: var(--primary-fg);
+  font-weight: 600;
 }
 .btn-primary:hover:not(:disabled) {
-  box-shadow: 0 6px 24px var(--accent-border);
-  transform: translateY(-1px);
+  background: var(--primary-bg-hover);
 }
 
 .btn-ghost {

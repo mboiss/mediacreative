@@ -20,15 +20,30 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Clients", href: "/clients", icon: Users },
-  { name: "Modem Wifi", href: "/rentals", icon: Wifi },
-  { name: "eSIM", href: "/esim", icon: Smartphone },
-  { name: "Products", href: "/products", icon: Package },
-  { name: "Invoices", href: "/invoices", icon: FileText },
-  { name: "Reports", href: "/reports", icon: BarChart3 },
-  { name: "Settings", href: "/settings", icon: Settings },
+const navSections = [
+  { title: null, items: [{ name: "Dashboard", href: "/dashboard", icon: LayoutDashboard }] },
+  {
+    title: "Operations",
+    items: [
+      { name: "Modem WiFi", href: "/rentals", icon: Wifi },
+      { name: "eSIM", href: "/esim", icon: Smartphone },
+    ],
+  },
+  {
+    title: "Finance",
+    items: [
+      { name: "Invoices", href: "/invoices", icon: FileText },
+      { name: "Reports", href: "/reports", icon: BarChart3 },
+    ],
+  },
+  {
+    title: "CRM",
+    items: [
+      { name: "Clients", href: "/clients", icon: Users },
+      { name: "Products", href: "/products", icon: Package },
+    ],
+  },
+  { title: "System", items: [{ name: "Settings", href: "/settings", icon: Settings }] },
 ];
 
 function isActivePath(pathname: string, href: string) {
@@ -166,16 +181,22 @@ export default function Sidebar() {
 
           {/* Mobile Nav */}
           <nav className="flex flex-1 flex-col gap-1 px-3 py-4">
-            <div className="px-3 pb-2 text-xs font-bold uppercase tracking-wide text-fg-subtle">Menu</div>
-            {navItems.map((item) => (
-              <NavLink
-                key={item.name}
-                name={item.name}
-                href={item.href}
-                icon={item.icon}
-                active={isActivePath(pathname, item.href)}
-                onNavigate={() => setIsMobileOpen(false)}
-              />
+            {navSections.map((section) => (
+              <div key={section.title ?? "main"} className="flex flex-col gap-1">
+                {section.title && (
+                  <div className="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide text-fg-subtle">{section.title}</div>
+                )}
+                {section.items.map((item) => (
+                  <NavLink
+                    key={item.name}
+                    name={item.name}
+                    href={item.href}
+                    icon={item.icon}
+                    active={isActivePath(pathname, item.href)}
+                    onNavigate={() => setIsMobileOpen(false)}
+                  />
+                ))}
+              </div>
             ))}
           </nav>
 
@@ -190,7 +211,7 @@ export default function Sidebar() {
     <aside
       aria-label="Main navigation"
       className={cn(
-        "sticky top-0 flex h-screen shrink-0 flex-col overflow-y-auto overflow-x-hidden border-r border-line bg-[var(--sidebar-bg)] backdrop-blur-2xl transition-[width] duration-250 ease-out",
+        "sticky top-0 flex h-screen shrink-0 flex-col overflow-y-auto overflow-x-hidden border-r border-line bg-[var(--sidebar-bg)] transition-[width] duration-250 ease-out",
         isCollapsed ? "w-[72px]" : "w-64"
       )}
     >
@@ -242,19 +263,25 @@ export default function Sidebar() {
 
       {/* Nav Menu */}
       <nav className={cn("flex flex-1 flex-col gap-1 py-3", isCollapsed ? "px-2" : "px-3")}>
-        {!isCollapsed && (
-          <div className="px-3 pb-1.5 pt-2 text-xs font-bold uppercase tracking-wide text-fg-subtle">Menu</div>
-        )}
-
-        {navItems.map((item) => (
-          <NavLink
-            key={item.name}
-            name={item.name}
-            href={item.href}
-            icon={item.icon}
-            active={isActivePath(pathname, item.href)}
-            collapsed={isCollapsed}
-          />
+        {navSections.map((section, i) => (
+          <div key={section.title ?? "main"} className="flex flex-col gap-1">
+            {section.title &&
+              (isCollapsed ? (
+                i > 0 && <div aria-hidden className="mx-2 my-2 h-px bg-line" />
+              ) : (
+                <div className="px-3 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide text-fg-subtle">{section.title}</div>
+              ))}
+            {section.items.map((item) => (
+              <NavLink
+                key={item.name}
+                name={item.name}
+                href={item.href}
+                icon={item.icon}
+                active={isActivePath(pathname, item.href)}
+                collapsed={isCollapsed}
+              />
+            ))}
+          </div>
         ))}
       </nav>
 

@@ -4,6 +4,17 @@ import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toneClasses, type Tone } from "@/components/ui/status-badge";
 
+// Hover border picks up the card's own tone so each KPI "lights up" in its colour.
+const HOVER_BORDER: Record<Tone, string> = {
+  neutral: "hover:border-neutral-border",
+  info: "hover:border-info-border",
+  success: "hover:border-success-border",
+  warning: "hover:border-warning-border",
+  danger: "hover:border-danger-border",
+  accent: "hover:border-accent-border",
+  purple: "hover:border-purple-border",
+};
+
 type StatCardProps = {
   label: string;
   value: ReactNode;
@@ -19,15 +30,28 @@ export function StatCard({ label, value, icon, tone = "accent", hint, href, load
   const body = (
     <div
       className={cn(
-        "flex h-full flex-col gap-3 rounded-card border border-line bg-surface p-4 shadow-card sm:p-5",
-        href && "transition hover:-translate-y-0.5 hover:border-line-accent hover:bg-surface-hover"
+        "group/stat flex h-full flex-col gap-3 rounded-card border border-line bg-surface p-4 shadow-card sm:p-5",
+        "transition duration-200 ease-out hover:bg-surface-hover hover:shadow-pop motion-safe:hover:-translate-y-0.5",
+        HOVER_BORDER[tone]
       )}
     >
       <div className="flex items-start justify-between gap-2">
         {icon && (
-          <div className={cn("flex size-10 items-center justify-center rounded-xl border", toneClasses(tone))}>{icon}</div>
+          <div
+            className={cn(
+              "flex size-10 items-center justify-center rounded-xl border transition-transform duration-200 motion-safe:group-hover/stat:scale-110",
+              toneClasses(tone)
+            )}
+          >
+            {icon}
+          </div>
         )}
-        {href && <ArrowRight className="size-4 text-fg-subtle" aria-hidden />}
+        {href && (
+          <ArrowRight
+            className="size-4 text-fg-subtle transition duration-200 group-hover/stat:text-fg motion-safe:group-hover/stat:translate-x-0.5"
+            aria-hidden
+          />
+        )}
       </div>
       <div>
         <div className="text-xs font-semibold uppercase tracking-wide text-fg-muted">{label}</div>

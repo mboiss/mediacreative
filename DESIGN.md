@@ -1,6 +1,7 @@
 # Media Creative Control Center — Design Guide
 
-Dark-first "glass" look with the cyan → purple brand accent. Both **dark** and **light** themes must look right,
+Calm, modern-professional look: neutral surfaces, **one** accent colour (cyan), solid primary buttons, 12px card radius,
+thin borders and soft shadows. Gradients are reserved for the logo. Both **dark** and **light** themes must look right,
 and every page must work from **375px phones to wide desktops**.
 
 ## Rules
@@ -46,7 +47,17 @@ Charts (recharts) take colours as props: use `var(--accent-cyan)`, `var(--succes
 - `Field`, `TextInput`, `SelectInput`, `TextArea`, `SearchInput` — form controls.
 - `TableWrap`, `FilterBar` — table scroll container and filter toolbar.
 - `Modal`, `useConfirm`, `useToast`, `Pagination`/`usePagination`, `LoadingState`, `EmptyState`.
-- Buttons: `className="btn btn-primary | btn-ghost | btn-danger | btn-success"`, add `btn-sm` or `btn-icon`.
+- Buttons: `className="btn btn-primary | btn-ghost | btn-danger | btn-success"`, add `btn-sm` or `btn-icon`. One primary button per view.
+- `RowActions` — the "⋯" menu for table rows / list cards (`{ label, icon, href | onSelect, danger }`). Use it instead of a row of
+  Edit/Delete buttons; a row may keep at most one inline primary action (e.g. "View").
+- `MobileList` + `ListCard` — phone layout for list pages: table `hidden md:block`, cards `md:hidden`.
+- `BadgeSelect` — status badge that is also a dropdown for inline status changes (always confirm with `useConfirm`).
+
+## Formatting (`lib/format.ts`)
+
+Always use these, never hand-rolled formatters: `formatRupiah` ("Rp 683.645.908"), `formatRupiahCompact`
+("Rp 683,6 jt", KPI tiles/axes), `formatDate` ("7 Oct 2026"), `formatShortDate` ("7 Oct"), `daysFromToday`.
+Numbers in tables use `tabular-nums`.
 
 ## Page skeleton
 
