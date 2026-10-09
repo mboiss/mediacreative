@@ -160,9 +160,6 @@ export function InvoiceSheet({
             >
               INVOICE
             </div>
-            <div className={cn("mt-2 font-mono font-semibold", PAPER.inkSoft, compact ? "text-xs" : "text-sm")}>
-              {invoiceNumber}
-            </div>
             {stamp && (
               <div
                 className={cn(
@@ -177,54 +174,61 @@ export function InvoiceSheet({
           </div>
         </div>
 
-        {/* 2. META STRIP */}
+        {/* 2. BILL TO (left) + INVOICE DETAILS (right) */}
         <div
           className={cn(
-            "grid rounded-lg border",
+            "grid gap-x-10 gap-y-5 border-t pt-5",
             PAPER.rule,
-            PAPER.tint,
-            compact ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-4"
+            compact ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-[1fr_auto]"
           )}
         >
-          {[
-            { label: "Invoice No.", value: <span className="font-mono">{invoiceNumber}</span> },
-            { label: "Issue Date", value: formatDate(invoiceDate) },
-            { label: "Due Date", value: dueDate ? formatDate(dueDate) : "On receipt" },
-            {
-              label: isPaid ? "Amount Paid" : "Amount Due",
-              value: <span className={PAPER.brand}>{formatRupiah(finalTotal)}</span>,
-            },
-          ].map((m, i) => (
-            <div
-              key={m.label}
+          <div className="min-w-0">
+            <Label>Bill To</Label>
+            {client ? (
+              <div className={cn("leading-snug", compact ? "text-xs" : "text-sm")}>
+                <div className={cn("font-bold", PAPER.ink)}>{client.company || client.full_name || "—"}</div>
+                {client.company && client.full_name && <div className={PAPER.inkSoft}>Attn. {client.full_name}</div>}
+                {client.address && <div className={cn("mt-1 whitespace-pre-line", PAPER.muted)}>{client.address}</div>}
+                {(client.phone || client.email) && (
+                  <div className={cn("mt-0.5", PAPER.muted)}>{[client.phone, client.email].filter(Boolean).join("  ·  ")}</div>
+                )}
+              </div>
+            ) : (
+              <div className={cn("text-xs italic", PAPER.muted)}>No client selected.</div>
+            )}
+          </div>
+
+          <dl
+            className={cn(
+              "grid grid-cols-[auto_auto] content-start gap-x-6 gap-y-1.5",
+              compact ? "text-xs" : "text-xs sm:text-sm",
+              !compact && "sm:justify-self-end"
+            )}
+          >
+            {[
+              ["Invoice No.", <span key="n" className="font-mono">{invoiceNumber}</span>],
+              ["Issue Date", formatDate(invoiceDate)],
+              ["Due Date", dueDate ? formatDate(dueDate) : "On receipt"],
+            ].map(([label, value]) => (
+              <React.Fragment key={String(label)}>
+                <dt className={PAPER.muted}>{label}</dt>
+                <dd className={cn("text-right font-semibold", PAPER.ink)}>{value}</dd>
+              </React.Fragment>
+            ))}
+            <dt className={cn("mt-1.5 border-t pt-2 font-semibold", PAPER.rule, PAPER.ink)}>
+              {isPaid ? "Amount Paid" : "Amount Due"}
+            </dt>
+            <dd
               className={cn(
-                "px-3.5 py-2.5",
-                i > 0 && "border-l",
+                "mt-1.5 border-t pt-2 text-right font-extrabold tabular-nums",
                 PAPER.rule,
-                compact ? "[&:nth-child(3)]:border-l-0 [&:nth-child(n+3)]:border-t" : "max-sm:[&:nth-child(3)]:border-l-0 max-sm:[&:nth-child(n+3)]:border-t"
+                PAPER.brand,
+                compact ? "text-sm" : "text-base"
               )}
             >
-              <Label className="mb-0.5">{m.label}</Label>
-              <div className={cn("font-semibold", PAPER.ink, compact ? "text-xs" : "text-sm")}>{m.value}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* 3. BILL TO */}
-        <div>
-          <Label>Bill To</Label>
-          {client ? (
-            <div className={cn("leading-snug", compact ? "text-xs" : "text-sm")}>
-              <div className={cn("font-bold", PAPER.ink)}>{client.company || client.full_name || "—"}</div>
-              {client.company && client.full_name && <div className={PAPER.inkSoft}>Attn. {client.full_name}</div>}
-              {client.address && <div className={cn("mt-1 whitespace-pre-line", PAPER.muted)}>{client.address}</div>}
-              {(client.phone || client.email) && (
-                <div className={cn("mt-0.5", PAPER.muted)}>{[client.phone, client.email].filter(Boolean).join("  ·  ")}</div>
-              )}
-            </div>
-          ) : (
-            <div className={cn("text-xs italic", PAPER.muted)}>No client selected.</div>
-          )}
+              {formatRupiah(finalTotal)}
+            </dd>
+          </dl>
         </div>
 
         {/* 4. LINE ITEMS — auto layout so the amount column is never clipped */}
