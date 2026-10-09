@@ -10,7 +10,8 @@ import { Pagination, usePagination } from "@/components/ui/pagination";
 import { PageHeader } from "@/components/ui/page-header";
 import { Panel } from "@/components/ui/panel";
 import { StatCard, StatGrid } from "@/components/ui/stat-card";
-import { StatusBadge } from "@/components/ui/status-badge";
+import { BadgeSelect } from "@/components/ui/badge-select";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { SearchInput } from "@/components/ui/field";
 import { FilterBar, TableWrap } from "@/components/ui/data-table";
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
@@ -30,6 +31,7 @@ type Invoice = {
 };
 
 const STATUS_OPTIONS = ["All", "Draft", "Sent", "Paid", "Overdue", "Cancelled"];
+const INVOICE_STATUSES = STATUS_OPTIONS.slice(1);
 
 function formatCurrency(amount?: number) {
   if (!amount && amount !== 0) return "—";
@@ -59,8 +61,10 @@ function formatDate(dateStr?: string) {
 
 export default function InvoicesPage() {
   const toast = useToast();
+  const confirm = useConfirm();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
 
@@ -89,6 +93,45 @@ export default function InvoicesPage() {
 
   // Enable Real-time sync across devices
   useRealtimeSync(loadData, { tables: ["invoices", "clients", "invoice_items"] });
+
+  // Change status straight from the list (e.g. mark as Paid) without opening the invoice.
+  async function updateStatus(invoice: Invoice, newStatus: string) {
+    if (newStatus === invoice.status) return;
+    const ok = await confirm({
+      title: newStatus === "Paid" ? "Mark invoice as paid?" : "Change status?",
+      message: (
+        <>
+          <strong>{invoice.invoice_number}</strong>
+          {invoice.clients?.full_name ? <> ({invoice.clients.full_name}, {formatCurrency(invoice.total_amount)})</> : null} will change
+          from <strong>{invoice.status}</strong> to <strong>{newStatus}</strong>.
+        </>
+      ),
+      confirmLabel: newStatus === "Paid" ? "Mark as Paid" : `Set ${newStatus}`,
+      tone: newStatus === "Cancelled" ? "danger" : "default",
+    });
+    if (!ok) return;
+
+    setUpdatingId(invoice.id);
+    try {
+      const res = await fetch(`/api/invoices/${invoice.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        toast.error("Failed to change status", err.error || "Unknown error");
+        return;
+      }
+      setInvoices((prev) => prev.map((inv) => (inv.id === invoice.id ? { ...inv, status: newStatus } : inv)));
+      toast.success(`${invoice.invoice_number} marked ${newStatus}`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to change status", "Please try again.");
+    } finally {
+      setUpdatingId(null);
+    }
+  }
 
   // Filtered & searched invoices
   const filtered = invoices.filter((inv) => {
@@ -250,7 +293,14 @@ export default function InvoicesPage() {
                       {formatCurrency(invoice.total_amount)}
                     </td>
                     <td>
-                      <StatusBadge status={invoice.status} />
+                      <BadgeSelect
+                        value={invoice.status}
+                        options={INVOICE_STATUSES}
+                        onChange={(next) => updateStatus(invoice, next)}
+                        disabled={updatingId === invoice.id}
+                        label={`Status for ${invoice.invoice_number}`}
+                        title="Change status (e.g. mark as Paid)"
+                      />
                     </td>
                     <td className="text-right">
                       <Link
