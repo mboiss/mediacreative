@@ -51,6 +51,8 @@ export type InvoiceMessageInput = {
   notes?: string | null;
   invoiceUrl: string;
   company?: { company_name?: string | null; phone?: string | null; email?: string | null } | null;
+  /** Line items, listed in the formatted email. */
+  items?: { description?: string | null; quantity?: number | null; unit_price?: number | null; total?: number | null }[];
 };
 
 type Kind = "paid" | "overdue" | "invoice";
@@ -194,8 +196,8 @@ export function buildEmail(input: InvoiceMessageInput): { subject: string; body:
       "Please use the invoice number as the transfer reference."
     );
   }
-  lines.push("", "If you have any questions, simply reply to this email.", "", "Kind regards,", c.sender);
-  if (c.contact) lines.push(c.contact);
+  // Ends at "Kind regards," — the sender's own mail signature follows.
+  lines.push("", "If you have any questions, simply reply to this email.", "", "Kind regards,");
   return { subject: c.subject, body: lines.join("\n") };
 }
 
@@ -206,66 +208,94 @@ function esc(value: string) {
 /**
  * Formatted email body (HTML with inline styles and tables, which Gmail / Outlook / Apple Mail keep when pasted).
  * Copied to the clipboard by the "Email" button; the user pastes it into the message body.
+ * Ends at "Kind regards," because the sender's own mail signature follows.
  */
 export function buildEmailHtml(input: InvoiceMessageInput): { subject: string; html: string } {
   const c = emailContent(input);
-  const font = "font-family:Arial,Helvetica,sans-serif;";
-  const muted = "color:#64748b;";
-  const ink = "color:#0f172a;";
-  const brand = "#0369a1";
+  const F = "font-family:'Segoe UI',Arial,Helvetica,sans-serif;";
+  const INK = "#0f172a";
+  const MUTED = "#64748b";
+  const LINE = "#e2e8f0";
+  const BRAND = "#0369a1";
 
-  const accent = c.kind === "paid" ? "#047857" : c.kind === "overdue" ? "#b91c1c" : brand;
-  const badge = c.kind === "paid" ? "PAID" : c.kind === "overdue" ? "OVERDUE" : "INVOICE";
+  const tone =
+    c.kind === "paid"
+      ? { color: "#047857", bg: "#ecfdf5", label: "Paid" }
+      : c.kind === "overdue"
+        ? { color: "#b91c1c", bg: "#fef2f2", label: "Overdue" }
+        : { color: BRAND, bg: "#f0f9ff", label: "Invoice" };
 
-  const row = ([k, v]: [string, string], last: boolean) => {
-    const isAmount = k.startsWith("Amount");
-    return `<tr>
-      <td style="${font}${muted}font-size:13px;padding:10px 16px;${last ? "" : "border-bottom:1px solid #e2e8f0;"}">${esc(k)}</td>
-      <td style="${font}${isAmount ? `color:${accent};font-size:16px;font-weight:bold;` : `${ink}font-size:14px;font-weight:bold;`}padding:10px 16px;text-align:right;${last ? "" : "border-bottom:1px solid #e2e8f0;"}">${esc(v)}</td>
-    </tr>`;
-  };
+  const amountLabel = c.kind === "paid" ? "Amount paid" : "Amount due";
+  const dueText = c.kind === "paid" ? "Paid in full — thank you" : `Due ${c.rows[2][1]}`;
 
-  const paymentRows = c.payment
-    ? [
-        ["Bank", c.payment.bank],
-        ["Account number", c.payment.accountNumber],
-        ...(c.payment.accountName ? [["Account name", c.payment.accountName]] : []),
-      ]
-        .map(
-          ([k, v]) => `<tr>
-      <td style="${font}${muted}font-size:13px;padding:6px 16px;">${esc(k)}</td>
-      <td style="${font}${ink}font-size:14px;font-weight:bold;padding:6px 16px;text-align:right;">${esc(v)}</td>
-    </tr>`
-        )
-        .join("")
+  const items = (input.items ?? []).filter((it) => it.description || it.total || it.unit_price);
+  const itemRows = items
+    .map((it) => {
+      const qty = Number(it.quantity ?? 1);
+      const total = Number(it.total ?? qty * Number(it.unit_price ?? 0));
+      return `<tr>
+        <td style="${F}color:${INK};font-size:14px;padding:10px 0;border-bottom:1px solid ${LINE};">${esc(it.description || "Item")}${
+          qty !== 1 ? `<br><span style="color:${MUTED};font-size:12px;">${qty} × ${esc(formatRupiah(Number(it.unit_price ?? 0)))}</span>` : ""
+        }</td>
+        <td align="right" style="${F}color:${INK};font-size:14px;padding:10px 0;border-bottom:1px solid ${LINE};white-space:nowrap;vertical-align:top;">${esc(formatRupiah(total))}</td>
+      </tr>`;
+    })
+    .join("");
+
+  const meta = (label: string, value: string) =>
+    `<td style="${F}padding:0 16px 0 0;vertical-align:top;"><div style="color:${MUTED};font-size:12px;">${esc(label)}</div><div style="color:${INK};font-size:14px;font-weight:600;">${esc(value)}</div></td>`;
+
+  const payment = c.payment
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:560px;background:#f8fafc;border:1px solid ${LINE};border-radius:10px;margin:0 0 20px;">
+  <tr><td style="${F}padding:16px 20px;">
+    <div style="color:${MUTED};font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:0 0 8px;">Payment by bank transfer</div>
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+      <tr><td style="${F}color:${MUTED};font-size:13px;padding:3px 0;">Bank</td><td align="right" style="${F}color:${INK};font-size:14px;font-weight:600;padding:3px 0;">${esc(c.payment.bank)}</td></tr>
+      <tr><td style="${F}color:${MUTED};font-size:13px;padding:3px 0;">Account number</td><td align="right" style="font-family:Consolas,'Courier New',monospace;color:${INK};font-size:14px;font-weight:600;padding:3px 0;">${esc(c.payment.accountNumber)}</td></tr>
+      ${c.payment.accountName ? `<tr><td style="${F}color:${MUTED};font-size:13px;padding:3px 0;">Account name</td><td align="right" style="${F}color:${INK};font-size:14px;font-weight:600;padding:3px 0;">${esc(c.payment.accountName)}</td></tr>` : ""}
+    </table>
+    <div style="${F}color:${MUTED};font-size:12px;margin:10px 0 0;">Please use <b style="color:${INK};">${esc(input.invoiceNumber)}</b> as the transfer reference.</div>
+  </td></tr>
+</table>`
     : "";
 
-  const html = `<div style="${font}${ink}font-size:14px;line-height:1.6;max-width:600px;">
-  <p style="margin:0 0 12px;">${esc(c.greeting)}</p>
-  ${c.intro.map((t) => `<p style="margin:0 0 12px;">${esc(t)}</p>`).join("")}
-  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:separate;border:1px solid #e2e8f0;border-radius:8px;margin:16px 0;max-width:600px;">
-    <tr>
-      <td colspan="2" style="${font}background:#f8fafc;border-bottom:3px solid ${accent};padding:12px 16px;border-radius:8px 8px 0 0;">
-        <span style="font-size:12px;font-weight:bold;letter-spacing:2px;color:${accent};">${badge}</span>
-        <span style="font-size:14px;font-weight:bold;${ink}margin-left:8px;">${esc(c.sender)}</span>
-      </td>
-    </tr>
-    ${c.rows.map((r, i) => row(r, i === c.rows.length - 1)).join("")}
+  const html = `<div style="${F}color:${INK};font-size:15px;line-height:1.6;max-width:560px;">
+  <p style="margin:0 0 14px;">${esc(c.greeting)}</p>
+  ${c.intro.map((t) => `<p style="margin:0 0 14px;">${esc(t)}</p>`).join("")}
+
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="max-width:560px;border:1px solid ${LINE};border-radius:12px;margin:22px 0;">
+    <tr><td style="background:${tone.color};height:4px;line-height:4px;font-size:0;border-radius:12px 12px 0 0;">&nbsp;</td></tr>
+    <tr><td style="${F}padding:20px 24px 4px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%"><tr>
+        <td style="${F}color:${MUTED};font-size:13px;">Invoice <b style="color:${INK};">${esc(input.invoiceNumber)}</b></td>
+        <td align="right"><span style="${F}display:inline-block;background:${tone.bg};color:${tone.color};font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;">${tone.label}</span></td>
+      </tr></table>
+    </td></tr>
+    <tr><td style="${F}padding:6px 24px 18px;">
+      <div style="color:${MUTED};font-size:13px;">${amountLabel}</div>
+      <div style="color:${INK};font-size:30px;font-weight:700;letter-spacing:-0.5px;line-height:1.2;">${esc(c.rows[3][1])}</div>
+      <div style="color:${c.kind === "overdue" ? tone.color : MUTED};font-size:13px;margin-top:2px;">${esc(dueText)}</div>
+    </td></tr>
+    ${
+      itemRows
+        ? `<tr><td style="${F}padding:0 24px 8px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-top:1px solid ${LINE};">${itemRows}
+        <tr><td style="${F}color:${INK};font-size:14px;font-weight:700;padding:12px 0 0;">Total</td><td align="right" style="${F}color:${INK};font-size:14px;font-weight:700;padding:12px 0 0;white-space:nowrap;">${esc(c.rows[3][1])}</td></tr>
+      </table>
+    </td></tr>`
+        : ""
+    }
+    <tr><td style="${F}padding:14px 24px;">
+      <table role="presentation" cellpadding="0" cellspacing="0"><tr>${meta("Issue date", c.rows[1][1])}${meta("Due date", c.rows[2][1])}</tr></table>
+    </td></tr>
+    <tr><td style="${F}padding:6px 24px 24px;">
+      <a href="${esc(input.invoiceUrl)}" style="${F}display:block;background:${BRAND};color:#ffffff;text-align:center;text-decoration:none;font-size:15px;font-weight:600;padding:12px 20px;border-radius:8px;">${esc(c.linkLabel)}</a>
+    </td></tr>
   </table>
-  <p style="margin:0 0 20px;">
-    <a href="${esc(input.invoiceUrl)}" style="${font}display:inline-block;background:${brand};color:#ffffff;text-decoration:none;font-weight:bold;font-size:14px;padding:10px 18px;border-radius:6px;">${esc(c.linkLabel)}</a>
-  </p>
-  ${
-    c.payment
-      ? `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse:separate;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;margin:0 0 16px;max-width:600px;">
-    <tr><td colspan="2" style="${font}${muted}font-size:11px;font-weight:bold;letter-spacing:1px;padding:12px 16px 4px;">PAYMENT DETAILS</td></tr>
-    ${paymentRows}
-    <tr><td colspan="2" style="${font}${muted}font-size:12px;padding:6px 16px 12px;">Please use <b style="${ink}">${esc(input.invoiceNumber)}</b> as the transfer reference.</td></tr>
-  </table>`
-      : ""
-  }
-  <p style="margin:0 0 12px;">If you have any questions, simply reply to this email.</p>
-  <p style="margin:0;">Kind regards,<br><b>${esc(c.sender)}</b>${c.contact ? `<br><span style="${muted}font-size:13px;">${esc(c.contact)}</span>` : ""}</p>
+
+  ${payment}
+  <p style="margin:0 0 14px;">If you have any questions, simply reply to this email.</p>
+  <p style="margin:0;">Kind regards,</p>
 </div>`;
 
   return { subject: c.subject, html };

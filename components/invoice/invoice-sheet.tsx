@@ -140,12 +140,13 @@ export function InvoiceSheet({
       <div className={cn("flex flex-1 flex-col", compact ? "gap-5 p-5" : "gap-7 p-5 sm:p-10 md:px-12 md:py-10")}>
         {/* 1. HEADER: sender + invoice title */}
         <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-5">
-          <div className={cn("min-w-0", compact ? "max-w-[220px]" : "max-w-[300px]")}>
+          {/* Logo and company name centred on each other as one brand block */}
+          <div className="inline-flex min-w-0 flex-col items-center text-center">
             {/* eslint-disable-next-line @next/next/no-img-element -- plain <img> so html2canvas captures it */}
             <img
               src="/logo.png"
               alt={sender.company_name ?? "Media Creative"}
-              className={cn("mb-3 block h-auto object-contain", compact ? "w-[100px]" : "w-[110px] sm:w-[130px]")}
+              className={cn("mb-2 block h-auto object-contain", compact ? "w-[100px]" : "w-[110px] sm:w-[130px]")}
             />
             <div className={cn("font-bold", PAPER.ink, compact ? "text-xs" : "text-sm")}>{sender.company_name}</div>
           </div>

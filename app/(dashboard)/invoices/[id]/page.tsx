@@ -149,6 +149,7 @@ export default function InvoiceDetailPage() {
       clientName: invoice!.clients?.full_name,
       notes: invoice!.notes,
       invoiceUrl: getPublicInvoiceUrl(),
+      items,
       company,
     };
   }
