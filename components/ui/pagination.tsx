@@ -37,52 +37,31 @@ type PaginationProps = {
   onPageSizeChange: (size: number) => void;
 };
 
+const navButtonClass =
+  "flex size-9 items-center justify-center rounded-control border border-line bg-surface text-fg transition hover:border-line-accent hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-line disabled:hover:bg-surface focus-visible:outline-2 focus-visible:outline-accent";
+
 export function Pagination({ page, totalPages, totalItems, pageSize, onPageChange, onPageSizeChange }: PaginationProps) {
   if (totalItems === 0) return null;
 
   const from = (page - 1) * pageSize + 1;
   const to = Math.min(page * pageSize, totalItems);
 
-  const navButton = (disabled: boolean) => ({
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    border: "1px solid var(--border)",
-    background: "var(--bg-glass)",
-    color: disabled ? "var(--text-muted)" : "var(--text-primary)",
-    cursor: disabled ? "not-allowed" : "pointer",
-    opacity: disabled ? 0.5 : 1,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  });
-
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        flexWrap: "wrap",
-        gap: 12,
-        padding: "14px 16px",
-        borderTop: "1px solid var(--border)",
-        fontSize: "0.82rem",
-        color: "var(--text-secondary)",
-      }}
-    >
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-4 py-3.5 text-sm text-fg-muted">
       <div>
-        Showing <strong style={{ color: "var(--text-primary)" }}>{from}–{to}</strong> of{" "}
-        <strong style={{ color: "var(--text-primary)" }}>{totalItems}</strong>
+        Showing{" "}
+        <strong className="font-semibold text-fg">
+          {from}–{to}
+        </strong>{" "}
+        of <strong className="font-semibold text-fg">{totalItems}</strong>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <div className="flex flex-wrap items-center gap-2.5">
+        <label className="flex items-center gap-1.5">
           Rows
           <select
-            className="form-select"
+            className="form-select h-9 rounded-control border border-line bg-inset py-1 pl-2.5 text-sm text-fg outline-none focus-visible:border-accent"
             value={pageSize}
             onChange={(e) => onPageSizeChange(Number(e.target.value))}
-            style={{ width: "auto", padding: "4px 8px", fontSize: "0.82rem" }}
             aria-label="Rows per page"
           >
             {PAGE_SIZE_OPTIONS.map((size) => (
@@ -93,21 +72,25 @@ export function Pagination({ page, totalPages, totalItems, pageSize, onPageChang
           </select>
         </label>
         <button
-          style={navButton(page <= 1)}
+          type="button"
+          className={navButtonClass}
           disabled={page <= 1}
           onClick={() => onPageChange(page - 1)}
           aria-label="Previous page"
+          title="Previous page"
         >
           <ChevronLeft size={16} />
         </button>
-        <span style={{ minWidth: 70, textAlign: "center" }}>
+        <span className="min-w-[4.5rem] text-center tabular-nums">
           Page {page} / {totalPages}
         </span>
         <button
-          style={navButton(page >= totalPages)}
+          type="button"
+          className={navButtonClass}
           disabled={page >= totalPages}
           onClick={() => onPageChange(page + 1)}
           aria-label="Next page"
+          title="Next page"
         >
           <ChevronRight size={16} />
         </button>

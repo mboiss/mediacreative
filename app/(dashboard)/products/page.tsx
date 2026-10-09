@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Search, Plus, Trash2, Package, Loader2, Tag, Edit2, Wrench, Box, TrendingUp } from "lucide-react";
+import { Search, Plus, Trash2, Package, Loader2, Tag, Edit2, Wrench, Box, TrendingUp, Save } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
@@ -9,6 +9,13 @@ import { useToast } from "@/components/ui/toast";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Pagination, usePagination } from "@/components/ui/pagination";
 import { LoadingState } from "@/components/ui/loading-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { Panel } from "@/components/ui/panel";
+import { StatCard, StatGrid } from "@/components/ui/stat-card";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { FilterBar, TableWrap } from "@/components/ui/data-table";
+import { Field, SearchInput, TextArea, TextInput } from "@/components/ui/field";
+import { cn } from "@/lib/utils";
 
 type Product = {
   id: string;
@@ -208,138 +215,90 @@ export default function ProductsPage() {
   const formProfit = formPrice - formCost;
   const formMarginPct = formPrice > 0 ? ((formProfit / formPrice) * 100).toFixed(1) : "0";
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
+  const tabs: { key: "all" | "goods" | "service"; label: string; count: number; icon?: React.ReactNode }[] = [
+    { key: "all", label: "All", count: products.length },
+    { key: "goods", label: "Physical Goods", count: goodsList.length, icon: <Box size={14} aria-hidden /> },
+    { key: "service", label: "Services", count: servicesList.length, icon: <Wrench size={14} aria-hidden /> },
+  ];
 
-      {/* HEADER */}
-      <div className="animate-fade-in-up" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        <div>
-          <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--text-primary)", margin: 0, letterSpacing: "-0.02em" }}>
-            Products & Services Catalog
-          </h1>
-          <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", margin: "4px 0 0" }}>
-            Manage physical inventory and service offerings in a unified catalog.
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <button className="btn btn-ghost" style={{ border: "1px solid var(--border)" }} onClick={() => openCreateModal(true)}>
-            <Wrench size={16} style={{ color: "#a78bfa" }} />
-            + Add Service
-          </button>
-          <button className="btn btn-primary" onClick={() => openCreateModal(false)}>
-            <Plus size={16} />
-            + Add Product
-          </button>
-        </div>
-      </div>
+  return (
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="Products & Services"
+        description="Manage physical inventory and service offerings in one catalog."
+        actions={
+          <>
+            <button className="btn btn-ghost" onClick={() => openCreateModal(true)}>
+              <Wrench size={16} className="text-purple" aria-hidden />
+              New Service
+            </button>
+            <button className="btn btn-primary" onClick={() => openCreateModal(false)}>
+              <Plus size={16} aria-hidden />
+              New Product
+            </button>
+          </>
+        }
+      />
 
       {/* STATS SUMMARY */}
       {products.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
-          <div style={{ padding: "14px 18px", background: "var(--bg-glass)", border: "1px solid var(--border)", borderRadius: 16, display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(59, 130, 246, 0.15)", color: "#60a5fa", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Package size={20} />
-            </div>
-            <div>
-              <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Total Catalog</div>
-              <div style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--text-primary)" }}>{products.length} Items</div>
-            </div>
-          </div>
-
-          <div style={{ padding: "14px 18px", background: "var(--bg-glass)", border: "1px solid var(--border)", borderRadius: 16, display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(16, 185, 129, 0.15)", color: "#34d399", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Box size={20} />
-            </div>
-            <div>
-              <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Physical Goods</div>
-              <div style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--text-primary)" }}>
-                {goodsList.length} <span style={{ fontSize: "0.8rem", color: "#34d399", fontWeight: 600 }}>({inStockCount} In Stock)</span>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ padding: "14px 18px", background: "var(--bg-glass)", border: "1px solid var(--border)", borderRadius: 16, display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(167, 139, 250, 0.15)", color: "#a78bfa", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Wrench size={20} />
-            </div>
-            <div>
-              <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Services</div>
-              <div style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--text-primary)" }}>{servicesList.length} Services</div>
-            </div>
-          </div>
-        </div>
+        <StatGrid className="lg:grid-cols-3">
+          <StatCard label="Total Catalog" value={`${products.length} items`} icon={<Package size={20} />} tone="info" />
+          <StatCard
+            label="Physical Goods"
+            value={goodsList.length}
+            hint={`${inStockCount} in stock`}
+            icon={<Box size={20} />}
+            tone="success"
+          />
+          <StatCard label="Services" value={servicesList.length} icon={<Wrench size={20} />} tone="purple" />
+        </StatGrid>
       )}
 
-      {/* FILTER TABS & SEARCH */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        {/* TABS */}
-        <div style={{ display: "flex", gap: 6, background: "rgba(15, 23, 42, 0.6)", padding: 4, borderRadius: 12, border: "1px solid var(--border)" }}>
-          <button
-            onClick={() => setActiveTab("all")}
-            style={{
-              padding: "6px 14px",
-              borderRadius: 8,
-              fontSize: "0.82rem",
-              fontWeight: 600,
-              border: "none",
-              cursor: "pointer",
-              background: activeTab === "all" ? "var(--accent-primary, #3b82f6)" : "transparent",
-              color: activeTab === "all" ? "#fff" : "var(--text-secondary)",
-              transition: "all 0.2s",
-            }}
-          >
-            All ({products.length})
-          </button>
-          <button
-            onClick={() => setActiveTab("goods")}
-            style={{
-              padding: "6px 14px",
-              borderRadius: 8,
-              fontSize: "0.82rem",
-              fontWeight: 600,
-              border: "none",
-              cursor: "pointer",
-              background: activeTab === "goods" ? "#10b981" : "transparent",
-              color: activeTab === "goods" ? "#fff" : "var(--text-secondary)",
-              transition: "all 0.2s",
-            }}
-          >
-            📦 Physical Goods ({goodsList.length})
-          </button>
-          <button
-            onClick={() => setActiveTab("service")}
-            style={{
-              padding: "6px 14px",
-              borderRadius: 8,
-              fontSize: "0.82rem",
-              fontWeight: 600,
-              border: "none",
-              cursor: "pointer",
-              background: activeTab === "service" ? "#8b5cf6" : "transparent",
-              color: activeTab === "service" ? "#fff" : "var(--text-secondary)",
-              transition: "all 0.2s",
-            }}
-          >
-            🛠️ Services ({servicesList.length})
-          </button>
+      <Panel padded={false}>
+        {/* FILTER TABS & SEARCH */}
+        <div className="border-b border-line p-4">
+          <FilterBar className="justify-between">
+            <div
+              role="tablist"
+              aria-label="Item type"
+              className="flex max-w-full gap-1 overflow-x-auto rounded-xl border border-line bg-inset p-1"
+            >
+              {tabs.map((tab) => {
+                const active = activeTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setActiveTab(tab.key)}
+                    className={cn(
+                      "inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-control border px-3 py-1.5 text-sm font-semibold transition-colors",
+                      active
+                        ? "border-accent-border bg-accent-bg text-accent"
+                        : "border-transparent text-fg-muted hover:bg-surface-hover hover:text-fg"
+                    )}
+                  >
+                    {tab.icon}
+                    {tab.label}
+                    <span className="text-xs font-medium opacity-80">({tab.count})</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <SearchInput
+              icon={<Search size={16} />}
+              className="w-full sm:w-auto sm:max-w-xs"
+              placeholder="Search code, name, category..."
+              aria-label="Search catalog"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </FilterBar>
         </div>
 
-        {/* SEARCH INPUT */}
-        <div style={{ position: "relative", minWidth: 260 }}>
-          <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
-          <input
-            className="form-input"
-            style={{ paddingLeft: 36 }}
-            placeholder="Search code, name, category..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-      </div>
-
-      {/* TABLE */}
-      <div style={{ background: "var(--bg-glass)", border: "1px solid var(--border)", borderRadius: 20, overflow: "hidden" }}>
         {loading ? (
           <LoadingState label="Loading catalog..." />
         ) : filtered.length === 0 ? (
@@ -349,31 +308,31 @@ export default function ProductsPage() {
             description={search ? "Try searching with a different keyword." : "Get started by adding your physical goods or services."}
             action={
               !search ? (
-                <div style={{ display: "flex", gap: 10 }}>
+                <div className="flex flex-wrap justify-center gap-2">
                   <button className="btn btn-primary" onClick={() => openCreateModal(false)}>
-                    <Plus size={14} /> Add Product
+                    <Plus size={16} aria-hidden /> New Product
                   </button>
-                  <button className="btn btn-ghost" style={{ border: "1px solid var(--border)" }} onClick={() => openCreateModal(true)}>
-                    <Wrench size={14} /> Add Service
+                  <button className="btn btn-ghost" onClick={() => openCreateModal(true)}>
+                    <Wrench size={16} aria-hidden /> New Service
                   </button>
                 </div>
               ) : undefined
             }
           />
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table className="data-table">
+          <TableWrap>
+            <table className="data-table min-w-[960px]">
               <thead>
                 <tr>
                   <th>Type</th>
                   <th>Code</th>
                   <th>Item Name</th>
                   <th>Category</th>
-                  <th style={{ textAlign: "right" }}>Cost Price</th>
-                  <th style={{ textAlign: "right" }}>Selling Price</th>
-                  <th style={{ textAlign: "right" }}>Est. Margin</th>
-                  <th style={{ textAlign: "right" }}>Stock</th>
-                  <th style={{ textAlign: "right" }}>Action</th>
+                  <th className="text-right!">Cost Price</th>
+                  <th className="text-right!">Selling Price</th>
+                  <th className="text-right!">Est. Margin</th>
+                  <th className="text-right!">Stock</th>
+                  <th className="text-right!">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -389,111 +348,101 @@ export default function ProductsPage() {
                       {/* TYPE BADGE */}
                       <td>
                         {isSvc ? (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 8, background: "rgba(139, 92, 246, 0.15)", border: "1px solid rgba(139, 92, 246, 0.3)", fontSize: "0.72rem", color: "#c4b5fd", fontWeight: 700 }}>
-                            <Wrench size={11} /> Service
-                          </span>
+                          <StatusBadge tone="purple" icon={<Wrench size={12} aria-hidden />}>
+                            Service
+                          </StatusBadge>
                         ) : (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 8, background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.3)", fontSize: "0.72rem", color: "#6ee7b7", fontWeight: 700 }}>
-                            <Box size={11} /> Goods
-                          </span>
+                          <StatusBadge tone="success" icon={<Box size={12} aria-hidden />}>
+                            Goods
+                          </StatusBadge>
                         )}
                       </td>
 
                       {/* CODE */}
                       <td>
-                        <span style={{ fontFamily: "monospace", fontSize: "0.78rem", color: "var(--text-secondary)", background: "rgba(255,255,255,0.05)", padding: "2px 6px", borderRadius: 4 }}>
-                          {product.product_code || "—"}
-                        </span>
+                        {product.product_code ? (
+                          <span className="whitespace-nowrap rounded-md border border-line bg-inset px-1.5 py-0.5 font-mono text-xs text-fg-muted">
+                            {product.product_code}
+                          </span>
+                        ) : (
+                          <span className="text-fg-subtle">—</span>
+                        )}
                       </td>
 
                       {/* NAME */}
-                      <td>
-                        <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>{product.product_name}</div>
+                      <td className="min-w-48">
+                        <div className="font-semibold text-fg">{product.product_name}</div>
                         {product.description && (
-                          <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: 2 }}>{product.description}</div>
+                          <div className="mt-0.5 line-clamp-2 text-xs text-fg-muted">{product.description}</div>
                         )}
                       </td>
 
                       {/* CATEGORY */}
                       <td>
                         {product.category ? (
-                          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 8px", borderRadius: 12, background: "rgba(255,255,255,0.06)", border: "1px solid var(--border)", fontSize: "0.72rem", color: "#94a3b8", fontWeight: 600 }}>
-                            <Tag size={10} />
+                          <StatusBadge tone="neutral" icon={<Tag size={12} aria-hidden />}>
                             {product.category}
-                          </span>
+                          </StatusBadge>
                         ) : (
-                          <span style={{ color: "#4a6080" }}>—</span>
+                          <span className="text-fg-subtle">—</span>
                         )}
                       </td>
 
                       {/* COST PRICE */}
-                      <td style={{ textAlign: "right", color: "var(--text-secondary)", fontSize: "0.85rem" }}>
-                        {isSvc ? <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>N/A (Service)</span> : formatCurrency(cost)}
+                      <td className="whitespace-nowrap text-right">
+                        {isSvc ? <span className="text-xs text-fg-subtle">N/A</span> : formatCurrency(cost)}
                       </td>
 
                       {/* SELLING PRICE */}
-                      <td style={{ textAlign: "right", fontWeight: 700, color: "var(--text-primary)" }}>
-                        {formatCurrency(price)}
-                      </td>
+                      <td className="whitespace-nowrap text-right font-semibold text-fg">{formatCurrency(price)}</td>
 
                       {/* EST. MARGIN */}
-                      <td style={{ textAlign: "right" }}>
+                      <td className="whitespace-nowrap text-right">
                         {isSvc ? (
-                          <span style={{ fontSize: "0.75rem", color: "#a78bfa", fontWeight: 600 }}>100% Service</span>
+                          <span className="text-xs font-semibold text-purple">Service</span>
                         ) : marginPct !== null ? (
-                          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
-                            <span style={{ fontSize: "0.78rem", fontWeight: 700, color: profit >= 0 ? "#34d399" : "#f87171" }}>
+                          <div className="flex flex-col items-end">
+                            <span className={cn("text-sm font-semibold", profit >= 0 ? "text-success" : "text-danger")}>
                               +{formatCurrency(profit)}
                             </span>
-                            <span style={{ fontSize: "0.7rem", color: "var(--text-secondary)" }}>{marginPct}% margin</span>
+                            <span className="text-xs text-fg-subtle">{marginPct}% margin</span>
                           </div>
                         ) : (
-                          <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>—</span>
+                          <span className="text-fg-subtle">—</span>
                         )}
                       </td>
 
                       {/* STOCK */}
-                      <td style={{ textAlign: "right" }}>
+                      <td className="text-right">
                         {isSvc ? (
-                          <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontStyle: "italic" }}>
-                            Unlimited
-                          </span>
+                          <span className="text-xs italic text-fg-subtle">Unlimited</span>
                         ) : (
-                          <span
-                            style={{
-                              fontWeight: 700,
-                              padding: "2px 8px",
-                              borderRadius: 6,
-                              fontSize: "0.8rem",
-                              background: product.stock > 0 ? "rgba(16, 185, 129, 0.1)" : "rgba(239, 68, 68, 0.1)",
-                              color: product.stock > 0 ? "#34d399" : "#f87171",
-                            }}
-                          >
-                            {product.stock} pcs
-                          </span>
+                          <StatusBadge tone={product.stock > 0 ? "success" : "danger"}>{product.stock} pcs</StatusBadge>
                         )}
                       </td>
 
                       {/* ACTIONS */}
-                      <td style={{ textAlign: "right" }}>
-                        <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                      <td className="text-right">
+                        <div className="flex justify-end gap-1.5">
                           <button
-                            className="btn btn-ghost"
-                            style={{ padding: "5px 10px", fontSize: "0.78rem" }}
+                            className="btn btn-ghost btn-sm"
                             onClick={() => openEditModal(product)}
+                            aria-label={`Edit ${product.product_name}`}
+                            title="Edit"
                           >
-                            <Edit2 size={12} /> Edit
+                            <Edit2 size={14} aria-hidden /> Edit
                           </button>
                           <button
-                            className="btn btn-danger"
-                            style={{ padding: "5px 10px", fontSize: "0.78rem" }}
+                            className="btn btn-danger btn-sm btn-icon"
                             onClick={() => deleteProduct(product.id)}
                             disabled={deletingId === product.id}
+                            aria-label={`Delete ${product.product_name}`}
+                            title="Delete"
                           >
                             {deletingId === product.id ? (
-                              <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
+                              <Loader2 size={14} className="animate-spin" aria-hidden />
                             ) : (
-                              <Trash2 size={12} />
+                              <Trash2 size={14} aria-hidden />
                             )}
                           </button>
                         </div>
@@ -503,7 +452,7 @@ export default function ProductsPage() {
                 })}
               </tbody>
             </table>
-          </div>
+          </TableWrap>
         )}
         {!loading && (
           <Pagination
@@ -515,112 +464,100 @@ export default function ProductsPage() {
             onPageSizeChange={setPageSize}
           />
         )}
-      </div>
+      </Panel>
 
       {/* ADD / EDIT PRODUCT MODAL */}
-      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingProduct ? "Edit Catalog Item" : "Add New Item"}>
-        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editingProduct ? "Edit Catalog Item" : "New Catalog Item"}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           {/* TYPE TOGGLE BUTTONS */}
-          <div>
-            <label className="form-label" style={{ marginBottom: 6 }}>Item Type *</label>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
+              Item Type<span className="ml-0.5 text-danger">*</span>
+            </span>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <button
                 type="button"
+                aria-pressed={!form.is_service}
                 onClick={() => setForm({ ...form, is_service: false, stock: form.stock === "-1" ? "10" : form.stock })}
-                style={{
-                  padding: "10px 14px",
-                  borderRadius: 12,
-                  border: !form.is_service ? "2px solid #10b981" : "1px solid var(--border)",
-                  background: !form.is_service ? "rgba(16, 185, 129, 0.12)" : "rgba(15, 23, 42, 0.4)",
-                  color: !form.is_service ? "#34d399" : "var(--text-secondary)",
-                  fontWeight: 700,
-                  fontSize: "0.85rem",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                }}
+                className={cn(
+                  "flex items-center justify-center gap-2 rounded-xl border px-3.5 py-2.5 text-sm font-semibold transition-colors",
+                  !form.is_service
+                    ? "border-success-border bg-success-bg text-success ring-1 ring-success"
+                    : "border-line bg-inset text-fg-muted hover:bg-surface-hover hover:text-fg"
+                )}
               >
-                <Box size={16} /> Physical Goods
+                <Box size={16} aria-hidden /> Physical Goods
               </button>
 
               <button
                 type="button"
+                aria-pressed={form.is_service}
                 onClick={() => setForm({ ...form, is_service: true, stock: "-1", cost: "0" })}
-                style={{
-                  padding: "10px 14px",
-                  borderRadius: 12,
-                  border: form.is_service ? "2px solid #8b5cf6" : "1px solid var(--border)",
-                  background: form.is_service ? "rgba(139, 92, 246, 0.12)" : "rgba(15, 23, 42, 0.4)",
-                  color: form.is_service ? "#c4b5fd" : "var(--text-secondary)",
-                  fontWeight: 700,
-                  fontSize: "0.85rem",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                }}
+                className={cn(
+                  "flex items-center justify-center gap-2 rounded-xl border px-3.5 py-2.5 text-sm font-semibold transition-colors",
+                  form.is_service
+                    ? "border-purple-border bg-purple-bg text-purple ring-1 ring-purple"
+                    : "border-line bg-inset text-fg-muted hover:bg-surface-hover hover:text-fg"
+                )}
               >
-                <Wrench size={16} /> Service Offering
+                <Wrench size={16} aria-hidden /> Service Offering
               </button>
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div>
-              <label className="form-label">Item Code / SKU</label>
-              <input
-                className="form-input"
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Item Code / SKU" htmlFor="product-code">
+              <TextInput
+                id="product-code"
                 placeholder={form.is_service ? "SVC-001" : "PRD-001"}
                 value={form.product_code}
                 onChange={(e) => setForm({ ...form, product_code: e.target.value })}
               />
-            </div>
-            <div>
-              <label className="form-label">Category</label>
-              <input
-                className="form-input"
+            </Field>
+            <Field label="Category" htmlFor="product-category">
+              <TextInput
+                id="product-category"
                 placeholder={form.is_service ? "e.g. Design, Video, Consulting" : "e.g. Electronics, Accessories"}
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
               />
-            </div>
+            </Field>
 
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label className="form-label">Item Name *</label>
-              <input
-                className="form-input"
+            <Field label="Item Name" htmlFor="product-name" required className="sm:col-span-2">
+              <TextInput
+                id="product-name"
                 placeholder={form.is_service ? "e.g. Logo Design & Branding Package" : "e.g. Pro Aluminum Camera Tripod"}
                 value={form.product_name}
                 onChange={(e) => setForm({ ...form, product_name: e.target.value })}
                 required
               />
-            </div>
+            </Field>
 
             {/* COST PRICE (GOODS ONLY) */}
             {!form.is_service && (
-              <div>
-                <label className="form-label">Cost Price / HPP (Rp)</label>
-                <input
+              <Field label="Cost Price / HPP (Rp)" htmlFor="product-cost">
+                <TextInput
+                  id="product-cost"
                   type="number"
-                  className="form-input"
                   min="0"
                   step="1000"
                   placeholder="0"
                   value={form.cost}
                   onChange={(e) => setForm({ ...form, cost: e.target.value })}
                 />
-              </div>
+              </Field>
             )}
 
             {/* SELLING PRICE */}
-            <div style={{ gridColumn: form.is_service ? "1 / -1" : undefined }}>
-              <label className="form-label">Selling Price (Rp) *</label>
-              <input
+            <Field
+              label="Selling Price (Rp)"
+              htmlFor="product-price"
+              required
+              className={form.is_service ? "sm:col-span-2" : undefined}
+            >
+              <TextInput
+                id="product-price"
                 type="number"
-                className="form-input"
                 min="0"
                 step="1000"
                 placeholder="0"
@@ -628,57 +565,67 @@ export default function ProductsPage() {
                 onChange={(e) => setForm({ ...form, price: e.target.value })}
                 required
               />
-            </div>
+            </Field>
 
             {/* STOCK (GOODS ONLY) */}
             {!form.is_service && (
-              <div style={{ gridColumn: "1 / -1" }}>
-                <label className="form-label">Stock Quantity (Pcs/Units) *</label>
-                <input
+              <Field label="Stock Quantity (pcs/units)" htmlFor="product-stock" required className="sm:col-span-2">
+                <TextInput
+                  id="product-stock"
                   type="number"
-                  className="form-input"
                   min="0"
                   placeholder="0"
                   value={form.stock}
                   onChange={(e) => setForm({ ...form, stock: e.target.value })}
                   required
                 />
-              </div>
+              </Field>
             )}
 
             {/* DESCRIPTION / NOTES */}
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label className="form-label">Description / Scope Details (Optional)</label>
-              <textarea
-                className="form-input"
+            <Field label="Description / Scope (optional)" htmlFor="product-description" className="sm:col-span-2">
+              <TextArea
+                id="product-description"
                 rows={2}
+                className="min-h-16"
                 placeholder={form.is_service ? "Scope of work (e.g., 3x revisions, source files included)" : "Item specifications or internal notes..."}
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
               />
-            </div>
+            </Field>
           </div>
 
           {/* LIVE MARGIN PREVIEW FOR GOODS */}
           {!form.is_service && formPrice > 0 && (
-            <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.2)", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "0.82rem" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#34d399", fontWeight: 600 }}>
-                <TrendingUp size={14} /> Est. Profit per Unit:
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-control border border-success-border bg-success-bg px-3.5 py-2.5 text-sm">
+              <div className="flex items-center gap-1.5 font-semibold text-success">
+                <TrendingUp size={14} aria-hidden /> Est. profit per unit
               </div>
-              <div style={{ fontWeight: 800, color: formProfit >= 0 ? "#34d399" : "#f87171" }}>
+              <div className={cn("font-bold", formProfit >= 0 ? "text-success" : "text-danger")}>
                 {formatCurrency(formProfit)} ({formMarginPct}% margin)
               </div>
             </div>
           )}
 
-          <div className="divider" style={{ margin: "4px 0" }} />
-
-          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-            <button type="button" className="btn btn-ghost" onClick={() => { setShowModal(false); setForm({ ...EMPTY_FORM }); }}>
+          <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => {
+                setShowModal(false);
+                setForm({ ...EMPTY_FORM });
+              }}
+            >
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Plus size={14} />}
+              {saving ? (
+                <Loader2 size={16} className="animate-spin" aria-hidden />
+              ) : editingProduct ? (
+                <Save size={16} aria-hidden />
+              ) : (
+                <Plus size={16} aria-hidden />
+              )}
               {saving ? "Saving..." : editingProduct ? "Save Changes" : "Add Item"}
             </button>
           </div>

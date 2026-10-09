@@ -11,11 +11,14 @@ import {
   Trash2,
   Edit2,
   Star,
-  X,
   UserCheck,
-  User,
+  Loader2,
 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
+import { PageHeader } from "@/components/ui/page-header";
+import { Panel } from "@/components/ui/panel";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Field, TextArea, TextInput } from "@/components/ui/field";
 import {
   getPaymentAccounts,
   savePaymentAccounts,
@@ -352,342 +355,297 @@ export default function SettingsPage() {
 
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 1000 }}>
-      {/* HEADER */}
-      <div className="animate-fade-in-up" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div>
-          <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--text-primary)", margin: 0, letterSpacing: "-0.02em" }}>
-            Settings & System Preferences
-          </h1>
-          <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", margin: "4px 0 0" }}>
-            Manage company profile, payment bank accounts, Tour Leaders list, and invoicing defaults.
-          </p>
-        </div>
-
-        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
-          {saving ? (
-            "Saving..."
-          ) : savedSuccess ? (
-            <>
-              <CheckCircle2 size={16} /> Saved!
-            </>
-          ) : (
-            <>
-              <Save size={16} /> Save Changes
-            </>
-          )}
-        </button>
-      </div>
+    <div className="flex w-full max-w-5xl flex-col gap-6">
+      <PageHeader
+        title="Settings"
+        description="Company profile, payment bank accounts, Tour Leaders and invoicing defaults."
+        actions={
+          <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
+            {saving ? (
+              <>
+                <Loader2 size={16} className="animate-spin" aria-hidden /> Saving...
+              </>
+            ) : savedSuccess ? (
+              <>
+                <CheckCircle2 size={16} aria-hidden /> Saved
+              </>
+            ) : (
+              <>
+                <Save size={16} aria-hidden /> Save Changes
+              </>
+            )}
+          </button>
+        }
+      />
 
       {savedSuccess && (
-        <div style={{ padding: "12px 16px", borderRadius: 12, background: "rgba(16,185,129,0.12)", border: "1px solid rgba(16,185,129,0.3)", color: "#10b981", fontSize: "0.875rem", fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
-          <CheckCircle2 size={18} /> Settings successfully updated and saved locally.
+        <div
+          role="status"
+          className="flex items-center gap-2 rounded-control border border-success-border bg-success-bg px-4 py-3 text-sm font-semibold text-success"
+        >
+          <CheckCircle2 size={18} aria-hidden /> Settings saved.
         </div>
       )}
 
-      <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <form onSubmit={handleSave} className="flex flex-col gap-6">
         {/* COMPANY PROFILE */}
-        <div style={{ background: "var(--bg-glass)", border: "1px solid var(--border)", borderRadius: 20, padding: 24 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18, borderBottom: "1px solid var(--border)", paddingBottom: 12 }}>
-            <Building size={20} style={{ color: "var(--accent-cyan)" }} />
-            <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
-              Company Profile
-            </h2>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            <div>
-              <label className="form-label">Company / Brand Name</label>
-              <input
-                className="form-input"
+        <Panel title="Company Profile" icon={<Building size={16} />}>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Field label="Company / Brand Name" htmlFor="settings-company" required>
+              <TextInput
+                id="settings-company"
                 value={form.company_name}
                 onChange={(e) => setForm({ ...form, company_name: e.target.value })}
                 required
               />
-            </div>
-            <div>
-              <label className="form-label">Billing Email</label>
-              <input
+            </Field>
+            <Field label="Billing Email" htmlFor="settings-email" required>
+              <TextInput
+                id="settings-email"
                 type="email"
-                className="form-input"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
                 required
               />
-            </div>
-            <div>
-              <label className="form-label">Contact Phone</label>
-              <input
-                className="form-input"
+            </Field>
+            <Field label="Contact Phone" htmlFor="settings-phone">
+              <TextInput
+                id="settings-phone"
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
               />
-            </div>
-            <div>
-              <label className="form-label">NPWP / Tax ID</label>
-              <input
-                className="form-input"
+            </Field>
+            <Field label="NPWP / Tax ID" htmlFor="settings-tax-id">
+              <TextInput
+                id="settings-tax-id"
                 value={form.tax_id}
                 onChange={(e) => setForm({ ...form, tax_id: e.target.value })}
               />
-            </div>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label className="form-label">Office Address</label>
-              <textarea
-                className="form-input"
-                style={{ minHeight: 70, resize: "vertical" }}
+            </Field>
+            <Field label="Office Address" htmlFor="settings-address" className="md:col-span-2">
+              <TextArea
+                id="settings-address"
+                className="min-h-20"
                 value={form.address}
                 onChange={(e) => setForm({ ...form, address: e.target.value })}
               />
-            </div>
+            </Field>
           </div>
-        </div>
+        </Panel>
 
         {/* PAYMENT TRANSFER ACCOUNTS MANAGEMENT */}
-        <div style={{ background: "var(--bg-glass)", border: "1px solid var(--border)", borderRadius: 20, padding: 24 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, borderBottom: "1px solid var(--border)", paddingBottom: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <CreditCard size={20} style={{ color: "var(--accent-cyan)" }} />
-              <div>
-                <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
-                  Payment Transfer Accounts
-                </h2>
-                <p style={{ fontSize: "0.78rem", color: "var(--text-secondary)", margin: 0 }}>
-                  Configure bank transfer accounts to populate payment instructions on invoices.
-                </p>
-              </div>
-            </div>
-
-            <button type="button" className="btn btn-primary" onClick={handleOpenAddAccount} style={{ padding: "6px 14px", fontSize: "0.8rem" }}>
-              <Plus size={14} /> Add Bank Account
+        <Panel
+          title="Payment Accounts"
+          description="Bank transfer accounts shown in the payment instructions on invoices."
+          icon={<CreditCard size={16} />}
+          actions={
+            <button type="button" className="btn btn-primary btn-sm" onClick={handleOpenAddAccount}>
+              <Plus size={14} aria-hidden /> New Account
             </button>
-          </div>
+          }
+        >
+          {!loading && paymentAccounts.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-line px-4 py-8 text-center text-sm text-fg-subtle">
+              No bank accounts yet.
+            </p>
+          ) : (
+            <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-inset">
+              {paymentAccounts.map((acc) => (
+                <li key={acc.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 hover:bg-surface-hover">
+                  <div className="min-w-0 flex-1 basis-56">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold text-fg">{acc.bank_name}</span>
+                      {acc.is_default && (
+                        <StatusBadge tone="success" icon={<Star size={12} fill="currentColor" aria-hidden />}>
+                          Default
+                        </StatusBadge>
+                      )}
+                    </div>
+                    <div className="mt-0.5 font-mono text-sm font-semibold tracking-wide text-fg">{acc.account_number}</div>
+                    <div className="text-sm text-fg-muted">a.n. {acc.account_holder}</div>
+                    {acc.notes && <div className="mt-0.5 text-xs text-fg-subtle">{acc.notes}</div>}
+                  </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
-            {paymentAccounts.map((acc) => (
-              <div
-                key={acc.id}
-                style={{
-                  background: "var(--bg-glass-hover)",
-                  border: `1px solid ${acc.is_default ? "var(--accent-cyan)" : "var(--border)"}`,
-                  borderRadius: 14,
-                  padding: 16,
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  position: "relative",
-                }}
-              >
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                    <span style={{ fontSize: "0.75rem", fontWeight: 800, textTransform: "uppercase", background: "var(--accent-cyan-dim)", color: "var(--accent-cyan)", padding: "2px 8px", borderRadius: 6 }}>
-                      {acc.bank_name}
-                    </span>
-                    {acc.is_default ? (
-                      <span style={{ fontSize: "0.7rem", fontWeight: 700, color: "var(--accent-emerald)", display: "flex", alignItems: "center", gap: 4 }}>
-                        <Star size={11} fill="currentColor" /> Primary Account
-                      </span>
-                    ) : (
+                  <div className="flex items-center gap-1.5">
+                    {!acc.is_default && (
                       <button
                         type="button"
+                        className="btn btn-ghost btn-sm"
                         onClick={() => handleSetDefaultAccount(acc.id)}
-                        style={{ fontSize: "0.7rem", color: "var(--text-muted)", background: "transparent", border: "none", cursor: "pointer", textDecoration: "underline" }}
+                        aria-label={`Make ${acc.bank_name} ${acc.account_number} the default account`}
                       >
-                        Make Default
+                        <Star size={14} aria-hidden /> Make Default
                       </button>
                     )}
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-icon"
+                      onClick={() => handleOpenEditAccount(acc)}
+                      aria-label={`Edit ${acc.bank_name} ${acc.account_number}`}
+                      title="Edit"
+                    >
+                      <Edit2 size={16} aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-icon"
+                      onClick={() => handleDeleteAccount(acc.id)}
+                      aria-label={`Delete ${acc.bank_name} ${acc.account_number}`}
+                      title="Delete"
+                    >
+                      <Trash2 size={16} aria-hidden />
+                    </button>
                   </div>
-
-                  <div style={{ fontSize: "1.1rem", fontWeight: 800, fontFamily: "monospace", color: "var(--text-primary)", letterSpacing: "0.03em" }}>
-                    {acc.account_number}
-                  </div>
-                  <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-secondary)" }}>
-                    a.n. {acc.account_holder}
-                  </div>
-                  {acc.notes && (
-                    <div style={{ fontSize: "0.74rem", color: "var(--text-muted)", marginTop: 4 }}>
-                      {acc.notes}
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", borderTop: "1px solid var(--border)", paddingTop: 10 }}>
-                  <button type="button" className="btn btn-ghost" style={{ padding: "4px 8px", fontSize: "0.75rem" }} onClick={() => handleOpenEditAccount(acc)}>
-                    <Edit2 size={12} /> Edit
-                  </button>
-                  <button type="button" className="btn btn-danger" style={{ padding: "4px 8px", fontSize: "0.75rem" }} onClick={() => handleDeleteAccount(acc.id)}>
-                    <Trash2 size={12} /> Delete
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
 
         {/* TOUR LEADERS MANAGEMENT */}
-        <div style={{ background: "var(--bg-glass)", border: "1px solid var(--border)", borderRadius: 20, padding: 24 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18, borderBottom: "1px solid var(--border)", paddingBottom: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <UserCheck size={20} style={{ color: "var(--accent-cyan)" }} />
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
-                    Tour Leaders (TL) List
-                  </h2>
-                  <span style={{ background: "var(--accent-cyan-dim)", color: "var(--accent-cyan)", fontSize: "0.75rem", fontWeight: 700, padding: "2px 8px", borderRadius: 12 }}>
-                    {tourLeaders.length} Registered
-                  </span>
-                </div>
-                <p style={{ fontSize: "0.78rem", color: "var(--text-secondary)", margin: 0 }}>
-                  Manage pre-configured Tour Leaders for quick selection when creating modem rental orders.
-                </p>
-              </div>
-            </div>
-
-            <button type="button" className="btn btn-primary" onClick={handleOpenAddTl} style={{ padding: "6px 14px", fontSize: "0.8rem" }}>
-              <Plus size={14} /> Add Tour Leader
+        <Panel
+          title={
+            <>
+              Tour Leaders
+              <StatusBadge tone="accent">{tourLeaders.length} registered</StatusBadge>
+            </>
+          }
+          description="Pre-configured Tour Leaders for quick selection on modem rental orders."
+          icon={<UserCheck size={16} />}
+          actions={
+            <button type="button" className="btn btn-primary btn-sm" onClick={handleOpenAddTl}>
+              <Plus size={14} aria-hidden /> New Tour Leader
             </button>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
-            {tourLeaders.map((tl, idx) => (
-              <div
-                key={tl.id}
-                style={{
-                  background: "var(--bg-glass-hover)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 12,
-                  padding: "10px 14px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <div style={{ width: 26, height: 26, borderRadius: "50%", background: "var(--accent-cyan-dim)", color: "var(--accent-cyan)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.75rem" }}>
+          }
+        >
+          {!loading && tourLeaders.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-line px-4 py-8 text-center text-sm text-fg-subtle">
+              No Tour Leaders yet.
+            </p>
+          ) : (
+            <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-inset">
+              {tourLeaders.map((tl, idx) => (
+                <li key={tl.id} className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-hover">
+                  <span
+                    className="flex size-7 shrink-0 items-center justify-center rounded-full bg-accent-bg text-xs font-bold text-accent"
+                    aria-hidden
+                  >
                     {idx + 1}
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: "0.88rem" }}>
-                      {tl.name}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold text-fg">{tl.name}</div>
+                    <div className="truncate text-xs text-fg-subtle">
+                      {tl.phone ? <span className="font-mono">{tl.phone}</span> : "—"}
+                      {tl.notes && <span> · {tl.notes}</span>}
                     </div>
-                    {tl.phone && <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontFamily: "monospace" }}>{tl.phone}</div>}
                   </div>
-                </div>
-
-                <div style={{ display: "flex", gap: 4 }}>
-                  <button type="button" className="btn btn-ghost" style={{ padding: "3px 6px" }} onClick={() => handleOpenEditTl(tl)} title="Edit TL">
-                    <Edit2 size={12} />
-                  </button>
-                  <button type="button" className="btn btn-danger" style={{ padding: "3px 6px" }} onClick={() => handleDeleteTl(tl.id)} title="Delete TL">
-                    <Trash2 size={12} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-icon"
+                      onClick={() => handleOpenEditTl(tl)}
+                      aria-label={`Edit ${tl.name}`}
+                      title="Edit"
+                    >
+                      <Edit2 size={16} aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-icon"
+                      onClick={() => handleDeleteTl(tl.id)}
+                      aria-label={`Delete ${tl.name}`}
+                      title="Delete"
+                    >
+                      <Trash2 size={16} aria-hidden />
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
 
         {/* SYSTEM INVOICING PREFERENCES */}
-        <div style={{ background: "var(--bg-glass)", border: "1px solid var(--border)", borderRadius: 20, padding: 24 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18, borderBottom: "1px solid var(--border)", paddingBottom: 12 }}>
-            <Sliders size={20} style={{ color: "var(--accent-cyan)" }} />
-            <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
-              Invoicing Preferences
-            </h2>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-            <div>
-              <label className="form-label">Invoice Number Prefix</label>
-              <input
-                className="form-input"
+        <Panel title="Invoicing Preferences" icon={<Sliders size={16} />}>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Field label="Invoice Number Prefix" htmlFor="settings-prefix">
+              <TextInput
+                id="settings-prefix"
                 value={form.invoice_prefix}
                 onChange={(e) => setForm({ ...form, invoice_prefix: e.target.value })}
               />
-            </div>
-            <div>
-              <label className="form-label">Default PPN Tax Rate (%)</label>
-              <input
+            </Field>
+            <Field label="Default PPN Tax Rate (%)" htmlFor="settings-tax-rate">
+              <TextInput
+                id="settings-tax-rate"
                 type="number"
-                className="form-input"
                 value={form.tax_rate}
                 onChange={(e) => setForm({ ...form, tax_rate: e.target.value })}
               />
-            </div>
-            <div>
-              <label className="form-label">Payment Terms (Days)</label>
-              <input
+            </Field>
+            <Field label="Payment Terms (days)" htmlFor="settings-terms">
+              <TextInput
+                id="settings-terms"
                 type="number"
-                className="form-input"
                 value={form.payment_terms_days}
                 onChange={(e) => setForm({ ...form, payment_terms_days: e.target.value })}
               />
-            </div>
+            </Field>
           </div>
-        </div>
+        </Panel>
       </form>
 
       {/* MODAL 1: BANK ACCOUNT MODAL */}
       <Modal
         isOpen={showAccountModal}
         onClose={() => setShowAccountModal(false)}
-        title={editingAccount ? "Edit Bank Account" : "Add Payment Bank Account"}
+        title={editingAccount ? "Edit Bank Account" : "New Bank Account"}
       >
-        <form onSubmit={handleSaveAccount} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div>
-            <label className="form-label">Bank Name *</label>
-            <input
-              className="form-input"
+        <form onSubmit={handleSaveAccount} className="flex flex-col gap-4">
+          <Field label="Bank Name" htmlFor="account-bank" required>
+            <TextInput
+              id="account-bank"
               placeholder="e.g. Bank BCA / Mandiri / BSI"
               value={accountForm.bank_name}
               onChange={(e) => setAccountForm({ ...accountForm, bank_name: e.target.value })}
               required
             />
-          </div>
-          <div>
-            <label className="form-label">Account Number *</label>
-            <input
-              className="form-input"
+          </Field>
+          <Field label="Account Number" htmlFor="account-number" required>
+            <TextInput
+              id="account-number"
               placeholder="e.g. 0402434901"
               value={accountForm.account_number}
               onChange={(e) => setAccountForm({ ...accountForm, account_number: e.target.value })}
               required
             />
-          </div>
-          <div>
-            <label className="form-label">Account Holder Name *</label>
-            <input
-              className="form-input"
+          </Field>
+          <Field label="Account Holder Name" htmlFor="account-holder" required>
+            <TextInput
+              id="account-holder"
               placeholder="e.g. Mulyadi"
               value={accountForm.account_holder}
               onChange={(e) => setAccountForm({ ...accountForm, account_holder: e.target.value })}
               required
             />
-          </div>
-          <div>
-            <label className="form-label">Additional Instructions (Optional)</label>
-            <textarea
-              className="form-input"
-              style={{ minHeight: 60, resize: "vertical" }}
+          </Field>
+          <Field label="Additional Instructions (optional)" htmlFor="account-notes">
+            <TextArea
+              id="account-notes"
+              className="min-h-16"
               placeholder="e.g. Please include Invoice # in payment reference"
               value={accountForm.notes}
               onChange={(e) => setAccountForm({ ...accountForm, notes: e.target.value })}
             />
-          </div>
+          </Field>
 
-          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => setShowAccountModal(false)}
-            >
+          <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
+            <button type="button" className="btn btn-ghost" onClick={() => setShowAccountModal(false)}>
               Cancel
             </button>
             <button type="submit" className="btn btn-primary">
-              <Save size={14} />
-              {editingAccount ? "Update Account" : "Save Bank Account"}
+              <Save size={16} aria-hidden />
+              {editingAccount ? "Save" : "Add Account"}
             </button>
           </div>
         </form>
@@ -697,50 +655,43 @@ export default function SettingsPage() {
       <Modal
         isOpen={showTlModal}
         onClose={() => setShowTlModal(false)}
-        title={editingTl ? "Edit Tour Leader" : "Add New Tour Leader"}
+        title={editingTl ? "Edit Tour Leader" : "New Tour Leader"}
       >
-        <form onSubmit={handleSaveTl} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div>
-            <label className="form-label">Tour Leader Name *</label>
-            <input
-              className="form-input"
+        <form onSubmit={handleSaveTl} className="flex flex-col gap-4">
+          <Field label="Tour Leader Name" htmlFor="tl-name" required>
+            <TextInput
+              id="tl-name"
               placeholder="e.g. Komang Sudira"
               value={tlForm.name}
               onChange={(e) => setTlForm({ ...tlForm, name: e.target.value })}
               required
             />
-          </div>
-          <div>
-            <label className="form-label">Phone Number (Optional)</label>
-            <input
-              className="form-input"
+          </Field>
+          <Field label="Phone Number (optional)" htmlFor="tl-phone">
+            <TextInput
+              id="tl-phone"
               placeholder="e.g. 081234567890"
               value={tlForm.phone}
               onChange={(e) => setTlForm({ ...tlForm, phone: e.target.value })}
             />
-          </div>
-          <div>
-            <label className="form-label">Notes / Region (Optional)</label>
-            <textarea
-              className="form-input"
-              style={{ minHeight: 60, resize: "vertical" }}
+          </Field>
+          <Field label="Notes / Region (optional)" htmlFor="tl-notes">
+            <TextArea
+              id="tl-notes"
+              className="min-h-16"
               placeholder="e.g. Specializes in Bali & Lombok tours"
               value={tlForm.notes}
               onChange={(e) => setTlForm({ ...tlForm, notes: e.target.value })}
             />
-          </div>
+          </Field>
 
-          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => setShowTlModal(false)}
-            >
+          <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
+            <button type="button" className="btn btn-ghost" onClick={() => setShowTlModal(false)}>
               Cancel
             </button>
             <button type="submit" className="btn btn-primary">
-              <Save size={14} />
-              {editingTl ? "Update Tour Leader" : "Save Tour Leader"}
+              <Save size={16} aria-hidden />
+              {editingTl ? "Save" : "Add Tour Leader"}
             </button>
           </div>
         </form>

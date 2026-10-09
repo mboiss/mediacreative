@@ -3,9 +3,10 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
-import { Printer, Download, Loader2, CheckCircle } from "lucide-react";
+import { Printer, Download, Loader2 } from "lucide-react";
 import { InvoiceSheet } from "@/components/invoice/invoice-sheet";
 import { useToast } from "@/components/ui/toast";
+import { LoadingState } from "@/components/ui/loading-state";
 
 type Client = {
   id: string;
@@ -132,115 +133,49 @@ export default function PublicInvoicePage() {
 
   if (loading) {
     return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", gap: 12, color: "#8ba3c7", background: "#060d1a" }}>
-        <Loader2 size={24} style={{ animation: "spin 1s linear infinite", color: "#00d4ff" }} />
-        <span style={{ fontSize: "0.95rem" }}>Loading Invoice...</span>
-        <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
+      <div className="flex min-h-screen items-center justify-center bg-page">
+        <LoadingState label="Loading invoice..." />
       </div>
     );
   }
 
   if (!invoice) {
     return (
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", background: "#060d1a", color: "#f0f6ff", padding: 20 }}>
-        <div style={{ background: "rgba(255, 255, 255, 0.04)", border: "1px solid rgba(255, 255, 255, 0.1)", borderRadius: 20, padding: 40, textAlign: "center", maxWidth: 450 }}>
-          <p style={{ color: "#ef4444", fontSize: "1.1rem", fontWeight: 700, marginBottom: 8 }}>
-            {errorMessage || "Invoice Not Found"}
-          </p>
-          <p style={{ color: "#8ba3c7", fontSize: "0.85rem" }}>
-            The requested invoice link could not be loaded or may have been removed.
-          </p>
+      <div className="flex min-h-screen flex-col items-center justify-center bg-page p-5 text-fg">
+        <div className="w-full max-w-md rounded-card border border-line bg-surface p-8 text-center shadow-card sm:p-10">
+          <p className="mb-2 text-lg font-bold text-danger">{errorMessage || "Invoice Not Found"}</p>
+          <p className="text-sm text-fg-muted">The requested invoice link could not be loaded or may have been removed.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#060d1a", padding: "24px 16px" }}>
-      <style>{`
-        @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-        @media print {
-          body { background: #ffffff !important; }
-          .no-print { display: none !important; }
-        }
-      `}</style>
-
+    <div className="min-h-screen bg-page px-4 py-6 sm:py-10">
       {/* PUBLIC HEADER BAR */}
-      <div
-        className="no-print"
-        style={{
-          maxWidth: 794,
-          margin: "0 auto 20px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          background: "rgba(255, 255, 255, 0.04)",
-          backdropFilter: "blur(20px)",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
-          borderRadius: 16,
-          padding: "12px 20px",
-          flexWrap: "wrap",
-          gap: 12,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Image src="/logo.png" alt="Media Creative" width={110} height={36} style={{ objectFit: "contain", height: "auto" }} priority />
-          <div>
-            <div style={{ fontSize: "0.9rem", fontWeight: 700, color: "#f0f6ff" }}>
-              Invoice {invoice.invoice_number}
-            </div>
-            <div style={{ fontSize: "0.72rem", color: "#8ba3c7" }}>
-              Official Media Creative Invoice
-            </div>
+      <div className="no-print mx-auto mb-5 flex max-w-[794px] flex-wrap items-center justify-between gap-3 rounded-card border border-line bg-surface px-4 py-3 shadow-card backdrop-blur-xl sm:px-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <Image src="/logo.png" alt="Media Creative" width={110} height={36} className="h-auto w-[96px] object-contain sm:w-[110px]" priority />
+          <div className="min-w-0">
+            <div className="truncate text-sm font-bold text-fg">Invoice {invoice.invoice_number}</div>
+            <div className="text-xs text-fg-muted">Official Media Creative invoice</div>
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <button
-            onClick={handlePrint}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "8px 14px",
-              borderRadius: 10,
-              background: "rgba(255, 255, 255, 0.08)",
-              border: "1px solid rgba(255, 255, 255, 0.15)",
-              color: "#f0f6ff",
-              fontSize: "0.82rem",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={handlePrint} className="btn btn-ghost btn-sm">
             <Printer size={14} /> Print
           </button>
 
-          <button
-            onClick={handleDownloadPdf}
-            disabled={downloadingPdf}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              padding: "8px 16px",
-              borderRadius: 10,
-              background: "linear-gradient(135deg, #00d4ff, #7c3aed)",
-              border: "none",
-              color: "#ffffff",
-              fontSize: "0.82rem",
-              fontWeight: 700,
-              cursor: "pointer",
-              boxShadow: "0 4px 14px rgba(0, 212, 255, 0.25)",
-            }}
-          >
-            {downloadingPdf ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Download size={14} />}
+          <button type="button" onClick={handleDownloadPdf} disabled={downloadingPdf} className="btn btn-primary btn-sm">
+            {downloadingPdf ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
             {downloadingPdf ? "Generating PDF..." : "Download PDF"}
           </button>
         </div>
       </div>
 
-      {/* INVOICE SHEET CONTAINER */}
-      <div style={{ maxWidth: 794, margin: "0 auto" }}>
+      {/* INVOICE SHEET */}
+      <div className="mx-auto max-w-[794px]">
         <InvoiceSheet
           invoiceNumber={invoice.invoice_number}
           invoiceDate={invoice.invoice_date}

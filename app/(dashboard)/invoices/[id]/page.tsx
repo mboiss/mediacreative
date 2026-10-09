@@ -12,9 +12,7 @@ import {
   FileText,
   User,
   Calendar,
-  Building,
   Mail,
-  Phone,
   Package,
   Loader2,
   Save,
@@ -31,6 +29,11 @@ import { useToast } from "@/components/ui/toast";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { InvoiceSheet } from "@/components/invoice/invoice-sheet";
+import { LoadingState } from "@/components/ui/loading-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { Panel } from "@/components/ui/panel";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Field, SelectInput, TextArea, TextInput } from "@/components/ui/field";
 import { getPaymentAccounts, formatAccountTransferText } from "@/lib/payment-accounts";
 
 type Client = {
@@ -71,17 +74,6 @@ type Invoice = {
 };
 
 const STATUS_FLOW = ["Draft", "Sent", "Paid"];
-
-function getStatusClass(status: string) {
-  switch (status?.toLowerCase()) {
-    case "paid":      return "badge badge-paid";
-    case "sent":      return "badge badge-sent";
-    case "draft":     return "badge badge-draft";
-    case "overdue":   return "badge badge-overdue";
-    case "cancelled": return "badge badge-cancelled";
-    default:          return "badge badge-draft";
-  }
-}
 
 function formatCurrency(amount?: number) {
   if (amount === undefined || amount === null) return "Rp 0";
@@ -545,261 +537,192 @@ export default function InvoiceDetailPage() {
   const subtotal = items.reduce((s, item) => s + (item.total ?? 0), 0);
 
   if (loading) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 400, gap: 12, color: "#8ba3c7" }}>
-        <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} />
-        Loading invoice...
-        <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
-      </div>
-    );
+    return <LoadingState label="Loading invoice..." />;
   }
 
   if (!invoice) {
     return (
-      <div style={{ textAlign: "center", padding: 80 }}>
-        <p style={{ color: "#8ba3c7", fontSize: "1.1rem", marginBottom: 8 }}>
-          {errorMessage || "Invoice not found."}
-        </p>
-        <p style={{ color: "#4a6080", fontSize: "0.85rem", marginBottom: 20 }}>
-          The requested invoice ID could not be loaded or may have been removed.
-        </p>
-        <Link href="/invoices">
-          <button className="btn btn-primary">
-            <ArrowLeft size={14} /> Back to Invoices
-          </button>
-        </Link>
-      </div>
+      <Panel>
+        <EmptyState
+          icon={<FileText size={28} />}
+          title={errorMessage || "Invoice not found."}
+          description="The requested invoice could not be loaded or may have been removed."
+          action={
+            <Link href="/invoices" className="btn btn-primary">
+              <ArrowLeft size={14} /> Back to Invoices
+            </Link>
+          }
+        />
+      </Panel>
     );
   }
 
   const isEditable = invoice.status === "Draft";
   const nextStatus = STATUS_FLOW[STATUS_FLOW.indexOf(invoice.status) + 1];
+  const spinner = <Loader2 size={14} className="animate-spin" />;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 900, margin: "0 auto" }}>
-      <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
-
-      {/* BACK BUTTON */}
-      <div className="animate-fade-in no-print">
-        <Link href="/invoices">
-          <button className="btn btn-ghost" style={{ padding: "7px 14px", fontSize: "0.8rem" }}>
-            <ArrowLeft size={13} />
-            All Invoices
-          </button>
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
+      {/* BACK LINK */}
+      <div className="no-print animate-fade-in">
+        <Link href="/invoices" className="btn btn-ghost btn-sm">
+          <ArrowLeft size={14} />
+          All Invoices
         </Link>
       </div>
 
-      {/* HEADER CARD (Hidden during print) */}
-      <div
-        className="animate-fade-in-up no-print"
-        style={{
-          background: "var(--bg-glass)",
-          border: "1px solid var(--border)",
-          borderRadius: 24,
-          padding: "28px 32px",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
-              <span
-                style={{
-                  fontFamily: "monospace",
-                  fontSize: "1.6rem",
-                  fontWeight: 800,
-                  color: "var(--text-primary)",
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                {invoice.invoice_number}
+      {/* HEADER */}
+      <PageHeader
+        className="no-print"
+        title={<span className="break-all font-mono">{invoice.invoice_number}</span>}
+        meta={<StatusBadge status={invoice.status} />}
+        description={
+          <span className="flex flex-wrap gap-x-5 gap-y-1">
+            <span className="inline-flex items-center gap-1.5">
+              <Calendar size={14} aria-hidden /> Issued {formatDate(invoice.invoice_date)}
+            </span>
+            {invoice.due_date && (
+              <span className="inline-flex items-center gap-1.5">
+                <Calendar size={14} aria-hidden /> Due {formatDate(invoice.due_date)}
               </span>
-              <span className={getStatusClass(invoice.status)}>
-                {invoice.status}
-              </span>
-            </div>
-
-            <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--text-secondary)", fontSize: "0.8rem" }}>
-                <Calendar size={13} />
-                <span>Issued: {formatDate(invoice.invoice_date)}</span>
-              </div>
-              {invoice.due_date && (
-                <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--text-secondary)", fontSize: "0.8rem" }}>
-                  <Calendar size={13} />
-                  <span>Due: {formatDate(invoice.due_date)}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Status Actions & Toolbar */}
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-            {isEditable && (
-              <button
-                className="btn btn-ghost"
-                onClick={openHeaderEditModal}
-                style={{ fontSize: "0.85rem", gap: 6 }}
-                title="Edit Client, Due Date, or Notes"
-              >
-                <Edit2 size={14} />
-                Edit Details
-              </button>
             )}
-
-            <button
-              className="btn btn-ghost"
-              onClick={handlePrint}
-              style={{ fontSize: "0.85rem", gap: 6 }}
-              title="Print or Save as PDF"
-            >
+          </span>
+        }
+        actions={
+          <>
+            <button type="button" className="btn btn-ghost" onClick={handlePrint} title="Print or save as PDF">
               <Printer size={14} />
               Print
             </button>
-
-            {/* Direct Download PDF Button */}
             <button
+              type="button"
               className="btn btn-primary"
               onClick={handleDownloadPdf}
               disabled={downloadingPdf}
-              style={{ fontSize: "0.85rem", gap: 6, padding: "8px 14px" }}
-              title="Download Invoice sebagai file PDF"
+              title="Download the invoice as a PDF file"
             >
-              {downloadingPdf ? (
-                <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
-              ) : (
-                <Download size={14} />
-              )}
+              {downloadingPdf ? spinner : <Download size={14} />}
               {downloadingPdf ? "Generating PDF..." : "Download PDF"}
             </button>
+          </>
+        }
+      />
 
-            {/* WhatsApp Direct Share */}
-            <button
-              className="btn"
-              onClick={() => {
-                if (invoice.clients?.phone) {
-                  handleSendWhatsApp();
-                } else {
-                  setManualPhone("");
-                  setShowShareModal(true);
-                }
-              }}
-              style={{
-                fontSize: "0.85rem",
-                gap: 6,
-                background: "#25D366",
-                color: "#ffffff",
-                border: "none",
-                fontWeight: 600,
-              }}
-              title="Kirim Invoice via WhatsApp"
-            >
-              <MessageSquare size={14} />
-              WhatsApp
-            </button>
-
-            {/* Email Direct Share */}
-            <button
-              className="btn"
-              onClick={() => {
-                if (invoice.clients?.email) {
-                  handleSendEmail();
-                } else {
-                  setManualEmail("");
-                  setShowShareModal(true);
-                }
-              }}
-              style={{
-                fontSize: "0.85rem",
-                gap: 6,
-                background: "#0284c7",
-                color: "#ffffff",
-                border: "none",
-                fontWeight: 600,
-              }}
-              title="Kirim Invoice via Email"
-            >
-              <Mail size={14} />
-              Email
-            </button>
-
-            {/* Share / Copy Link Modal Button */}
-            <button
-              className="btn btn-ghost"
-              onClick={() => setShowShareModal(true)}
-              style={{ fontSize: "0.85rem", gap: 6 }}
-              title="Opsi Berbagi & Copy Link"
-            >
-              <Share2 size={14} />
-              Share
-            </button>
-
-            {invoice.status !== "Cancelled" && nextStatus && (
-              <button
-                className={nextStatus === "Paid" ? "btn btn-success" : "btn btn-ghost"}
-                onClick={() => updateStatus(nextStatus)}
-                disabled={updating}
-                style={{ fontSize: "0.85rem" }}
-              >
-                {updating ? (
-                  <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
-                ) : nextStatus === "Paid" ? (
-                  <Check size={14} />
-                ) : (
-                  <Send size={14} />
-                )}
-                Mark as {nextStatus}
-              </button>
+      {/* SUMMARY & ACTIONS */}
+      <Panel className="no-print">
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div className="min-w-0">
+              <div className="text-xs font-semibold uppercase tracking-wide text-fg-muted">Grand Total</div>
+              <div className="mt-1 break-words text-2xl font-bold tabular-nums text-accent sm:text-3xl">
+                {formatCurrency(invoice.total_amount ?? subtotal)}
+              </div>
+            </div>
+            {invoice.clients && (
+              <div className="min-w-0 text-sm text-fg-muted sm:text-right">
+                <div className="flex items-center gap-1.5 font-semibold text-fg sm:justify-end">
+                  <User size={14} aria-hidden /> {invoice.clients.full_name}
+                </div>
+                {invoice.clients.company && <div>{invoice.clients.company}</div>}
+              </div>
             )}
-            {invoice.status !== "Cancelled" && invoice.status !== "Paid" && (
+          </div>
+
+          <div className="flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+            {/* Send / share */}
+            <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Send invoice">
               <button
+                type="button"
+                className="btn btn-success"
+                onClick={() => {
+                  if (invoice.clients?.phone) {
+                    handleSendWhatsApp();
+                  } else {
+                    setManualPhone("");
+                    setShowShareModal(true);
+                  }
+                }}
+                title="Send invoice via WhatsApp"
+              >
+                <MessageSquare size={14} />
+                WhatsApp
+              </button>
+              <button
+                type="button"
                 className="btn btn-ghost"
-                onClick={() => updateStatus("Cancelled")}
-                disabled={updating}
-                style={{ fontSize: "0.85rem", color: "#f87171" }}
+                onClick={() => {
+                  if (invoice.clients?.email) {
+                    handleSendEmail();
+                  } else {
+                    setManualEmail("");
+                    setShowShareModal(true);
+                  }
+                }}
+                title="Send invoice via email"
               >
-                <X size={14} />
-                Cancel
+                <Mail size={14} />
+                Email
               </button>
-            )}
-            <button
-              className="btn btn-danger"
-              onClick={deleteInvoice}
-              disabled={deleting}
-              style={{ fontSize: "0.85rem", padding: "8px 12px" }}
-              title="Delete Invoice"
-            >
-              {deleting ? (
-                <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
-              ) : (
-                <Trash2 size={14} />
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setShowShareModal(true)}
+                title="Share options and copy link"
+              >
+                <Share2 size={14} />
+                Share
+              </button>
+            </div>
+
+            {/* Status & management */}
+            <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Manage invoice">
+              {invoice.status !== "Cancelled" && nextStatus && (
+                <button
+                  type="button"
+                  className={nextStatus === "Paid" ? "btn btn-success" : "btn btn-ghost"}
+                  onClick={() => updateStatus(nextStatus)}
+                  disabled={updating}
+                >
+                  {updating ? spinner : nextStatus === "Paid" ? <Check size={14} /> : <Send size={14} />}
+                  Mark as {nextStatus}
+                </button>
               )}
-            </button>
+              {isEditable && (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={openHeaderEditModal}
+                  title="Edit client, due date, or notes"
+                >
+                  <Edit2 size={14} />
+                  Edit Details
+                </button>
+              )}
+              {invoice.status !== "Cancelled" && invoice.status !== "Paid" && (
+                <button
+                  type="button"
+                  className="btn btn-ghost text-danger"
+                  onClick={() => updateStatus("Cancelled")}
+                  disabled={updating}
+                >
+                  <X size={14} />
+                  Cancel Invoice
+                </button>
+              )}
+              <button
+                type="button"
+                className="btn btn-danger btn-icon"
+                onClick={deleteInvoice}
+                disabled={deleting}
+                aria-label="Delete invoice"
+                title="Delete invoice"
+              >
+                {deleting ? spinner : <Trash2 size={14} />}
+              </button>
+            </div>
           </div>
         </div>
-
-        {/* Total */}
-        <div
-          style={{
-            marginTop: 24,
-            paddingTop: 20,
-            borderTop: "1px solid var(--border)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <span style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>Grand Total</span>
-          <span
-            style={{
-              fontSize: "2rem",
-              fontWeight: 800,
-              color: "var(--accent-cyan)",
-            }}
-          >
-            {formatCurrency(invoice.total_amount ?? subtotal)}
-          </span>
-        </div>
-      </div>
+      </Panel>
 
       {/* OFFICIAL PRINTABLE INVOICE SHEET */}
       <div className="animate-fade-in-up">
@@ -816,249 +739,188 @@ export default function InvoiceDetailPage() {
         />
       </div>
 
-      {/* LINE ITEM MANAGEMENT TOOLBAR (Only shown for Draft or Editable invoices) */}
+      {/* LINE ITEM MANAGEMENT (Draft only) */}
       {isEditable && (
-        <div
+        <Panel
           className="no-print"
-          style={{
-            background: "var(--bg-glass)",
-            border: "1px solid var(--border)",
-            borderRadius: 20,
-            padding: "20px 24px",
-            display: "flex",
-            flexDirection: "column",
-            gap: 16,
-            marginTop: 12,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: "0.95rem" }}>
-              Manage Invoice Items ({items.length})
-            </span>
-            <button
-              className="btn btn-primary"
-              onClick={() => setShowAddItem((v) => !v)}
-              style={{ padding: "7px 14px", fontSize: "0.8rem" }}
-            >
+          title={`Manage Invoice Items (${items.length})`}
+          icon={<Package size={15} />}
+          actions={
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => setShowAddItem((v) => !v)}>
               {showAddItem ? <X size={13} /> : <Plus size={13} />}
               {showAddItem ? "Cancel" : "Add Line Item"}
             </button>
-          </div>
+          }
+        >
+          <div className="flex flex-col gap-4">
+            {showAddItem && (
+              <form
+                onSubmit={addItem}
+                className="flex flex-col gap-3 rounded-xl border border-accent-border bg-accent-bg p-4"
+              >
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Field label="Product catalog (optional)" htmlFor="add-item-product">
+                    <SelectInput
+                      id="add-item-product"
+                      value={itemForm.product_id}
+                      onChange={(e) => handleProductChange(e.target.value)}
+                    >
+                      <option value="">— Custom item —</option>
+                      {products.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.product_name} — Rp {p.price.toLocaleString("id-ID")}
+                        </option>
+                      ))}
+                    </SelectInput>
+                  </Field>
+                  <Field label="Description" htmlFor="add-item-description" required>
+                    <TextInput
+                      id="add-item-description"
+                      placeholder="Item description"
+                      value={itemForm.description}
+                      onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })}
+                      required
+                    />
+                  </Field>
+                  <Field label="Quantity" htmlFor="add-item-qty" required>
+                    <TextInput
+                      id="add-item-qty"
+                      type="number"
+                      inputMode="decimal"
+                      min="1"
+                      step="0.01"
+                      value={itemForm.quantity}
+                      onChange={(e) => setItemForm({ ...itemForm, quantity: e.target.value })}
+                      required
+                    />
+                  </Field>
+                  <Field label="Unit price (Rp)" htmlFor="add-item-price" required>
+                    <TextInput
+                      id="add-item-price"
+                      type="number"
+                      inputMode="numeric"
+                      min="0"
+                      step="1000"
+                      placeholder="0"
+                      value={itemForm.unit_price}
+                      onChange={(e) => setItemForm({ ...itemForm, unit_price: e.target.value })}
+                      required
+                    />
+                  </Field>
+                </div>
 
-          {/* Add item form */}
-          {showAddItem && (
-            <form
-              onSubmit={addItem}
-              style={{
-                padding: "16px 20px",
-                borderRadius: 14,
-                border: "1px solid var(--border)",
-                background: "var(--accent-cyan-dim)",
-                display: "flex",
-                flexDirection: "column",
-                gap: 12,
-              }}
-            >
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div>
-                  <label className="form-label">Product Catalog (optional)</label>
-                  <select
-                    className="form-input form-select"
-                    value={itemForm.product_id}
-                    onChange={(e) => handleProductChange(e.target.value)}
-                  >
-                    <option value="">— Custom item —</option>
-                    {products.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.product_name} — Rp {p.price.toLocaleString("id-ID")}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="form-label">Description *</label>
-                  <input
-                    className="form-input"
-                    placeholder="Item description"
-                    value={itemForm.description}
-                    onChange={(e) => setItemForm({ ...itemForm, description: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="form-label">Quantity *</label>
-                  <input
-                    type="number"
-                    className="form-input"
-                    min="1"
-                    step="0.01"
-                    value={itemForm.quantity}
-                    onChange={(e) => setItemForm({ ...itemForm, quantity: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="form-label">Unit Price (Rp) *</label>
-                  <input
-                    type="number"
-                    className="form-input"
-                    min="0"
-                    step="1000"
-                    placeholder="0"
-                    value={itemForm.unit_price}
-                    onChange={(e) => setItemForm({ ...itemForm, unit_price: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-
-              {itemForm.quantity && itemForm.unit_price && (
-                <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)", padding: "8px 12px", background: "var(--bg-glass)", borderRadius: 8 }}>
-                  Subtotal: <strong style={{ color: "var(--accent-cyan)" }}>
-                    {formatCurrency(Number(itemForm.quantity) * Number(itemForm.unit_price))}
-                  </strong>
-                </div>
-              )}
-
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  onClick={() => setShowAddItem(false)}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={addingItem}>
-                  {addingItem ? (
-                    <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} />
-                  ) : (
-                    <Plus size={13} />
-                  )}
-                  Add Line
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* Quick list of items to delete if needed */}
-          {items.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {items.map((item) => (
-                <div
-                  key={item.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "8px 12px",
-                    borderRadius: 10,
-                    background: "var(--bg-glass-hover)",
-                    fontSize: "0.82rem",
-                  }}
-                >
-                  <div>
-                    <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>
-                      {item.description || item.products?.product_name || "—"}
-                    </span>
-                    <span style={{ color: "var(--text-muted)", marginLeft: 8 }}>
-                      ({item.quantity} x {formatCurrency(item.unit_price)})
-                    </span>
+                {itemForm.quantity && itemForm.unit_price && (
+                  <div className="rounded-lg bg-surface px-3 py-2 text-sm text-fg-muted">
+                    Subtotal:{" "}
+                    <strong className="text-accent">
+                      {formatCurrency(Number(itemForm.quantity) * Number(itemForm.unit_price))}
+                    </strong>
                   </div>
-                  <button
-                    className="btn btn-danger"
-                    style={{ padding: "4px 8px", fontSize: "0.72rem" }}
-                    onClick={() => deleteItem(item.id)}
-                    disabled={deletingItemId === item.id}
-                  >
-                    {deletingItemId === item.id ? (
-                      <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
-                    ) : (
-                      <Trash2 size={12} />
-                    )}
+                )}
+
+                <div className="flex flex-wrap justify-end gap-2">
+                  <button type="button" className="btn btn-ghost" onClick={() => setShowAddItem(false)}>
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn btn-primary" disabled={addingItem}>
+                    {addingItem ? spinner : <Plus size={14} />}
+                    Add Line
                   </button>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              </form>
+            )}
+
+            {items.length > 0 && (
+              <ul className="flex flex-col gap-2">
+                {items.map((item, idx) => (
+                  <li
+                    key={item.id}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-line bg-inset px-3 py-2 text-sm"
+                  >
+                    <div className="min-w-0">
+                      <div className="break-words font-semibold text-fg">
+                        {item.description || item.products?.product_name || "—"}
+                      </div>
+                      <div className="text-xs text-fg-subtle tabular-nums">
+                        {item.quantity} × {formatCurrency(item.unit_price)} = {formatCurrency(item.total)}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-icon shrink-0"
+                      onClick={() => deleteItem(item.id)}
+                      disabled={deletingItemId === item.id}
+                      aria-label={`Remove line item ${idx + 1}`}
+                      title="Remove line item"
+                    >
+                      {deletingItemId === item.id ? spinner : <Trash2 size={14} />}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </Panel>
       )}
 
-      {/* EDIT INVOICE HEADER MODAL */}
+      {/* EDIT INVOICE DETAILS MODAL */}
       <Modal isOpen={showEditHeader} onClose={() => setShowEditHeader(false)} title="Edit Invoice Details">
-        <form onSubmit={saveHeaderEdit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div>
-            <label className="form-label">Client</label>
-            <select
-              className="form-input form-select"
+        <form onSubmit={saveHeaderEdit} className="flex flex-col gap-4">
+          <Field label="Client" htmlFor="edit-client">
+            <SelectInput
+              id="edit-client"
               value={headerForm.client_id}
               onChange={(e) => setHeaderForm({ ...headerForm, client_id: e.target.value })}
             >
-              <option value="">— Select Client —</option>
+              <option value="">— Select client —</option>
               {clients.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.full_name} {c.company ? `(${c.company})` : ""}
                 </option>
               ))}
-            </select>
-          </div>
+            </SelectInput>
+          </Field>
 
-          <div>
-            <label className="form-label">Due Date</label>
-            <input
+          <Field label="Due date" htmlFor="edit-due-date">
+            <TextInput
+              id="edit-due-date"
               type="date"
-              className="form-input"
               value={headerForm.due_date}
               onChange={(e) => setHeaderForm({ ...headerForm, due_date: e.target.value })}
             />
-          </div>
+          </Field>
 
-          <div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, flexWrap: "wrap", gap: 6 }}>
-              <label className="form-label" style={{ margin: 0 }}>Payment Instructions & Notes</label>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {getPaymentAccounts().map((acc) => (
-                  <button
-                    key={acc.id}
-                    type="button"
-                    onClick={() => setHeaderForm({ ...headerForm, notes: formatAccountTransferText(acc) })}
-                    style={{
-                      fontSize: "0.72rem",
-                      fontWeight: 600,
-                      padding: "2px 6px",
-                      borderRadius: 6,
-                      border: "1px solid var(--border)",
-                      background: "var(--bg-glass)",
-                      color: "var(--text-secondary)",
-                      cursor: "pointer",
-                    }}
-                    title={`Select ${acc.bank_name}`}
-                  >
-                    + {acc.bank_name} ({acc.account_number})
-                  </button>
-                ))}
-              </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="edit-notes" className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
+              Payment instructions &amp; notes
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {getPaymentAccounts().map((acc) => (
+                <button
+                  key={acc.id}
+                  type="button"
+                  onClick={() => setHeaderForm({ ...headerForm, notes: formatAccountTransferText(acc) })}
+                  className="inline-flex items-center gap-1 rounded-full border border-line bg-surface px-3 py-1 text-xs font-semibold text-fg-muted transition-colors hover:border-line-accent hover:text-fg"
+                  title={`Use ${acc.bank_name}`}
+                >
+                  <Plus size={12} /> {acc.bank_name} ({acc.account_number})
+                </button>
+              ))}
             </div>
-            <textarea
-              className="form-input"
-              style={{ minHeight: 80, resize: "vertical" }}
+            <TextArea
+              id="edit-notes"
               value={headerForm.notes}
               onChange={(e) => setHeaderForm({ ...headerForm, notes: e.target.value })}
               placeholder="e.g. Bank BCA 0402434901 a/n Mulyadi..."
             />
           </div>
 
-          <div className="divider" style={{ margin: "4px 0" }} />
-
-          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <div className="flex flex-wrap justify-end gap-2.5 border-t border-line pt-4">
             <button type="button" className="btn btn-ghost" onClick={() => setShowEditHeader(false)}>
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={updating}>
-              {updating ? (
-                <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
-              ) : (
-                <Save size={14} />
-              )}
+              {updating ? spinner : <Save size={14} />}
               {updating ? "Saving..." : "Save Changes"}
             </button>
           </div>
@@ -1066,72 +928,70 @@ export default function InvoiceDetailPage() {
       </Modal>
 
       {/* SHARE / SEND INVOICE MODAL */}
-      <Modal isOpen={showShareModal} onClose={() => setShowShareModal(false)} title="Share Invoice via WhatsApp / Email">
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          {/* Public Link Card */}
-          <div style={{ background: "var(--bg-glass-hover)", border: "1px solid var(--border)", borderRadius: 12, padding: "14px 16px" }}>
-            <label className="form-label" style={{ marginBottom: 6 }}>Direct Invoice Online Link</label>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input
-                className="form-input"
-                readOnly
-                value={getPublicInvoiceUrl()}
-                style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}
-              />
-              <button
-                className="btn btn-primary"
-                onClick={copyInvoiceLink}
-                style={{ padding: "8px 14px", fontSize: "0.8rem", whiteSpace: "nowrap" }}
-              >
+      <Modal isOpen={showShareModal} onClose={() => setShowShareModal(false)} title="Share Invoice">
+        <div className="flex flex-col gap-4">
+          {/* Public link */}
+          <div className="flex flex-col gap-1.5 rounded-xl border border-line bg-inset p-4">
+            <label htmlFor="share-link" className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
+              Public invoice link
+            </label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <TextInput id="share-link" readOnly value={getPublicInvoiceUrl()} className="text-fg-muted" />
+              <button type="button" className="btn btn-primary justify-center" onClick={copyInvoiceLink}>
                 {copiedLink ? <Check size={14} /> : <Copy size={14} />}
                 {copiedLink ? "Copied!" : "Copy Link"}
               </button>
             </div>
           </div>
 
-          {/* Quick WhatsApp Action */}
-          <div style={{ background: "rgba(37, 211, 102, 0.08)", border: "1px solid rgba(37, 211, 102, 0.2)", borderRadius: 12, padding: "14px 16px" }}>
-            <label className="form-label" style={{ color: "#25D366", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
-              <MessageSquare size={14} /> Kirim via WhatsApp
+          {/* WhatsApp */}
+          <div className="flex flex-col gap-1.5 rounded-xl border border-success-border bg-success-bg p-4">
+            <label
+              htmlFor="share-phone"
+              className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-success"
+            >
+              <MessageSquare size={14} /> Send via WhatsApp
             </label>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input
-                className="form-input"
-                placeholder="Nomor WhatsApp (misal: 08123456789)..."
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <TextInput
+                id="share-phone"
+                type="tel"
+                placeholder="WhatsApp number (e.g. 08123456789)"
                 defaultValue={invoice?.clients?.phone || ""}
                 onChange={(e) => setManualPhone(e.target.value)}
-                style={{ fontSize: "0.85rem" }}
               />
               <button
-                className="btn"
+                type="button"
+                className="btn btn-success justify-center"
                 onClick={() => handleSendWhatsApp(manualPhone ? formatWhatsAppPhone(manualPhone) : undefined)}
-                style={{ background: "#25D366", color: "#fff", border: "none", fontWeight: 700, padding: "8px 16px", whiteSpace: "nowrap" }}
               >
-                Kirim WA
+                Send WhatsApp
               </button>
             </div>
           </div>
 
-          {/* Quick Email Action */}
-          <div style={{ background: "rgba(2, 132, 199, 0.08)", border: "1px solid rgba(2, 132, 199, 0.2)", borderRadius: 12, padding: "14px 16px" }}>
-            <label className="form-label" style={{ color: "#0284c7", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
-              <Mail size={14} /> Kirim via Email
+          {/* Email */}
+          <div className="flex flex-col gap-1.5 rounded-xl border border-info-border bg-info-bg p-4">
+            <label
+              htmlFor="share-email"
+              className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-info"
+            >
+              <Mail size={14} /> Send via Email
             </label>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input
-                className="form-input"
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <TextInput
+                id="share-email"
                 type="email"
-                placeholder="Email tujuan..."
+                placeholder="Recipient email..."
                 defaultValue={invoice?.clients?.email || ""}
                 onChange={(e) => setManualEmail(e.target.value)}
-                style={{ fontSize: "0.85rem" }}
               />
               <button
-                className="btn"
+                type="button"
+                className="btn btn-primary justify-center"
                 onClick={() => handleSendEmail(manualEmail || undefined)}
-                style={{ background: "#0284c7", color: "#fff", border: "none", fontWeight: 700, padding: "8px 16px", whiteSpace: "nowrap" }}
               >
-                Kirim Email
+                Send Email
               </button>
             </div>
           </div>

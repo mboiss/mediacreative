@@ -9,53 +9,17 @@ interface EmptyStateProps {
 
 export function EmptyState({ icon, title, description, action }: EmptyStateProps) {
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "60px 32px",
-        textAlign: "center",
-        gap: 16,
-      }}
-    >
+    <div className="flex flex-col items-center justify-center gap-4 px-6 py-12 text-center sm:py-14">
       {icon && (
-        <div
-          style={{
-            width: 64,
-            height: 64,
-            borderRadius: 20,
-            background: "rgba(0, 212, 255, 0.06)",
-            border: "1px solid rgba(0, 212, 255, 0.15)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: "rgba(0, 212, 255, 0.5)",
-            marginBottom: 4,
-          }}
-        >
+        <div className="flex size-16 items-center justify-center rounded-card border border-accent-border bg-accent-bg text-accent">
           {icon}
         </div>
       )}
-      <div>
-        <p
-          style={{
-            fontSize: "0.95rem",
-            fontWeight: 600,
-            color: "var(--text-primary)",
-            marginBottom: 4,
-          }}
-        >
-          {title}
-        </p>
-        {description && (
-          <p style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-            {description}
-          </p>
-        )}
+      <div className="max-w-sm">
+        <p className="text-base font-semibold text-fg">{title}</p>
+        {description && <p className="mt-1 text-sm text-fg-subtle">{description}</p>}
       </div>
-      {action && <div style={{ marginTop: 8 }}>{action}</div>}
+      {action && <div className="mt-1">{action}</div>}
     </div>
   );
 }

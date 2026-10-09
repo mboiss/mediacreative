@@ -1,19 +1,15 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useToast } from "@/components/ui/toast";
-import {
-  ArrowLeft,
-  Save,
-  Loader2,
-  Mail,
-  Phone,
-  Building,
-  MapPin,
-  User,
-} from "lucide-react";
+import { ArrowLeft, Save, Loader2, Mail, Phone, Building, MapPin, User, UserX } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Panel } from "@/components/ui/panel";
+import { Field, TextArea, TextInput } from "@/components/ui/field";
+import { LoadingState } from "@/components/ui/loading-state";
+import { EmptyState } from "@/components/ui/empty-state";
 
 type Client = {
   id: string;
@@ -24,9 +20,20 @@ type Client = {
   address: string;
 };
 
+/** Field label with a small leading icon. */
+function IconLabel({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className="text-fg-subtle" aria-hidden>
+        {icon}
+      </span>
+      {children}
+    </span>
+  );
+}
+
 export default function ClientDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const id = params.id as string;
   const toast = useToast();
 
@@ -89,132 +96,99 @@ export default function ClientDetailPage() {
     }
   }
 
+  const backLink = (
+    <Link href="/clients" className="btn btn-ghost btn-sm self-start">
+      <ArrowLeft size={14} aria-hidden /> All Clients
+    </Link>
+  );
+
   if (loading) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 400, gap: 12, color: "#8ba3c7" }}>
-        <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} />
-        Loading client...
-        <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
-      </div>
-    );
+    return <LoadingState label="Loading client..." />;
   }
 
   if (!client) {
     return (
-      <div style={{ textAlign: "center", padding: 80 }}>
-        <p style={{ color: "#8ba3c7" }}>Client not found.</p>
-        <Link href="/clients">
-          <button className="btn btn-ghost" style={{ marginTop: 16 }}>
-            <ArrowLeft size={14} /> Back
-          </button>
-        </Link>
+      <div className="flex flex-col gap-6">
+        {backLink}
+        <EmptyState
+          icon={<UserX size={28} />}
+          title="Client not found"
+          description="It may have been deleted, or the link is wrong."
+        />
       </div>
     );
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 640 }}>
-      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+    <div className="flex w-full max-w-2xl flex-col gap-6">
+      {backLink}
 
-      <Link href="/clients">
-        <button className="btn btn-ghost" style={{ padding: "7px 14px", fontSize: "0.8rem" }}>
-          <ArrowLeft size={13} /> All Clients
-        </button>
-      </Link>
+      <PageHeader title={client.full_name} description={client.company || undefined} />
 
-      <div className="animate-fade-in-up">
-        <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--text-primary)", margin: "0 0 4px", letterSpacing: "-0.02em" }}>
-          {client.full_name}
-        </h1>
-        {client.company && (
-          <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", margin: 0 }}>{client.company}</p>
-        )}
-      </div>
-
-      <form
-        onSubmit={handleSave}
-        style={{
-          background: "var(--bg-glass)",
-          border: "1px solid var(--border)",
-          borderRadius: 20,
-          padding: 24,
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
-        }}
-      >
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <div style={{ gridColumn: "1 / -1" }}>
-            <label className="form-label">
-              <User size={11} style={{ display: "inline", marginRight: 4 }} />
-              Full Name *
-            </label>
-            <input
-              className="form-input"
-              value={form.full_name}
-              onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+      <Panel title="Client details" icon={<User size={16} />}>
+        <form onSubmit={handleSave} className="flex flex-col gap-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field
+              label={<IconLabel icon={<User size={12} />}>Full Name</IconLabel>}
+              htmlFor="client-full-name"
               required
-            />
+              className="sm:col-span-2"
+            >
+              <TextInput
+                id="client-full-name"
+                value={form.full_name}
+                onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                required
+              />
+            </Field>
+            <Field label={<IconLabel icon={<Mail size={12} />}>Email</IconLabel>} htmlFor="client-email">
+              <TextInput
+                id="client-email"
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
+            </Field>
+            <Field label={<IconLabel icon={<Phone size={12} />}>Phone</IconLabel>} htmlFor="client-phone">
+              <TextInput
+                id="client-phone"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              />
+            </Field>
+            <Field
+              label={<IconLabel icon={<Building size={12} />}>Company</IconLabel>}
+              htmlFor="client-company"
+              className="sm:col-span-2"
+            >
+              <TextInput
+                id="client-company"
+                value={form.company}
+                onChange={(e) => setForm({ ...form, company: e.target.value })}
+              />
+            </Field>
+            <Field
+              label={<IconLabel icon={<MapPin size={12} />}>Address</IconLabel>}
+              htmlFor="client-address"
+              className="sm:col-span-2"
+            >
+              <TextArea
+                id="client-address"
+                className="min-h-20"
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+              />
+            </Field>
           </div>
-          <div>
-            <label className="form-label">
-              <Mail size={11} style={{ display: "inline", marginRight: 4 }} />
-              Email
-            </label>
-            <input
-              type="email"
-              className="form-input"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="form-label">
-              <Phone size={11} style={{ display: "inline", marginRight: 4 }} />
-              Phone
-            </label>
-            <input
-              className="form-input"
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            />
-          </div>
-          <div style={{ gridColumn: "1 / -1" }}>
-            <label className="form-label">
-              <Building size={11} style={{ display: "inline", marginRight: 4 }} />
-              Company
-            </label>
-            <input
-              className="form-input"
-              value={form.company}
-              onChange={(e) => setForm({ ...form, company: e.target.value })}
-            />
-          </div>
-          <div style={{ gridColumn: "1 / -1" }}>
-            <label className="form-label">
-              <MapPin size={11} style={{ display: "inline", marginRight: 4 }} />
-              Address
-            </label>
-            <textarea
-              className="form-input"
-              style={{ resize: "vertical", minHeight: 72 }}
-              value={form.address}
-              onChange={(e) => setForm({ ...form, address: e.target.value })}
-            />
-          </div>
-        </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end" }}>
-          <button type="submit" className="btn btn-primary" disabled={saving}>
-            {saving ? (
-              <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
-            ) : (
-              <Save size={14} />
-            )}
-            {saving ? "Saving..." : "Save Changes"}
-          </button>
-        </div>
-      </form>
+          <div className="flex justify-end border-t border-line pt-4">
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? <Loader2 size={16} className="animate-spin" aria-hidden /> : <Save size={16} aria-hidden />}
+              {saving ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      </Panel>
     </div>
   );
 }

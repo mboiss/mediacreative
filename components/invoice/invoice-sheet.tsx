@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 export interface InvoiceSheetProps {
   invoiceNumber: string;
@@ -25,6 +25,46 @@ export interface InvoiceSheetProps {
   subtotal: number;
   totalAmount?: number;
   status?: string;
+  /**
+   * Narrow layout for small containers (e.g. the live preview beside the invoice form):
+   * tighter padding, smaller type and stacked totals, so nothing is clipped.
+   */
+  compact?: boolean;
+}
+
+/**
+ * Paper palette. The invoice is a printed document, so it stays white paper with dark ink in every
+ * app theme, in print and in the html2pdf export. These are the ONLY hardcoded colours allowed outside
+ * the design tokens (see DESIGN.md). They are plain hex values on purpose: html2canvas (used by html2pdf)
+ * cannot parse the oklch()/color-mix() colours that Tailwind palette utilities and opacity modifiers emit,
+ * and theme tokens would turn the paper dark in dark mode.
+ */
+const PAPER = {
+  sheet: "bg-[#ffffff] text-[#0f172a] border-[#cbd5e1]",
+  ink: "text-[#0f172a]",
+  inkSoft: "text-[#334155]",
+  muted: "text-[#475569]",
+  subtle: "text-[#64748b]",
+  brand: "text-[#0284c7]",
+  tint: "bg-[#f8fafc]",
+  tintStrong: "bg-[#f1f5f9]",
+  rowBase: "bg-[#ffffff]",
+  rowAlt: "bg-[#f8fafc]",
+  rule: "border-[#e2e8f0]",
+  ruleStrong: "border-[#cbd5e1]",
+  frame: "border-[#334155]",
+  head: "bg-[#334155] text-[#ffffff]",
+  shadow: "shadow-[0_12px_40px_rgba(0,0,0,0.12)]",
+} as const;
+
+/** "Rp" on the left, amount on the right; wraps onto two lines instead of overflowing in narrow columns. */
+function Money({ value }: { value: string }) {
+  return (
+    <span className="flex flex-wrap items-baseline justify-between gap-x-1.5">
+      <span className={cn("font-normal", PAPER.subtle)}>Rp</span>
+      <span className="ml-auto whitespace-nowrap">{value}</span>
+    </span>
+  );
 }
 
 export function InvoiceSheet({
@@ -34,8 +74,8 @@ export function InvoiceSheet({
   client,
   items,
   notes,
-  subtotal,
   totalAmount,
+  compact = false,
 }: InvoiceSheetProps) {
   function formatCurrency(num?: number) {
     if (num === undefined || num === null) return "0";
@@ -61,87 +101,59 @@ export function InvoiceSheet({
   );
   const finalTotal = totalAmount ?? calculatedSubtotal;
 
+  // `compact` always uses the narrow layout; otherwise the sheet grows with the viewport.
+  const cell = compact ? "px-2 py-2" : "px-2 py-2.5 sm:px-4 sm:py-3";
+
   return (
     <div
-      className="printable-invoice"
-      style={{
-        background: "#ffffff",
-        color: "#0f172a",
-        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif",
-        borderRadius: 16,
-        padding: "48px 54px",
-        boxShadow: "0 12px 40px rgba(0, 0, 0, 0.12)",
-        width: "100%",
-        maxWidth: "794px", // Standard A4 width pixel equivalent (210mm @ 96DPI)
-        minHeight: "1050px", // A4 height proportion ratio
-        margin: "0 auto",
-        lineHeight: 1.5,
-        border: "1px solid #cbd5e1",
-        boxSizing: "border-box",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
-      }}
+      className={cn(
+        "printable-invoice mx-auto box-border flex w-full max-w-[794px] flex-col justify-between rounded-2xl border font-sans leading-normal",
+        PAPER.sheet,
+        PAPER.shadow,
+        compact ? "gap-6 p-5" : "gap-8 p-5 sm:min-h-[1050px] sm:p-10 md:px-[54px] md:py-12"
+      )}
     >
       <div>
-        {/* 1. HEADER: BRAND LOGO & INVOICE META */}
+        {/* 1. HEADER: LOGO & INVOICE META */}
         <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-start",
-            marginBottom: 32,
-            paddingBottom: 20,
-            borderBottom: "2px solid #e2e8f0",
-          }}
+          className={cn(
+            "flex flex-wrap items-start justify-between gap-x-6 gap-y-4 border-b-2 pb-5",
+            PAPER.rule,
+            compact ? "mb-5" : "mb-6 sm:mb-8"
+          )}
         >
-          {/* LOGO & BRANDING */}
-          <div>
-            <div>
-              <img
-                src="/logo.png"
-                alt="Media Creative Logo"
-                style={{
-                  width: "135px",
-                  height: "auto",
-                  display: "block",
-                  objectFit: "contain",
-                }}
-              />
-            </div>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element -- plain <img> so html2canvas captures it */}
+          <img
+            src="/logo.png"
+            alt="Media Creative Logo"
+            className={cn("block h-auto object-contain", compact ? "w-[110px]" : "w-[110px] sm:w-[135px]")}
+          />
 
-          {/* INVOICE META TABLE */}
-          <div style={{ textAlign: "right" }}>
+          <div className="ml-auto text-right">
             <h1
-              style={{
-                fontSize: "2.6rem",
-                fontWeight: 900,
-                color: "#334155",
-                margin: "0 0 16px",
-                letterSpacing: "0.04em",
-                lineHeight: 1,
-              }}
+              className={cn(
+                "m-0 mb-3 font-black leading-none tracking-[0.04em]",
+                PAPER.inkSoft,
+                compact ? "text-3xl" : "text-3xl sm:mb-4 sm:text-[2.6rem]"
+              )}
             >
               INVOICE
             </h1>
 
-            <table style={{ marginLeft: "auto", fontSize: "0.83rem", borderCollapse: "collapse" }}>
+            <table className={cn("ml-auto border-collapse", compact ? "text-xs" : "text-xs sm:text-[0.83rem]")}>
               <tbody>
                 <tr>
-                  <td style={{ fontWeight: 700, color: "#64748b", paddingRight: 14, paddingBottom: 4, textAlign: "right" }}>DATE:</td>
-                  <td style={{ fontWeight: 600, color: "#0f172a", paddingBottom: 4, textAlign: "right" }}>{formatDate(invoiceDate)}</td>
+                  <td className={cn("pb-1 pr-3 text-right font-bold", PAPER.subtle)}>DATE:</td>
+                  <td className={cn("pb-1 text-right font-semibold", PAPER.ink)}>{formatDate(invoiceDate)}</td>
                 </tr>
                 <tr>
-                  <td style={{ fontWeight: 700, color: "#64748b", paddingRight: 14, paddingBottom: 4, textAlign: "right" }}>INVOICE #:</td>
-                  <td style={{ fontWeight: 800, color: "#0f172a", fontFamily: "monospace", fontSize: "0.92rem", paddingBottom: 4, textAlign: "right" }}>
-                    {invoiceNumber}
-                  </td>
+                  <td className={cn("pb-1 pr-3 text-right font-bold", PAPER.subtle)}>INVOICE #:</td>
+                  <td className={cn("pb-1 text-right font-mono font-extrabold", PAPER.ink)}>{invoiceNumber}</td>
                 </tr>
                 {dueDate && (
                   <tr>
-                    <td style={{ fontWeight: 700, color: "#64748b", paddingRight: 14, textAlign: "right" }}>DUE DATE:</td>
-                    <td style={{ fontWeight: 700, color: "#0284c7", textAlign: "right" }}>{formatDate(dueDate)}</td>
+                    <td className={cn("pr-3 text-right font-bold", PAPER.subtle)}>DUE DATE:</td>
+                    <td className={cn("text-right font-bold", PAPER.brand)}>{formatDate(dueDate)}</td>
                   </tr>
                 )}
               </tbody>
@@ -149,117 +161,57 @@ export function InvoiceSheet({
           </div>
         </div>
 
-        {/* 2. BILL TO SECTION */}
-        <div
-          style={{
-            marginBottom: 20,
-            padding: "12px 16px",
-            background: "#f8fafc",
-            borderRadius: 8,
-            border: "1px solid #cbd5e1",
-            maxWidth: "380px",
-          }}
-        >
-          <div
-            style={{
-              fontSize: "0.68rem",
-              fontWeight: 800,
-              color: "#475569",
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              marginBottom: 4,
-            }}
-          >
-            BILL TO:
-          </div>
+        {/* 2. BILL TO */}
+        <div className={cn("mb-5 max-w-[380px] rounded-lg border px-4 py-3", PAPER.tint, PAPER.ruleStrong)}>
+          <div className={cn("mb-1 text-xs font-extrabold uppercase tracking-[0.06em]", PAPER.muted)}>BILL TO:</div>
 
           {client ? (
-            <div style={{ fontSize: "0.85rem", lineHeight: 1.4 }}>
-              <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
-                <span style={{ fontWeight: 800, color: "#0f172a" }}>
-                  {client.full_name || "—"}
-                </span>
-                {client.company && (
-                  <span style={{ fontWeight: 600, color: "#0284c7" }}>
-                    - {client.company}
-                  </span>
-                )}
+            <div className={cn("leading-snug", compact ? "text-xs" : "text-sm")}>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className={cn("font-extrabold", PAPER.ink)}>{client.full_name || "—"}</span>
+                {client.company && <span className={cn("font-semibold", PAPER.brand)}>- {client.company}</span>}
               </div>
-              {client.address && (
-                <div style={{ color: "#475569", marginTop: 3, whiteSpace: "pre-line" }}>
-                  {client.address}
-                </div>
-              )}
-              {client.phone && (
-                <div style={{ color: "#475569", marginTop: 2 }}>
-                  {client.phone}
-                </div>
-              )}
+              {client.address && <div className={cn("mt-1 whitespace-pre-line", PAPER.muted)}>{client.address}</div>}
+              {client.phone && <div className={cn("mt-0.5", PAPER.muted)}>{client.phone}</div>}
             </div>
           ) : (
-            <div style={{ fontSize: "0.8rem", color: "#94a3b8", fontStyle: "italic" }}>
-              No client details provided.
-            </div>
+            <div className={cn("text-xs italic", PAPER.subtle)}>No client details provided.</div>
           )}
         </div>
 
-        {/* 3. ITEMIZATION TABLE */}
-        <div style={{ marginBottom: 28, border: "1.5px solid #334155", borderRadius: 10, overflow: "hidden" }}>
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              fontSize: "0.85rem",
-            }}
-          >
+        {/* 3. LINE ITEMS — auto layout (no fixed column widths) so the amount column is never clipped */}
+        <div className={cn("overflow-hidden rounded-[10px] border-[1.5px]", PAPER.frame, compact ? "mb-5" : "mb-6 sm:mb-7")}>
+          <table className={cn("w-full border-collapse", compact ? "text-xs" : "text-xs sm:text-sm")}>
             <thead>
-              <tr
-                style={{
-                  background: "#334155",
-                  color: "#ffffff",
-                  textAlign: "left",
-                  fontWeight: 700,
-                  letterSpacing: "0.05em",
-                }}
-              >
-                <th style={{ padding: "12px 16px", textTransform: "uppercase" }}>DESCRIPTION</th>
-                <th style={{ padding: "12px 16px", textAlign: "center", width: 60, textTransform: "uppercase" }}>QTY</th>
-                <th style={{ padding: "12px 16px", textAlign: "right", width: 130, textTransform: "uppercase" }}>RATE</th>
-                <th style={{ padding: "12px 16px", textAlign: "right", width: 150, textTransform: "uppercase" }}>AMOUNT</th>
+              <tr className={cn("text-left font-bold uppercase tracking-[0.05em]", PAPER.head)}>
+                <th className={cell}>Description</th>
+                <th className={cn(cell, "text-center")}>Qty</th>
+                <th className={cn(cell, "text-right")}>Rate</th>
+                <th className={cn(cell, "text-right")}>Amount</th>
               </tr>
             </thead>
             <tbody>
               {items.length === 0 ? (
                 <tr>
-                  <td colSpan={4} style={{ padding: "24px", textAlign: "center", color: "#94a3b8" }}>
+                  <td colSpan={4} className={cn("p-6 text-center", PAPER.subtle)}>
                     No line items listed.
                   </td>
                 </tr>
               ) : (
                 items.map((item, idx) => {
                   const itemTotal = item.total ?? (item.quantity * item.unit_price);
-                  const isEven = idx % 2 === 0;
                   return (
                     <tr
                       key={item.id || idx}
-                      style={{
-                        background: isEven ? "#ffffff" : "#f8fafc",
-                        borderBottom: "1px solid #e2e8f0",
-                      }}
+                      className={cn("border-b", PAPER.rule, idx % 2 === 0 ? PAPER.rowBase : PAPER.rowAlt)}
                     >
-                      <td style={{ padding: "12px 16px", color: "#0f172a", fontWeight: 500 }}>
-                        {item.description || "—"}
+                      <td className={cn(cell, "break-words font-medium", PAPER.ink)}>{item.description || "—"}</td>
+                      <td className={cn(cell, "text-center font-semibold", PAPER.inkSoft)}>{item.quantity}</td>
+                      <td className={cn(cell, "text-right", PAPER.inkSoft)}>
+                        <Money value={formatCurrency(item.unit_price)} />
                       </td>
-                      <td style={{ padding: "12px 16px", textAlign: "center", color: "#334155", fontWeight: 600 }}>
-                        {item.quantity}
-                      </td>
-                      <td style={{ padding: "12px 16px", textAlign: "right", color: "#334155" }}>
-                        <span style={{ float: "left", color: "#64748b" }}>Rp</span>
-                        {formatCurrency(item.unit_price)}
-                      </td>
-                      <td style={{ padding: "12px 16px", textAlign: "right", fontWeight: 700, color: "#0f172a" }}>
-                        <span style={{ float: "left", color: "#64748b" }}>Rp</span>
-                        {formatCurrency(itemTotal)}
+                      <td className={cn(cell, "text-right font-bold", PAPER.ink)}>
+                        <Money value={formatCurrency(itemTotal)} />
                       </td>
                     </tr>
                   );
@@ -269,114 +221,69 @@ export function InvoiceSheet({
           </table>
         </div>
 
-        {/* 4. PAYMENT DETAILS & TOTALS ROW */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1.2fr 0.8fr",
-            gap: 24,
-            alignItems: "flex-start",
-            marginBottom: 24,
-          }}
-        >
-          {/* LEFT: BANK DETAILS & SIGNATURE */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {/* Payment Transfer Details Box */}
-            <div
-              style={{
-                background: "#f8fafc",
-                border: "1px solid #cbd5e1",
-                borderRadius: 8,
-                padding: "10px 14px",
-                maxWidth: "300px",
-              }}
-            >
-              <div style={{ fontWeight: 800, color: "#0f172a", fontStyle: "italic", fontSize: "0.74rem", marginBottom: 3 }}>
-                Payment Transfer
-              </div>
+        {/* 4. PAYMENT DETAILS & TOTALS (totals sit right on wide paper, first when stacked) */}
+        <div className={cn("mb-6 grid items-start gap-6", compact ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-[1.2fr_0.8fr]")}>
+          <div
+            className={cn(
+              "overflow-hidden rounded-lg border-[1.5px]",
+              PAPER.frame,
+              compact ? "order-first" : "order-first sm:order-last"
+            )}
+          >
+            <table className="w-full border-collapse text-xs sm:text-[0.8rem]">
+              <tbody>
+                <tr className={cn("border-b", PAPER.rule)}>
+                  <td className={cn("px-3 py-2 font-bold uppercase", PAPER.muted)}>SUBTOTAL</td>
+                  <td className={cn("px-3 py-2 text-right font-bold", PAPER.ink)}>
+                    <Money value={formatCurrency(calculatedSubtotal)} />
+                  </td>
+                </tr>
+                <tr className={cn("border-b-[1.5px]", PAPER.frame)}>
+                  <td className={cn("px-3 py-2 font-bold uppercase", PAPER.muted)}>OTHERS</td>
+                  <td className={cn("px-3 py-2 text-right", PAPER.subtle)}>—</td>
+                </tr>
+                <tr className={PAPER.tint}>
+                  <td className={cn("px-3 py-2.5 text-sm font-black uppercase", PAPER.ink)}>TOTAL</td>
+                  <td className={cn("px-3 py-2.5 text-right text-base font-black", PAPER.brand)}>
+                    <Money value={formatCurrency(finalTotal)} />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          {/* BANK DETAILS & SIGNATURE */}
+          <div className="flex flex-col gap-3.5">
+            <div className={cn("max-w-[300px] rounded-lg border px-3.5 py-2.5", PAPER.tint, PAPER.ruleStrong)}>
+              <div className={cn("mb-1 text-xs font-extrabold italic", PAPER.ink)}>Payment Transfer</div>
               {notes ? (
-                <div style={{ whiteSpace: "pre-line", color: "#334155", fontWeight: 600, fontSize: "0.72rem", lineHeight: 1.4 }}>
-                  {notes}
-                </div>
+                <div className={cn("whitespace-pre-line text-xs font-semibold leading-snug", PAPER.inkSoft)}>{notes}</div>
               ) : (
-                <div style={{ color: "#334155", fontWeight: 600, fontSize: "0.72rem", lineHeight: 1.4 }}>
-                  BCA Acc No. 0402434901<br />
+                <div className={cn("text-xs font-semibold leading-snug", PAPER.inkSoft)}>
+                  BCA Acc No. 0402434901
+                  <br />
                   A/n : Mulyadi
                 </div>
               )}
             </div>
 
-            {/* REAL USER SIGNATURE */}
-            <div style={{ marginTop: 4, display: "flex", flexDirection: "column", alignItems: "center", width: "120px" }}>
-              <div style={{ marginBottom: 4, display: "flex", justifyContent: "center", width: "100%" }}>
-                <img
-                  src="/signature.png"
-                  alt="Authorized Signature"
-                  style={{
-                    width: "100px",
-                    height: "auto",
-                    maxHeight: "55px",
-                    display: "block",
-                  }}
-                />
-              </div>
-              <div style={{ fontSize: "0.82rem", fontWeight: 800, color: "#0f172a", lineHeight: 1.2, textAlign: "center", width: "100%" }}>
-                Mulyadi
-              </div>
+            <div className="mt-1 flex w-[120px] flex-col items-center">
+              {/* eslint-disable-next-line @next/next/no-img-element -- plain <img> so html2canvas captures it */}
+              <img src="/signature.png" alt="Authorized Signature" className="mb-1 block h-auto max-h-[55px] w-[100px]" />
+              <div className={cn("w-full text-center text-[0.82rem] font-extrabold leading-tight", PAPER.ink)}>Mulyadi</div>
             </div>
-          </div>
-
-          {/* RIGHT: TOTALS TABLE */}
-          <div style={{ border: "1.5px solid #334155", borderRadius: 8, overflow: "hidden" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
-              <tbody>
-                <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
-                  <td style={{ padding: "8px 12px", fontWeight: 700, color: "#475569", textTransform: "uppercase" }}>
-                    SUBTOTAL
-                  </td>
-                  <td style={{ padding: "8px 12px", textAlign: "right", fontWeight: 700, color: "#0f172a" }}>
-                    <span style={{ float: "left", color: "#64748b" }}>Rp</span>
-                    {formatCurrency(calculatedSubtotal)}
-                  </td>
-                </tr>
-                <tr style={{ borderBottom: "1.5px solid #334155" }}>
-                  <td style={{ padding: "8px 12px", fontWeight: 700, color: "#475569", textTransform: "uppercase" }}>
-                    OTHERS
-                  </td>
-                  <td style={{ padding: "8px 12px", textAlign: "right", color: "#64748b" }}>
-                    —
-                  </td>
-                </tr>
-                <tr style={{ background: "#f8fafc" }}>
-                  <td style={{ padding: "10px 12px", fontWeight: 900, color: "#0f172a", fontSize: "0.88rem", textTransform: "uppercase" }}>
-                    TOTAL
-                  </td>
-                  <td style={{ padding: "10px 12px", textAlign: "right", fontWeight: 900, color: "#0284c7", fontSize: "1rem" }}>
-                    <span style={{ float: "left", color: "#64748b" }}>Rp</span>
-                    {formatCurrency(finalTotal)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
           </div>
         </div>
       </div>
 
       {/* 5. FOOTER BANNER */}
       <div
-        style={{
-          background: "#f1f5f9",
-          border: "1px solid #cbd5e1",
-          borderRadius: 8,
-          padding: "10px",
-          textAlign: "center",
-          fontSize: "0.74rem",
-          fontWeight: 800,
-          color: "#334155",
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          marginTop: "auto",
-        }}
+        className={cn(
+          "mt-auto rounded-lg border p-2.5 text-center text-xs font-extrabold uppercase tracking-[0.08em]",
+          PAPER.tintStrong,
+          PAPER.ruleStrong,
+          PAPER.inkSoft
+        )}
       >
         THANK YOU FOR YOUR COOPERATION
       </div>

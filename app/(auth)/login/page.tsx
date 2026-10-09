@@ -1,7 +1,7 @@
 import Image from "next/image";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+import { AlertTriangle, LogIn } from "lucide-react";
+import { Panel } from "@/components/ui/panel";
+import { Field, TextInput } from "@/components/ui/field";
 import { signIn } from "./actions";
 
 export default async function LoginPage({
@@ -13,63 +13,60 @@ export default async function LoginPage({
   const error = params.error;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950 p-6">
-      <Card className="w-full max-w-md border-white/10 bg-slate-900/80 text-white backdrop-blur-2xl shadow-2xl">
-        <CardHeader className="text-center flex flex-col items-center">
-          <div className="mb-3 flex justify-center">
-            <Image
-              src="/logo.png"
-              alt="Media Creative Logo"
-              width={180}
-              height={60}
-              style={{ objectFit: "contain", height: "auto" }}
-              priority
-            />
+    <main className="flex min-h-screen items-center justify-center bg-page px-4 py-10 sm:px-6">
+      <Panel className="w-full max-w-md backdrop-blur-2xl" bodyClassName="p-6 sm:p-8">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <Image
+            src="/logo.png"
+            alt="Media Creative Logo"
+            width={180}
+            height={60}
+            className="mb-4 h-auto w-[160px] object-contain sm:w-[180px]"
+            priority
+          />
+          <h1 className="gradient-text text-2xl font-bold">Control Center Login</h1>
+          <p className="mt-1.5 text-sm text-fg-muted">Enter your admin credentials to access the workspace</p>
+        </div>
+
+        {error && (
+          <div
+            role="alert"
+            className="mb-5 flex items-start gap-2.5 rounded-control border border-danger-border bg-danger-bg p-3 text-sm text-danger"
+          >
+            <AlertTriangle size={16} className="mt-0.5 shrink-0" aria-hidden />
+            <span>{error}</span>
           </div>
-          <CardTitle className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
-            Control Center Login
-          </CardTitle>
-          <p className="text-xs text-slate-400 mt-1">
-            Enter your admin credentials to access the workspace
-          </p>
-        </CardHeader>
+        )}
 
-        <CardContent>
-          {error && (
-            <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400 text-center">
-              ⚠️ {error}
-            </div>
-          )}
+        <form action={signIn} className="flex flex-col gap-4">
+          <Field label="Email" htmlFor="login-email">
+            <TextInput
+              id="login-email"
+              name="email"
+              type="email"
+              placeholder="name@example.com"
+              autoComplete="email"
+              required
+            />
+          </Field>
 
-          <form action={signIn} className="space-y-4">
-            <div>
-              <label className="text-xs text-slate-300 font-medium mb-1 block">Email</label>
-              <Input
-                name="email"
-                type="email"
-                placeholder="nama@email.com"
-                required
-                className="bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus:border-cyan-500"
-              />
-            </div>
+          <Field label="Password" htmlFor="login-password">
+            <TextInput
+              id="login-password"
+              name="password"
+              type="password"
+              placeholder="••••••••"
+              autoComplete="current-password"
+              required
+            />
+          </Field>
 
-            <div>
-              <label className="text-xs text-slate-300 font-medium mb-1 block">Password</label>
-              <Input
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                required
-                className="bg-white/5 border-white/10 text-white placeholder:text-slate-500 focus:border-cyan-500"
-              />
-            </div>
-
-            <Button type="submit" className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 font-semibold text-white transition-all shadow-lg py-2">
-              Sign In
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+          <button type="submit" className="btn btn-primary mt-2 w-full justify-center">
+            <LogIn size={16} aria-hidden />
+            Sign In
+          </button>
+        </form>
+      </Panel>
+    </main>
   );
 }

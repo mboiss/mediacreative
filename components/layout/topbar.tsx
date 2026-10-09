@@ -27,6 +27,9 @@ function getRouteLabel(pathname: string): string {
   return "Dashboard";
 }
 
+const iconButtonClass =
+  "flex size-9 shrink-0 items-center justify-center rounded-control border border-line bg-surface text-fg-muted transition hover:border-line-accent hover:bg-surface-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-accent";
+
 export default function Topbar() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -39,8 +42,8 @@ export default function Topbar() {
     setMounted(true);
     const updateTime = () => {
       const now = new Date();
-      
-      // English Date: Mon, Jul 27, 2026
+
+      // English Date: Mon, 27 Jul 2026
       const weekday = now.toLocaleDateString("en-US", { weekday: "short" });
       const month = now.toLocaleDateString("en-US", { month: "short" });
       const day = now.getDate();
@@ -59,7 +62,7 @@ export default function Topbar() {
       setDigitalTime(`${formattedHours}:${minutes}:${seconds}`);
       setAmpm(period);
     };
-    
+
     updateTime();
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
@@ -70,135 +73,51 @@ export default function Topbar() {
   }
 
   const pageLabel = getRouteLabel(pathname || "");
+  const nextTheme = theme === "dark" ? "light" : "dark";
 
   return (
-    <header
-      className="topbar-header"
-      style={{
-        display: "flex",
-        height: 60,
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "0 20px",
-        background: "var(--topbar-bg)",
-        backdropFilter: "blur(20px)",
-        borderBottom: "1px solid var(--border)",
-        position: "sticky",
-        top: 0,
-        zIndex: 50,
-        transition: "background 200ms ease, border-color 200ms ease",
-      }}
-    >
+    <header className="sticky top-0 z-50 flex h-14 min-w-0 items-center justify-between gap-3 border-b border-line bg-[var(--topbar-bg)] px-4 backdrop-blur-xl sm:h-[60px] sm:px-5">
       {/* Left: Hamburger (mobile) + Breadcrumb */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
+        {/* Sidebar becomes a drawer below 768px (see sidebar.tsx), so the hamburger shows below md. */}
         <button
+          type="button"
           onClick={handleOpenMobileSidebar}
-          className="mobile-menu-btn"
-          title="Open Mobile Navigation Menu"
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            border: "1px solid var(--border)",
-            background: "var(--bg-glass)",
-            color: "var(--text-primary)",
-            cursor: "pointer",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
+          aria-label="Open navigation menu"
+          title="Open menu"
+          className={`${iconButtonClass} text-fg md:hidden`}
         >
           <Menu size={18} />
         </button>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 500 }}>
-            Media Creative
+        <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5">
+          <span className="hidden shrink-0 text-xs font-medium text-fg-subtle sm:inline">Media Creative</span>
+          <span aria-hidden className="hidden shrink-0 text-xs text-fg-subtle sm:inline">
+            /
           </span>
-          <span style={{ color: "var(--text-muted)", fontSize: "0.75rem" }}>/</span>
-          <span
-            style={{
-              fontSize: "0.875rem",
-              fontWeight: 700,
-              color: "var(--text-primary)",
-            }}
-          >
+          <span aria-current="page" className="truncate text-sm font-bold text-fg">
             {pageLabel}
           </span>
-        </div>
+        </nav>
       </div>
 
       {/* Right: controls */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        {/* Cool Futuristic Clock */}
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        {/* Clock — hidden on small screens to keep the bar from overflowing */}
         {mounted && (
-          <div
-            className="topbar-clock-container"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "4px 12px",
-              background: "var(--bg-glass)",
-              borderRadius: 10,
-              border: "1px solid var(--border)",
-              backdropFilter: "blur(12px)",
-              boxShadow: "0 2px 10px rgba(0, 0, 0, 0.05)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span
-                style={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: "50%",
-                  backgroundColor: "#10b981",
-                  boxShadow: "0 0 8px #10b981",
-                  display: "inline-block",
-                }}
-              />
-              <Clock size={14} style={{ color: "#00d4ff" }} />
+          <div className="hidden items-center gap-2 rounded-control border border-line bg-surface px-3 py-1 lg:flex">
+            <div className="flex items-center gap-1.5">
+              <span aria-hidden className="inline-block size-[7px] rounded-full bg-success shadow-[0_0_8px_var(--success)]" />
+              <Clock size={14} className="text-accent" aria-hidden />
             </div>
 
-            <span
-              style={{
-                fontSize: "0.78rem",
-                fontWeight: 600,
-                color: "var(--text-secondary)",
-                letterSpacing: "0.02em",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {dateStr}
-            </span>
+            <span className="whitespace-nowrap text-xs font-semibold tracking-wide text-fg-muted">{dateStr}</span>
 
-            <span style={{ width: 1, height: 14, background: "var(--border)", opacity: 0.6 }} />
+            <span aria-hidden className="h-3.5 w-px bg-line-strong" />
 
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span
-                style={{
-                  fontSize: "0.82rem",
-                  fontWeight: 700,
-                  color: "var(--text-primary)",
-                  letterSpacing: "0.06em",
-                  fontVariantNumeric: "tabular-nums",
-                  fontFamily: "monospace",
-                }}
-              >
-                {digitalTime}
-              </span>
-              <span
-                style={{
-                  fontSize: "0.62rem",
-                  fontWeight: 800,
-                  padding: "1px 5px",
-                  borderRadius: 4,
-                  background: "rgba(0, 212, 255, 0.12)",
-                  color: "#00d4ff",
-                  border: "1px solid rgba(0, 212, 255, 0.25)",
-                  letterSpacing: "0.05em",
-                  textTransform: "uppercase",
-                }}
-              >
+            <div className="flex items-center gap-1">
+              <span className="font-mono text-[0.8125rem] font-bold tabular-nums tracking-wider text-fg">{digitalTime}</span>
+              <span className="rounded border border-accent-border bg-accent-bg px-1 text-xs font-extrabold uppercase leading-tight text-accent">
                 {ampm}
               </span>
             </div>
@@ -208,23 +127,13 @@ export default function Topbar() {
         {/* Theme toggle */}
         {mounted && (
           <button
+            type="button"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-            style={{
-              width: 34,
-              height: 34,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              borderRadius: 8,
-              border: "1px solid var(--border)",
-              background: "var(--bg-glass)",
-              color: "var(--text-secondary)",
-              cursor: "pointer",
-              transition: "all 150ms ease",
-            }}
+            aria-label={`Switch to ${nextTheme} mode`}
+            title={`Switch to ${nextTheme} mode`}
+            className={iconButtonClass}
           >
-            {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
           </button>
         )}
 

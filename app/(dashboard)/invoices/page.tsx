@@ -2,18 +2,19 @@
 
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
-import {
-  Plus,
-  Search,
-  FileText,
-  ArrowRight,
-  RefreshCw,
-} from "lucide-react";
+import { Plus, Search, FileText, ArrowRight, RefreshCw, CheckCircle2, Send, Wallet } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
 import { LoadingState } from "@/components/ui/loading-state";
 import { Pagination, usePagination } from "@/components/ui/pagination";
+import { PageHeader } from "@/components/ui/page-header";
+import { Panel } from "@/components/ui/panel";
+import { StatCard, StatGrid } from "@/components/ui/stat-card";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { SearchInput } from "@/components/ui/field";
+import { FilterBar, TableWrap } from "@/components/ui/data-table";
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
+import { cn } from "@/lib/utils";
 
 type Invoice = {
   id: string;
@@ -29,17 +30,6 @@ type Invoice = {
 };
 
 const STATUS_OPTIONS = ["All", "Draft", "Sent", "Paid", "Overdue", "Cancelled"];
-
-function getStatusClass(status: string) {
-  switch (status?.toLowerCase()) {
-    case "paid":      return "badge badge-paid";
-    case "sent":      return "badge badge-sent";
-    case "draft":     return "badge badge-draft";
-    case "overdue":   return "badge badge-overdue";
-    case "cancelled": return "badge badge-cancelled";
-    default:          return "badge badge-draft";
-  }
-}
 
 function formatCurrency(amount?: number) {
   if (!amount && amount !== 0) return "—";
@@ -106,8 +96,7 @@ export default function InvoicesPage() {
       inv.invoice_number?.toLowerCase().includes(search.toLowerCase()) ||
       inv.clients?.full_name?.toLowerCase().includes(search.toLowerCase()) ||
       inv.clients?.company?.toLowerCase().includes(search.toLowerCase());
-    const matchStatus =
-      statusFilter === "All" || inv.status === statusFilter;
+    const matchStatus = statusFilter === "All" || inv.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
@@ -122,249 +111,162 @@ export default function InvoicesPage() {
     paid: invoices.filter((i) => i.status === "Paid").length,
     sent: invoices.filter((i) => i.status === "Sent").length,
     draft: invoices.filter((i) => i.status === "Draft").length,
-    revenue: invoices
-      .filter((i) => i.status === "Paid")
-      .reduce((s, i) => s + (i.total_amount ?? 0), 0),
+    revenue: invoices.filter((i) => i.status === "Paid").reduce((s, i) => s + (i.total_amount ?? 0), 0),
   };
 
+  const isFiltered = search !== "" || statusFilter !== "All";
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-
-      {/* PAGE HEADER */}
-      <div className="animate-fade-in-up" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        <div>
-          <h1
-            style={{
-              fontSize: "1.75rem",
-              fontWeight: 800,
-              color: "var(--text-primary)",
-              margin: 0,
-              letterSpacing: "-0.02em",
-            }}
-          >
-            Invoice Engine
-          </h1>
-          <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", margin: "4px 0 0" }}>
-            Manage invoices, track payments, and control billing.
-          </p>
-        </div>
-
-        <div style={{ display: "flex", gap: 10 }}>
-          <button
-            onClick={loadData}
-            className="btn btn-ghost"
-            style={{ padding: "9px 14px" }}
-          >
-            <RefreshCw size={14} />
-          </button>
-          <Link href="/invoices/new">
-            <button className="btn btn-primary">
-              <Plus size={16} />
-              New Invoice Studio
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="Invoices"
+        description="Manage invoices, track payments, and control billing."
+        actions={
+          <>
+            <button
+              type="button"
+              onClick={loadData}
+              className="btn btn-ghost btn-icon"
+              aria-label="Refresh invoices"
+              title="Refresh"
+            >
+              <RefreshCw size={15} />
             </button>
-          </Link>
-        </div>
-      </div>
+            <Link href="/invoices/new" className="btn btn-primary">
+              <Plus size={16} />
+              New Invoice
+            </Link>
+          </>
+        }
+      />
 
       {/* KPI STRIP */}
-      <div
-        className="stagger-children"
-        style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}
-      >
-        {[
-          { label: "Total Invoices", value: stats.total, color: "var(--accent-cyan)" },
-          { label: "Paid", value: stats.paid, color: "var(--accent-emerald)" },
-          { label: "Sent / Pending", value: stats.sent, color: "#3b82f6" },
-          {
-            label: "Revenue (Paid)",
-            value: formatCurrency(stats.revenue),
-            color: "var(--accent-amber)",
-          },
-        ].map((kpi) => (
-          <div
-            key={kpi.label}
-            style={{
-              background: "var(--bg-glass)",
-              border: "1px solid var(--border)",
-              borderRadius: 16,
-              padding: "16px 18px",
-              borderLeft: `3px solid ${kpi.color}`,
-            }}
-          >
-            <div style={{ fontSize: "0.7rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
-              {kpi.label}
-            </div>
-            <div style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--text-primary)" }}>
-              {kpi.value}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* FILTER BAR */}
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          alignItems: "center",
-          flexWrap: "wrap",
-        }}
-      >
-        {/* Search */}
-        <div style={{ position: "relative", flex: "1", minWidth: 200 }}>
-          <Search
-            size={14}
-            style={{
-              position: "absolute",
-              left: 12,
-              top: "50%",
-              transform: "translateY(-50%)",
-              color: "var(--text-muted)",
-            }}
-          />
-          <input
-            className="form-input"
-            style={{ paddingLeft: 36 }}
-            placeholder="Search invoice number or client..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-
-        {/* Status filter chips */}
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {STATUS_OPTIONS.map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              style={{
-                padding: "6px 14px",
-                borderRadius: 20,
-                border: "1px solid",
-                fontSize: "0.78rem",
-                fontWeight: 600,
-                cursor: "pointer",
-                transition: "all 150ms ease",
-                borderColor:
-                  statusFilter === s
-                    ? "var(--border-accent)"
-                    : "var(--border)",
-                background:
-                  statusFilter === s
-                    ? "var(--accent-cyan-dim)"
-                    : "transparent",
-                color: statusFilter === s ? "var(--accent-cyan)" : "var(--text-secondary)",
-              }}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      </div>
+      <StatGrid>
+        <StatCard
+          label="Total Invoices"
+          value={stats.total}
+          icon={<FileText size={18} />}
+          tone="accent"
+          hint={`${stats.draft} draft`}
+          loading={loading}
+        />
+        <StatCard label="Paid" value={stats.paid} icon={<CheckCircle2 size={18} />} tone="success" loading={loading} />
+        <StatCard label="Sent / Pending" value={stats.sent} icon={<Send size={18} />} tone="info" loading={loading} />
+        <StatCard
+          label="Revenue (Paid)"
+          value={<span className="block break-words text-lg sm:text-2xl">{formatCurrency(stats.revenue)}</span>}
+          icon={<Wallet size={18} />}
+          tone="warning"
+          loading={loading}
+        />
+      </StatGrid>
 
       {/* INVOICE TABLE */}
-      <div
-        style={{
-          background: "var(--bg-glass)",
-          border: "1px solid var(--border)",
-          borderRadius: 20,
-          overflow: "hidden",
-        }}
-      >
+      <Panel padded={false}>
+        <div className="border-b border-line p-4">
+          <FilterBar>
+            <SearchInput
+              icon={<Search size={14} />}
+              className="basis-60"
+              placeholder="Search invoice number or client..."
+              aria-label="Search invoices"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by status">
+              {STATUS_OPTIONS.map((s) => {
+                const active = statusFilter === s;
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setStatusFilter(s)}
+                    aria-pressed={active}
+                    className={cn(
+                      "rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors",
+                      active
+                        ? "border-accent-border bg-accent-bg text-accent"
+                        : "border-line bg-transparent text-fg-muted hover:border-line-strong hover:text-fg"
+                    )}
+                  >
+                    {s}
+                  </button>
+                );
+              })}
+            </div>
+          </FilterBar>
+        </div>
+
         {loading ? (
           <LoadingState label="Loading invoices..." />
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={<FileText size={28} />}
-            title={search || statusFilter !== "All" ? "No invoices found" : "No invoices yet"}
-            description={
-              search || statusFilter !== "All"
-                ? "Try adjusting your search or filter."
-                : "Create your first invoice to get started."
-            }
+            title={isFiltered ? "No invoices found" : "No invoices yet"}
+            description={isFiltered ? "Try adjusting your search or filter." : "Create your first invoice to get started."}
             action={
-              !search && statusFilter === "All" ? (
-                <Link href="/invoices/new">
-                  <button className="btn btn-primary">
-                    <Plus size={14} />
-                    Create Invoice Studio
-                  </button>
+              !isFiltered ? (
+                <Link href="/invoices/new" className="btn btn-primary">
+                  <Plus size={14} />
+                  New Invoice
                 </Link>
               ) : undefined
             }
           />
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Invoice #</th>
-                <th>Client</th>
-                <th>Date</th>
-                <th>Due Date</th>
-                <th>Total</th>
-                <th>Status</th>
-                <th style={{ textAlign: "right" }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageItems.map((invoice) => (
-                <tr key={invoice.id}>
-                  <td>
-                    <Link
-                      href={`/invoices/${invoice.id}`}
-                      style={{
-                        color: "var(--accent-cyan)",
-                        textDecoration: "none",
-                        fontWeight: 600,
-                        fontSize: "0.875rem",
-                        fontFamily: "monospace",
-                      }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.textDecoration = "underline")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.textDecoration = "none")
-                      }
-                    >
-                      {invoice.invoice_number}
-                    </Link>
-                  </td>
-                  <td>
-                    <div style={{ fontWeight: 500, color: "var(--text-primary)" }}>
-                      {invoice.clients?.full_name || "—"}
-                    </div>
-                    {invoice.clients?.company && (
-                      <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                        {invoice.clients.company}
-                      </div>
-                    )}
-                  </td>
-                  <td style={{ fontVariantNumeric: "tabular-nums" }}>
-                    {formatDate(invoice.invoice_date)}
-                  </td>
-                  <td style={{ fontVariantNumeric: "tabular-nums" }}>
-                    {formatDate(invoice.due_date)}
-                  </td>
-                  <td style={{ fontWeight: 600, color: "var(--text-primary)" }}>
-                    {formatCurrency(invoice.total_amount)}
-                  </td>
-                  <td>
-                    <span className={getStatusClass(invoice.status)}>
-                      {invoice.status}
-                    </span>
-                  </td>
-                  <td style={{ textAlign: "right" }}>
-                    <Link href={`/invoices/${invoice.id}`}>
-                      <button className="btn btn-ghost" style={{ padding: "6px 12px", fontSize: "0.8rem" }}>
+          <TableWrap>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Invoice #</th>
+                  <th>Client</th>
+                  <th>Date</th>
+                  <th>Due Date</th>
+                  <th className="text-right">Total</th>
+                  <th>Status</th>
+                  <th className="text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageItems.map((invoice) => (
+                  <tr key={invoice.id}>
+                    <td className="whitespace-nowrap">
+                      <Link
+                        href={`/invoices/${invoice.id}`}
+                        className="font-mono text-sm font-semibold text-accent hover:underline"
+                      >
+                        {invoice.invoice_number}
+                      </Link>
+                    </td>
+                    <td className="min-w-40">
+                      <div className="font-medium text-fg">{invoice.clients?.full_name || "—"}</div>
+                      {invoice.clients?.company && (
+                        <div className="text-xs text-fg-subtle">{invoice.clients.company}</div>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap tabular-nums">{formatDate(invoice.invoice_date)}</td>
+                    <td className="whitespace-nowrap tabular-nums">{formatDate(invoice.due_date)}</td>
+                    <td className="whitespace-nowrap text-right font-semibold tabular-nums text-fg">
+                      {formatCurrency(invoice.total_amount)}
+                    </td>
+                    <td>
+                      <StatusBadge status={invoice.status} />
+                    </td>
+                    <td className="text-right">
+                      <Link
+                        href={`/invoices/${invoice.id}`}
+                        className="btn btn-ghost btn-sm"
+                        aria-label={`View invoice ${invoice.invoice_number}`}
+                      >
                         View
                         <ArrowRight size={13} />
-                      </button>
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableWrap>
         )}
         {!loading && filtered.length > 0 && (
           <Pagination
@@ -376,8 +278,7 @@ export default function InvoicesPage() {
             onPageSizeChange={setPageSize}
           />
         )}
-      </div>
-
+      </Panel>
     </div>
   );
 }

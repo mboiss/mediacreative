@@ -16,7 +16,9 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  type LucideIcon,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const navItems = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -28,6 +30,53 @@ const navItems = [
   { name: "Reports", href: "/reports", icon: BarChart3 },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
+
+function isActivePath(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(href + "/");
+}
+
+const iconButtonClass =
+  "flex shrink-0 items-center justify-center rounded-control border border-line bg-surface text-fg-muted transition hover:border-line-accent hover:bg-accent-bg hover:text-accent focus-visible:outline-2 focus-visible:outline-accent";
+
+function NavLink({
+  name,
+  href,
+  icon: Icon,
+  active,
+  collapsed = false,
+  onNavigate,
+}: {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+  active: boolean;
+  collapsed?: boolean;
+  onNavigate?: () => void;
+}) {
+  return (
+    <Link
+      href={href}
+      onClick={onNavigate}
+      title={collapsed ? name : undefined}
+      aria-label={collapsed ? name : undefined}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "group relative flex items-center gap-3 rounded-xl text-sm transition focus-visible:outline-2 focus-visible:outline-accent",
+        collapsed ? "justify-center py-3" : "px-3 py-2.5",
+        active
+          ? "bg-accent-bg font-semibold text-accent"
+          : "font-medium text-fg-muted hover:bg-surface-hover hover:text-fg"
+      )}
+    >
+      {/* Active indicator bar */}
+      {active && (
+        <span aria-hidden className="absolute inset-y-2 left-0 w-[3px] rounded-full bg-accent" />
+      )}
+      <Icon size={18} className={cn("shrink-0", active ? "opacity-100" : "opacity-75 group-hover:opacity-100")} />
+      {!collapsed && <span className="truncate">{name}</span>}
+    </Link>
+  );
+}
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -69,8 +118,6 @@ export default function Sidebar() {
     });
   }
 
-  const sidebarWidth = isMobileScreen ? 280 : isCollapsed ? 72 : 256;
-
   // On Mobile, render slide-out drawer or overlay
   if (isMobileScreen) {
     return (
@@ -79,117 +126,61 @@ export default function Sidebar() {
         {isMobileOpen && (
           <div
             onClick={() => setIsMobileOpen(false)}
-            style={{
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0, 0, 0, 0.65)",
-              backdropFilter: "blur(4px)",
-              zIndex: 99,
-              animation: "fadeIn 0.2s ease",
-            }}
+            aria-hidden
+            className="fixed inset-0 z-[99] animate-fade-in bg-black/60 backdrop-blur-sm"
           />
         )}
 
         {/* Mobile Slide-Out Sidebar Drawer */}
         <aside
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            bottom: 0,
-            width: `${sidebarWidth}px`,
-            background: "#0a1628",
-            borderRight: "1px solid var(--border)",
-            display: "flex",
-            flexDirection: "column",
-            zIndex: 100,
-            transform: isMobileOpen ? "translateX(0)" : "translateX(-100%)",
-            transition: "transform 250ms cubic-bezier(0.4, 0, 0.2, 1)",
-            boxShadow: isMobileOpen ? "0 0 40px rgba(0, 0, 0, 0.6)" : "none",
-            overflowY: "auto",
-          }}
+          aria-label="Main navigation"
+          inert={!isMobileOpen}
+          className={cn(
+            "fixed inset-y-0 left-0 z-[100] flex w-[280px] max-w-[85vw] flex-col overflow-y-auto border-r border-line bg-panel transition-transform duration-250 ease-out",
+            isMobileOpen ? "translate-x-0 shadow-card" : "-translate-x-full"
+          )}
         >
           {/* Header & Close Button */}
-          <div
-            style={{
-              padding: "18px 20px",
-              borderBottom: "1px solid var(--border)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
+            <div className="flex min-w-0 flex-col gap-1">
               <Image
                 src="/logo.png"
                 alt="Media Creative Logo"
                 width={130}
                 height={40}
-                style={{ objectFit: "contain", width: "130px", height: "auto" }}
+                className="h-auto w-[130px] object-contain"
                 priority
               />
-              <div style={{ fontSize: "0.65rem", color: "var(--accent-cyan)", fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                Control Center Mobile
-              </div>
+              <div className="text-xs font-bold uppercase tracking-wide text-accent">Control Center</div>
             </div>
 
             <button
+              type="button"
               onClick={() => setIsMobileOpen(false)}
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                border: "1px solid var(--border)",
-                background: "var(--bg-glass)",
-                color: "var(--text-secondary)",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
+              aria-label="Close navigation menu"
+              title="Close menu"
+              className={cn(iconButtonClass, "size-9")}
             >
               <X size={18} />
             </button>
           </div>
 
           {/* Mobile Nav */}
-          <nav style={{ padding: "16px 12px", flex: 1 }}>
-            <div style={{ fontSize: "0.65rem", fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.08em", textTransform: "uppercase", padding: "4px 8px 10px" }}>
-              Navigation Menu
-            </div>
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  onClick={() => setIsMobileOpen(false)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "12px 14px",
-                    borderRadius: 12,
-                    marginBottom: 6,
-                    fontSize: "0.95rem",
-                    fontWeight: isActive ? 700 : 500,
-                    color: isActive ? "var(--accent-cyan)" : "var(--text-secondary)",
-                    background: isActive ? "var(--accent-cyan-dim)" : "transparent",
-                    textDecoration: "none",
-                  }}
-                >
-                  <Icon size={20} style={{ flexShrink: 0, opacity: isActive ? 1 : 0.8 }} />
-                  <span>{item.name}</span>
-                </Link>
-              );
-            })}
+          <nav className="flex flex-1 flex-col gap-1 px-3 py-4">
+            <div className="px-3 pb-2 text-xs font-bold uppercase tracking-wide text-fg-subtle">Menu</div>
+            {navItems.map((item) => (
+              <NavLink
+                key={item.name}
+                name={item.name}
+                href={item.href}
+                icon={item.icon}
+                active={isActivePath(pathname, item.href)}
+                onNavigate={() => setIsMobileOpen(false)}
+              />
+            ))}
           </nav>
 
-          <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border)", fontSize: "0.75rem", color: "var(--text-muted)" }}>
-            © 2026 Media Creative Mobile
-          </div>
+          <div className="border-t border-line px-5 py-4 text-xs text-fg-subtle">© 2026 Media Creative</div>
         </aside>
       </>
     );
@@ -198,103 +189,53 @@ export default function Sidebar() {
   // Desktop Responsive Sidebar
   return (
     <aside
-      style={{
-        width: `${sidebarWidth}px`,
-        minWidth: `${sidebarWidth}px`,
-        background: "var(--sidebar-bg)",
-        backdropFilter: "blur(24px)",
-        borderRight: "1px solid var(--border)",
-        display: "flex",
-        flexDirection: "column",
-        position: "sticky",
-        top: 0,
-        height: "100vh",
-        overflowY: "auto",
-        overflowX: "hidden",
-        transition: "width 250ms cubic-bezier(0.4, 0, 0.2, 1), min-width 250ms cubic-bezier(0.4, 0, 0.2, 1), background 200ms ease, border-color 200ms ease",
-      }}
+      aria-label="Main navigation"
+      className={cn(
+        "sticky top-0 flex h-screen shrink-0 flex-col overflow-y-auto overflow-x-hidden border-r border-line bg-[var(--sidebar-bg)] backdrop-blur-2xl transition-[width] duration-250 ease-out",
+        isCollapsed ? "w-[72px]" : "w-64"
+      )}
     >
       {/* Header & Logo */}
       <div
-        style={{
-          padding: isCollapsed ? "16px 10px" : "18px 18px",
-          borderBottom: "1px solid var(--border)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: isCollapsed ? "center" : "space-between",
-          gap: "8px",
-          flexDirection: isCollapsed ? "column" : "row",
-          transition: "padding 250ms ease",
-        }}
+        className={cn(
+          "flex items-center gap-2 border-b border-line",
+          isCollapsed ? "flex-col justify-center px-2.5 py-4" : "justify-between px-4 py-4"
+        )}
       >
         {!isCollapsed && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 4, overflow: "hidden" }}>
+          <div className="flex min-w-0 flex-col gap-1 overflow-hidden">
             <Image
               src="/logo.png"
               alt="Media Creative Logo"
               width={140}
               height={44}
-              style={{ objectFit: "contain", width: "135px", height: "auto" }}
+              className="h-auto w-[135px] object-contain"
               priority
             />
-            <div
-              style={{
-                fontSize: "0.65rem",
-                color: "var(--accent-cyan)",
-                fontWeight: 700,
-                letterSpacing: "0.06em",
-                textTransform: "uppercase",
-                whiteSpace: "nowrap",
-              }}
-            >
-              Control Center
-            </div>
+            <div className="whitespace-nowrap text-xs font-bold uppercase tracking-wide text-accent">Control Center</div>
           </div>
         )}
 
         {isCollapsed && (
-          <div style={{ display: "flex", justifyContent: "center" }}>
-            <Image
-              src="/icon.png"
-              alt="Media Creative"
-              width={34}
-              height={34}
-              style={{ objectFit: "contain", borderRadius: 8 }}
-              priority
-            />
-          </div>
+          <Image
+            src="/icon.png"
+            alt="Media Creative"
+            width={34}
+            height={34}
+            className="rounded-lg object-contain"
+            priority
+          />
         )}
 
         {/* Toggle Button */}
         {mounted && (
           <button
+            type="button"
             onClick={toggleCollapse}
-            title={isCollapsed ? "Expand Sidebar (Perluas Layar Kerja)" : "Collapse Sidebar (Kecilkan Sidebar)"}
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 8,
-              border: "1px solid var(--border)",
-              background: "var(--bg-glass)",
-              color: "var(--text-secondary)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-              transition: "all 150ms ease",
-              marginTop: isCollapsed ? 6 : 0,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "var(--accent-cyan-dim)";
-              e.currentTarget.style.color = "var(--accent-cyan)";
-              e.currentTarget.style.borderColor = "var(--border-accent)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "var(--bg-glass)";
-              e.currentTarget.style.color = "var(--text-secondary)";
-              e.currentTarget.style.borderColor = "var(--border)";
-            }}
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-expanded={!isCollapsed}
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className={cn(iconButtonClass, "size-8", isCollapsed && "mt-1.5")}
           >
             {isCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
           </button>
@@ -302,87 +243,26 @@ export default function Sidebar() {
       </div>
 
       {/* Nav Menu */}
-      <nav style={{ padding: isCollapsed ? "12px 6px" : "12px 10px", flex: 1, transition: "padding 250ms ease" }}>
+      <nav className={cn("flex flex-1 flex-col gap-1 py-3", isCollapsed ? "px-2" : "px-3")}>
         {!isCollapsed && (
-          <div style={{ fontSize: "0.65rem", fontWeight: 700, color: "var(--text-muted)", letterSpacing: "0.08em", textTransform: "uppercase", padding: "8px 10px 6px" }}>
-            Menu
-          </div>
+          <div className="px-3 pb-1.5 pt-2 text-xs font-bold uppercase tracking-wide text-fg-subtle">Menu</div>
         )}
 
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive =
-            pathname === item.href ||
-            pathname.startsWith(item.href + "/");
-
-          return (
-            <Link
-              key={item.name}
-              href={item.href}
-              title={isCollapsed ? item.name : undefined}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: isCollapsed ? "center" : "flex-start",
-                gap: 10,
-                padding: isCollapsed ? "12px 0" : "10px 12px",
-                borderRadius: 12,
-                marginBottom: 4,
-                fontSize: "0.875rem",
-                fontWeight: isActive ? 600 : 400,
-                color: isActive ? "var(--accent-cyan)" : "var(--text-secondary)",
-                background: isActive
-                  ? "var(--accent-cyan-dim)"
-                  : "transparent",
-                borderLeft: isCollapsed
-                  ? "none"
-                  : isActive
-                  ? "2px solid var(--accent-cyan)"
-                  : "2px solid transparent",
-                textDecoration: "none",
-                transition: "all 150ms ease",
-                position: "relative",
-              }}
-              onMouseEnter={(e) => {
-                if (!isActive) {
-                  e.currentTarget.style.background = "var(--bg-glass-hover)";
-                  e.currentTarget.style.color = "var(--text-primary)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.color = "var(--text-secondary)";
-                }
-              }}
-            >
-              <Icon
-                size={18}
-                style={{ flexShrink: 0, opacity: isActive ? 1 : 0.7 }}
-              />
-              {!isCollapsed && (
-                <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {item.name}
-                </span>
-              )}
-            </Link>
-          );
-        })}
+        {navItems.map((item) => (
+          <NavLink
+            key={item.name}
+            name={item.name}
+            href={item.href}
+            icon={item.icon}
+            active={isActivePath(pathname, item.href)}
+            collapsed={isCollapsed}
+          />
+        ))}
       </nav>
 
       {/* Footer */}
       {!isCollapsed && (
-        <div
-          style={{
-            padding: "16px 20px",
-            borderTop: "1px solid rgba(255,255,255,0.06)",
-            fontSize: "0.7rem",
-            color: "rgba(139,163,199,0.4)",
-            whiteSpace: "nowrap",
-          }}
-        >
-          © 2026 Media Creative
-        </div>
+        <div className="whitespace-nowrap border-t border-line px-5 py-4 text-xs text-fg-subtle">© 2026 Media Creative</div>
       )}
     </aside>
   );

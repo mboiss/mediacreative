@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback } from "react";
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type ToastType = "success" | "error" | "warning" | "info";
 
@@ -21,6 +22,29 @@ type ToastContextType = {
 };
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
+
+/**
+ * Each toast is a solid elevated surface with a status tint layered on top, so it stays
+ * opaque and readable over any page content in both themes.
+ */
+const TOAST_STYLES: Record<ToastType, { box: string; icon: string }> = {
+  success: {
+    box: "border-success-border border-l-success bg-[linear-gradient(var(--success-bg),var(--success-bg))]",
+    icon: "text-success",
+  },
+  error: {
+    box: "border-danger-border border-l-danger bg-[linear-gradient(var(--danger-bg),var(--danger-bg))]",
+    icon: "text-danger",
+  },
+  warning: {
+    box: "border-warning-border border-l-warning bg-[linear-gradient(var(--warning-bg),var(--warning-bg))]",
+    icon: "text-warning",
+  },
+  info: {
+    box: "border-accent-border border-l-accent bg-[linear-gradient(var(--accent-bg),var(--accent-bg))]",
+    icon: "text-accent",
+  },
+};
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -46,81 +70,44 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   return (
     <ToastContext.Provider value={{ toast, success, error, warning, info }}>
       {children}
-      {/* TOAST CONTAINER */}
+      {/* TOAST CONTAINER — full width at the bottom on phones, bottom-right card stack from sm up */}
       <div
-        style={{
-          position: "fixed",
-          bottom: 24,
-          right: 24,
-          zIndex: 9999,
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-          pointerEvents: "none",
-          maxWidth: 380,
-          width: "100%",
-        }}
+        aria-live="polite"
+        className="pointer-events-none fixed inset-x-3 bottom-3 z-[9999] flex flex-col gap-2.5 sm:inset-x-auto sm:bottom-6 sm:right-6 sm:w-[380px]"
       >
-        <style>{`
-          @keyframes toastSlideIn {
-            from { transform: translateX(100%) scale(0.9); opacity: 0; }
-            to { transform: translateX(0) scale(1); opacity: 1; }
-          }
-        `}</style>
-        {toasts.map((t) => (
-          <div
-            key={t.id}
-            style={{
-              pointerEvents: "auto",
-              animation: "toastSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
-              background:
-                t.type === "success"
-                  ? "rgba(16, 185, 129, 0.95)"
-                  : t.type === "error"
-                  ? "rgba(239, 68, 68, 0.95)"
-                  : t.type === "warning"
-                  ? "rgba(245, 158, 11, 0.95)"
-                  : "rgba(0, 212, 255, 0.95)",
-              color: "#ffffff",
-              borderRadius: 14,
-              padding: "12px 16px",
-              boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
-              backdropFilter: "blur(12px)",
-              border: "1px solid rgba(255,255,255,0.2)",
-              display: "flex",
-              alignItems: "flex-start",
-              gap: 12,
-            }}
-          >
-            <div style={{ marginTop: 2, flexShrink: 0 }}>
-              {t.type === "success" && <CheckCircle2 size={18} />}
-              {t.type === "error" && <AlertCircle size={18} />}
-              {t.type === "warning" && <AlertTriangle size={18} />}
-              {t.type === "info" && <Info size={18} />}
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: "0.88rem", lineHeight: 1.2 }}>{t.title}</div>
-              {t.message && (
-                <div style={{ fontSize: "0.78rem", opacity: 0.9, marginTop: 4, lineHeight: 1.3 }}>
-                  {t.message}
-                </div>
+        {toasts.map((t) => {
+          const styles = TOAST_STYLES[t.type];
+          return (
+            <div
+              key={t.id}
+              role={t.type === "error" ? "alert" : "status"}
+              className={cn(
+                "pointer-events-auto flex animate-[fadeInUp_0.25s_cubic-bezier(0.16,1,0.3,1)] items-start gap-3 rounded-xl border border-l-4 bg-elevated px-4 py-3 text-fg shadow-card",
+                styles.box
               )}
-            </div>
-            <button
-              onClick={() => removeToast(t.id)}
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "rgba(255,255,255,0.8)",
-                cursor: "pointer",
-                padding: 0,
-                marginTop: 2,
-              }}
             >
-              <X size={14} />
-            </button>
-          </div>
-        ))}
+              <div className={cn("mt-0.5 shrink-0", styles.icon)}>
+                {t.type === "success" && <CheckCircle2 size={18} />}
+                {t.type === "error" && <AlertCircle size={18} />}
+                {t.type === "warning" && <AlertTriangle size={18} />}
+                {t.type === "info" && <Info size={18} />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-bold leading-tight text-fg">{t.title}</div>
+                {t.message && <div className="mt-1 text-xs leading-snug text-fg-muted">{t.message}</div>}
+              </div>
+              <button
+                type="button"
+                onClick={() => removeToast(t.id)}
+                aria-label="Dismiss notification"
+                title="Dismiss"
+                className="-mr-1 mt-0.5 shrink-0 rounded-md p-0.5 text-fg-subtle transition hover:text-fg focus-visible:outline-2 focus-visible:outline-accent"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          );
+        })}
       </div>
     </ToastContext.Provider>
   );

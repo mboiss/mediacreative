@@ -13,21 +13,23 @@ import {
   User,
   Calendar,
   Package,
-  Sparkles,
-  Building,
   CreditCard,
-  Percent,
   Check,
   Eye,
   FileText,
-  DollarSign,
-  AlertCircle,
   Search,
   Wifi,
+  Settings,
 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { InvoiceSheet } from "@/components/invoice/invoice-sheet";
+import { LoadingState } from "@/components/ui/loading-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { Panel } from "@/components/ui/panel";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { Field, SearchInput, SelectInput, TextArea, TextInput } from "@/components/ui/field";
+import { cn } from "@/lib/utils";
 import {
   getPaymentAccounts,
   fetchPaymentAccounts,
@@ -323,544 +325,421 @@ export default function NewInvoicePage() {
   }
 
   if (loadingData) {
-    return (
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 400, gap: 12, color: "var(--text-secondary)" }}>
-        <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} />
-        Initializing Invoice Studio...
-      </div>
-    );
+    return <LoadingState label="Loading invoice studio..." />;
   }
 
+  const chip = "inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold transition-colors";
+  const chipIdle = "border-line bg-surface text-fg-muted hover:border-line-accent hover:text-fg";
+  const chipAccent = "border-accent-border bg-accent-bg text-accent hover:border-line-accent";
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20, maxWidth: 1240, margin: "0 auto" }}>
-      <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
-
+    <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-6">
       {/* TOP HEADER */}
-      <div className="animate-fade-in-up" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Link href="/invoices">
-            <button className="btn btn-ghost" style={{ padding: "8px 12px" }}>
-              <ArrowLeft size={15} />
+      <PageHeader
+        title={
+          <span className="flex items-center gap-3">
+            <Link
+              href="/invoices"
+              className="btn btn-ghost btn-icon shrink-0"
+              aria-label="Back to invoices"
+              title="Back to invoices"
+            >
+              <ArrowLeft size={16} />
+            </Link>
+            New Invoice
+          </span>
+        }
+        meta={<StatusBadge status="Draft" />}
+        description="Build a professional invoice with a live preview."
+        actions={
+          <>
+            <button type="button" className="btn btn-ghost" onClick={() => handleSubmit("Draft")} disabled={saving}>
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              Save Draft
             </button>
-          </Link>
-          <div>
-            <h1 style={{ fontSize: "1.6rem", fontWeight: 800, color: "var(--text-primary)", margin: 0, letterSpacing: "-0.02em", display: "flex", alignItems: "center", gap: 8 }}>
-              Create New Invoice
-              <span className="badge badge-draft">Draft</span>
-            </h1>
-            <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem", margin: "2px 0 0" }}>
-              Build a professional invoice with real-time live preview.
-            </p>
-          </div>
-        </div>
+            <button type="button" className="btn btn-primary" onClick={() => handleSubmit("Sent")} disabled={saving}>
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+              Create &amp; Issue
+            </button>
+          </>
+        }
+      />
 
-        {/* ACTION BUTTONS */}
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          <button
-            className="btn btn-ghost"
-            onClick={() => handleSubmit("Draft")}
-            disabled={saving}
-            style={{ fontSize: "0.875rem" }}
-          >
-            {saving ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Save size={14} />}
-            Save Draft
-          </button>
-
-          <button
-            className="btn btn-primary"
-            onClick={() => handleSubmit("Sent")}
-            disabled={saving}
-            style={{ fontSize: "0.875rem" }}
-          >
-            {saving ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Send size={14} />}
-            Create & Issue Invoice
-          </button>
-        </div>
+      {/* EDIT / PREVIEW TOGGLE (below xl, where form and preview stack) */}
+      <div
+        className="flex w-full gap-1 rounded-control border border-line bg-inset p-1 xl:hidden"
+        role="tablist"
+        aria-label="Invoice editor view"
+      >
+        {(
+          [
+            { key: "edit", label: "Edit", icon: <FileText size={14} /> },
+            { key: "preview", label: "Preview", icon: <Eye size={14} /> },
+          ] as const
+        ).map((tab) => {
+          const active = activeTabMobile === tab.key;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setActiveTabMobile(tab.key)}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition-colors",
+                active ? "bg-accent-bg text-accent" : "text-fg-muted hover:text-fg"
+              )}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* TWO-COLUMN STUDIO LAYOUT */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.15fr 0.85fr", gap: 24, alignItems: "start" }}>
-
+      {/* STUDIO LAYOUT: form + preview side by side on xl, toggled below */}
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         {/* LEFT COLUMN: EDITOR */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-
+        <div className={cn("min-w-0 flex-col gap-5", activeTabMobile === "edit" ? "flex" : "hidden xl:flex")}>
           {/* 1. CLIENT SELECTION */}
-          <div
-            style={{
-              background: "var(--bg-glass)",
-              border: "1px solid var(--border)",
-              borderRadius: 20,
-              padding: "20px 24px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 14,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <label className="form-label" style={{ margin: 0, display: "flex", alignItems: "center", gap: 6 }}>
-                <User size={13} style={{ color: "var(--accent-cyan)" }} />
-                Select Client *
-              </label>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => setShowNewClientModal(true)}
-                style={{ padding: "4px 10px", fontSize: "0.78rem", color: "var(--accent-cyan)" }}
-              >
-                <Plus size={12} />
+          <Panel
+            title="Client"
+            icon={<User size={15} />}
+            actions={
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowNewClientModal(true)}>
+                <Plus size={13} />
                 New Client
               </button>
-            </div>
-
-            {/* SEARCHABLE CLIENT SELECTOR */}
-            <div style={{ position: "relative" }}>
-              <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
-              <input
-                className="form-input"
-                style={{ paddingLeft: 30, fontSize: "0.82rem", height: 36 }}
-                placeholder="Type to search client name, company, or email..."
+            }
+          >
+            <div className="flex flex-col gap-3">
+              <SearchInput
+                icon={<Search size={14} />}
+                placeholder="Search client name, company, or email..."
+                aria-label="Search clients"
                 value={clientSearch}
                 onChange={(e) => setClientSearch(e.target.value)}
               />
-            </div>
 
-            <select
-              className="form-input form-select"
-              style={{ fontSize: "0.95rem", fontWeight: 500 }}
-              value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-            >
-              <option value="">— Select Client ({filteredClients.length} found) —</option>
-              {filteredClients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.full_name} {c.company ? `(${c.company})` : ""} {c.email ? `• ${c.email}` : ""}
-                </option>
-              ))}
-            </select>
+              <Field label="Select client" htmlFor="invoice-client" required>
+                <SelectInput id="invoice-client" value={clientId} onChange={(e) => setClientId(e.target.value)}>
+                  <option value="">— Select client ({filteredClients.length} found) —</option>
+                  {filteredClients.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.full_name} {c.company ? `(${c.company})` : ""} {c.email ? `• ${c.email}` : ""}
+                    </option>
+                  ))}
+                </SelectInput>
+              </Field>
 
-            {selectedClient && (
-              <div
-                style={{
-                  background: "var(--bg-glass-hover)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 12,
-                  padding: "12px 14px",
-                  fontSize: "0.8rem",
-                  color: "var(--text-secondary)",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 4,
-                }}
-              >
-                <div style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: "0.875rem" }}>
-                  {selectedClient.full_name}
-                </div>
-                {selectedClient.company && <div>{selectedClient.company}</div>}
-                {selectedClient.email && <div>Email: {selectedClient.email}</div>}
-                {selectedClient.phone && <div>Phone: {selectedClient.phone}</div>}
-                {selectedClient.address && <div style={{ marginTop: 2 }}>Address: {selectedClient.address}</div>}
-              </div>
-            )}
-          </div>
-
-          {/* 2. DATES & TERMS */}
-          <div
-            style={{
-              background: "var(--bg-glass)",
-              border: "1px solid var(--border)",
-              borderRadius: 20,
-              padding: "20px 24px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 14,
-            }}
-          >
-            <div style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: 6 }}>
-              <Calendar size={13} style={{ color: "var(--accent-cyan)" }} />
-              Invoice Dates & Terms
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <label className="form-label">Issue Date *</label>
-                <input
-                  type="date"
-                  className="form-input"
-                  value={invoiceDate}
-                  onChange={(e) => setInvoiceDate(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="form-label">Due Date</label>
-                <input
-                  type="date"
-                  className="form-input"
-                  value={dueDate}
-                  min={invoiceDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* Quick Due Date Presets */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-              <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 600 }}>Quick Presets:</span>
-              {[
-                { label: "On Receipt", days: 0 },
-                { label: "+3 Days", days: 3 },
-                { label: "+7 Days", days: 7 },
-                { label: "+14 Days", days: 14 },
-                { label: "+30 Days", days: 30 },
-                { label: "+60 Days", days: 60 },
-              ].map((preset) => (
-                <button
-                  key={preset.label}
-                  type="button"
-                  onClick={() => applyDueDatePreset(preset.days)}
-                  style={{
-                    padding: "4px 8px",
-                    borderRadius: 6,
-                    border: "1px solid var(--border)",
-                    background: "var(--bg-glass)",
-                    color: "var(--text-secondary)",
-                    fontSize: "0.72rem",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 3. LINE ITEMS TABLE EDITOR */}
-          <div
-            style={{
-              background: "var(--bg-glass)",
-              border: "1px solid var(--border)",
-              borderRadius: 20,
-              padding: "20px 24px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 16,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: 6 }}>
-                <Package size={13} style={{ color: "var(--accent-cyan)" }} />
-                Line Items ({lineItems.length})
-              </div>
-
-              {products.length > 0 && (
-                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                  Autofill from catalog active
+              {selectedClient && (
+                <div className="flex flex-col gap-1 rounded-xl border border-line bg-inset px-4 py-3 text-sm text-fg-muted">
+                  <div className="font-semibold text-fg">{selectedClient.full_name}</div>
+                  {selectedClient.company && <div>{selectedClient.company}</div>}
+                  {selectedClient.email && <div className="break-all">Email: {selectedClient.email}</div>}
+                  {selectedClient.phone && <div>Phone: {selectedClient.phone}</div>}
+                  {selectedClient.address && <div className="mt-0.5">Address: {selectedClient.address}</div>}
                 </div>
               )}
             </div>
+          </Panel>
 
-            {/* Catalog Quick Add Pills */}
-            {products.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 600 }}>Quick Add Catalog Item:</span>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {products.slice(0, 5).map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => handleAddLineItem(p)}
-                      style={{
-                        padding: "5px 10px",
-                        borderRadius: 20,
-                        border: "1px solid var(--border)",
-                        background: "var(--accent-cyan-dim)",
-                        color: "var(--accent-cyan)",
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                      }}
-                    >
-                      <Plus size={11} /> {p.product_name} ({formatCurrency(p.price)})
-                    </button>
-                  ))}
-                </div>
+          {/* 2. DATES & TERMS */}
+          <Panel title="Dates & Terms" icon={<Calendar size={15} />}>
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="Issue date" htmlFor="invoice-date" required>
+                  <TextInput
+                    id="invoice-date"
+                    type="date"
+                    value={invoiceDate}
+                    onChange={(e) => setInvoiceDate(e.target.value)}
+                  />
+                </Field>
+                <Field label="Due date" htmlFor="invoice-due-date">
+                  <TextInput
+                    id="invoice-due-date"
+                    type="date"
+                    value={dueDate}
+                    min={invoiceDate}
+                    onChange={(e) => setDueDate(e.target.value)}
+                  />
+                </Field>
               </div>
-            )}
 
-            {/* TOUR CODE MODEM RENTAL SHORTCUT PILLS */}
-            {tourLogs.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "10px 12px", background: "rgba(0,212,255,0.04)", borderRadius: 12, border: "1px solid var(--border)" }}>
-                <span style={{ fontSize: "0.74rem", color: "var(--accent-cyan)", fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
-                  <Wifi size={13} /> Quick Add Modem Rental from Active Tour (Auto-sets Qty & Rp 600.000):
-                </span>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", maxHeight: 110, overflowY: "auto" }}>
-                  {tourLogs.slice(0, 10).map((t) => (
-                    <button
-                      key={t.tourcode}
-                      type="button"
-                      onClick={() => addModemRentalItemFromTour(t)}
-                      style={{
-                        padding: "4px 10px",
-                        borderRadius: 16,
-                        border: "1px solid var(--accent-cyan)",
-                        background: "var(--accent-cyan-dim)",
-                        color: "var(--accent-cyan)",
-                        fontSize: "0.75rem",
-                        fontWeight: 700,
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4,
-                      }}
-                      title={`Add Modem Rental for ${t.tourcode} (${t.qty} modems assigned)`}
-                    >
-                      <Plus size={11} /> {t.tourcode} ({t.qty} modem{t.qty > 1 ? "s" : ""})
-                    </button>
-                  ))}
-                </div>
+              <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Due date presets">
+                <span className="mr-1 text-xs font-semibold text-fg-subtle">Due in:</span>
+                {[
+                  { label: "On receipt", days: 0 },
+                  { label: "+3 days", days: 3 },
+                  { label: "+7 days", days: 7 },
+                  { label: "+14 days", days: 14 },
+                  { label: "+30 days", days: 30 },
+                  { label: "+60 days", days: 60 },
+                ].map((preset) => (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => applyDueDatePreset(preset.days)}
+                    className={cn(chip, chipIdle)}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
               </div>
-            )}
+            </div>
+          </Panel>
 
-            {/* Line Items List */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {lineItems.map((item, idx) => (
-                <div
-                  key={item.id}
-                  style={{
-                    padding: 14,
-                    borderRadius: 14,
-                    background: "var(--bg-glass-hover)",
-                    border: "1px solid var(--border)",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 10,
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-secondary)" }}>
-                      Item #{idx + 1}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveLineItem(item.id)}
-                      style={{
-                        background: "transparent",
-                        border: "none",
-                        color: "#f87171",
-                        cursor: "pointer",
-                        padding: 4,
-                      }}
-                      title="Remove line item"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+          {/* 3. LINE ITEMS */}
+          <Panel
+            title={`Line Items (${lineItems.length})`}
+            icon={<Package size={15} />}
+            description={products.length > 0 ? "Pick a catalog product to autofill description and price." : undefined}
+          >
+            <div className="flex flex-col gap-4">
+              {/* Catalog quick add */}
+              {products.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-fg-muted">Quick add from catalog</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {products.slice(0, 5).map((p) => (
+                      <button key={p.id} type="button" onClick={() => handleAddLineItem(p)} className={cn(chip, chipAccent)}>
+                        <Plus size={12} /> {p.product_name} ({formatCurrency(p.price)})
+                      </button>
+                    ))}
                   </div>
+                </div>
+              )}
 
-                  {/* Catalog Selector Dropdown */}
-                  {products.length > 0 && (
-                    <div>
-                      <select
-                        className="form-input form-select"
-                        style={{ fontSize: "0.8rem", padding: "6px 10px" }}
+              {/* Modem rental from active tour */}
+              {tourLogs.length > 0 && (
+                <div className="flex flex-col gap-2 rounded-xl border border-accent-border bg-accent-bg p-3">
+                  <span className="flex items-start gap-1.5 text-xs font-semibold text-accent">
+                    <Wifi size={14} className="mt-px shrink-0" />
+                    Quick add modem rental from an active tour (sets qty and Rp 600.000 automatically)
+                  </span>
+                  <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto">
+                    {tourLogs.slice(0, 10).map((t) => (
+                      <button
+                        key={t.tourcode}
+                        type="button"
+                        onClick={() => addModemRentalItemFromTour(t)}
+                        className={cn(chip, "border-accent-border bg-surface text-accent hover:bg-surface-hover")}
+                        title={`Add modem rental for ${t.tourcode} (${t.qty} modems assigned)`}
+                      >
+                        <Plus size={12} /> {t.tourcode} ({t.qty} modem{t.qty > 1 ? "s" : ""})
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Line item cards */}
+              <div className="flex flex-col gap-3">
+                {lineItems.map((item, idx) => (
+                  <div key={item.id} className="flex flex-col gap-3 rounded-xl border border-line bg-inset p-3 sm:p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-fg-muted">Item #{idx + 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveLineItem(item.id)}
+                        className="btn btn-danger btn-icon"
+                        aria-label={`Remove item ${idx + 1}`}
+                        title="Remove line item"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+
+                    {products.length > 0 && (
+                      <SelectInput
+                        aria-label={`Catalog product for item ${idx + 1}`}
                         value={item.product_id}
                         onChange={(e) => handleUpdateLineItem(item.id, "product_id", e.target.value)}
                       >
-                        <option value="">— Custom Description (or pick catalog product) —</option>
+                        <option value="">— Custom description (or pick a catalog product) —</option>
                         {products.map((p) => (
                           <option key={p.id} value={p.id}>
                             {p.product_name} — Rp {p.price.toLocaleString("id-ID")}
                           </option>
                         ))}
-                      </select>
-                    </div>
-                  )}
+                      </SelectInput>
+                    )}
 
-                  {/* Description Input */}
-                  <input
-                    className="form-input"
-                    placeholder="Enter item description..."
-                    value={item.description}
-                    onChange={(e) => handleUpdateLineItem(item.id, "description", e.target.value)}
-                  />
-
-                  {/* Qty, Unit Price, Subtotal Row */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr 1fr", gap: 10, alignItems: "center" }}>
-                    <div>
-                      <label className="form-label" style={{ fontSize: "0.68rem" }}>Qty</label>
-                      <input
-                        type="number"
-                        min="1"
-                        step="0.01"
-                        className="form-input"
-                        value={item.quantity}
-                        onChange={(e) => handleUpdateLineItem(item.id, "quantity", Number(e.target.value))}
+                    <Field label="Description" htmlFor={`${item.id}-desc`}>
+                      <TextInput
+                        id={`${item.id}-desc`}
+                        placeholder="Enter item description..."
+                        value={item.description}
+                        onChange={(e) => handleUpdateLineItem(item.id, "description", e.target.value)}
                       />
-                    </div>
+                    </Field>
 
-                    <div>
-                      <label className="form-label" style={{ fontSize: "0.68rem" }}>Unit Price (Rp)</label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="1000"
-                        className="form-input"
-                        value={item.unit_price}
-                        onChange={(e) => handleUpdateLineItem(item.id, "unit_price", Number(e.target.value))}
-                      />
-                    </div>
-
-                    <div style={{ textAlign: "right" }}>
-                      <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", display: "block", textTransform: "uppercase", fontWeight: 600 }}>Total</span>
-                      <span style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--text-primary)" }}>
-                        {formatCurrency((Number(item.quantity) || 0) * (Number(item.unit_price) || 0))}
-                      </span>
+                    {/* Qty / Unit price / Total: two columns on phones, three on wider screens */}
+                    <div className="grid grid-cols-2 items-end gap-3 sm:grid-cols-[1fr_1.5fr_1fr]">
+                      <Field label="Qty" htmlFor={`${item.id}-qty`}>
+                        <TextInput
+                          id={`${item.id}-qty`}
+                          type="number"
+                          inputMode="decimal"
+                          min="1"
+                          step="0.01"
+                          value={item.quantity}
+                          onChange={(e) => handleUpdateLineItem(item.id, "quantity", Number(e.target.value))}
+                        />
+                      </Field>
+                      <Field label="Unit price (Rp)" htmlFor={`${item.id}-price`}>
+                        <TextInput
+                          id={`${item.id}-price`}
+                          type="number"
+                          inputMode="numeric"
+                          min="0"
+                          step="1000"
+                          value={item.unit_price}
+                          onChange={(e) => handleUpdateLineItem(item.id, "unit_price", Number(e.target.value))}
+                        />
+                      </Field>
+                      <div className="col-span-2 flex items-baseline justify-between gap-2 border-t border-line pt-2 sm:col-span-1 sm:block sm:border-0 sm:pt-0 sm:text-right">
+                        <span className="block text-xs font-semibold uppercase tracking-wide text-fg-subtle">Total</span>
+                        <span className="whitespace-nowrap text-base font-bold tabular-nums text-fg">
+                          {formatCurrency((Number(item.quantity) || 0) * (Number(item.unit_price) || 0))}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={addGenericModemRentalItem}
-                style={{ justifyContent: "center", borderStyle: "solid", borderColor: "var(--accent-cyan)", color: "var(--accent-cyan)", gap: 6, fontSize: "0.82rem" }}
-              >
-                <Wifi size={14} />
-                + Add Modem Rental (Rp 600.000)
-              </button>
-
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => handleAddLineItem()}
-                style={{ justifyContent: "center", borderStyle: "dashed", gap: 6, fontSize: "0.82rem" }}
-              >
-                <Plus size={14} />
-                Add Blank Line Item
-              </button>
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                <button
+                  type="button"
+                  className="btn btn-ghost justify-center whitespace-normal border-accent-border text-accent"
+                  onClick={addGenericModemRentalItem}
+                >
+                  <Wifi size={14} />
+                  Add Modem Rental (Rp 600.000)
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost justify-center whitespace-normal border-dashed"
+                  onClick={() => handleAddLineItem()}
+                >
+                  <Plus size={14} />
+                  Add Blank Line Item
+                </button>
+              </div>
             </div>
-          </div>
+          </Panel>
 
           {/* 4. TAX, DISCOUNT & PAYMENT NOTES */}
-          <div
-            style={{
-              background: "var(--bg-glass)",
-              border: "1px solid var(--border)",
-              borderRadius: 20,
-              padding: "20px 24px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 16,
-            }}
-          >
-            <div style={{ fontWeight: 700, color: "var(--text-primary)", fontSize: "0.875rem", display: "flex", alignItems: "center", gap: 6 }}>
-              <CreditCard size={13} style={{ color: "var(--accent-cyan)" }} />
-              Tax, Discount & Payment Terms
-            </div>
+          <Panel title="Tax, Discount & Payment" icon={<CreditCard size={15} />}>
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <Field label="PPN tax (%)" htmlFor="invoice-tax">
+                  <div className="flex gap-2">
+                    <TextInput
+                      id="invoice-tax"
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={taxPercent}
+                      onChange={(e) => setTaxPercent(Number(e.target.value))}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setTaxPercent(taxPercent === 11 ? 0 : 11)}
+                      aria-pressed={taxPercent === 11}
+                      className={cn(
+                        "shrink-0 whitespace-nowrap rounded-control border px-3 text-xs font-bold transition-colors",
+                        taxPercent === 11
+                          ? "border-accent-border bg-accent-bg text-accent"
+                          : "border-line bg-surface text-fg-muted hover:text-fg"
+                      )}
+                    >
+                      PPN 11%
+                    </button>
+                  </div>
+                </Field>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div>
-                <label className="form-label">PPN Tax (%)</label>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <input
+                <Field label="Discount (Rp)" htmlFor="invoice-discount">
+                  <TextInput
+                    id="invoice-discount"
                     type="number"
                     min="0"
-                    max="100"
-                    className="form-input"
-                    value={taxPercent}
-                    onChange={(e) => setTaxPercent(Number(e.target.value))}
+                    step="5000"
+                    placeholder="0"
+                    value={discountAmount || ""}
+                    onChange={(e) => setDiscountAmount(Number(e.target.value))}
                   />
-                  <button
-                    type="button"
-                    onClick={() => setTaxPercent(taxPercent === 11 ? 0 : 11)}
-                    style={{
-                      padding: "0 12px",
-                      borderRadius: 8,
-                      border: "1px solid var(--border)",
-                      background: taxPercent === 11 ? "var(--accent-cyan-dim)" : "var(--bg-glass)",
-                      color: taxPercent === 11 ? "var(--accent-cyan)" : "var(--text-secondary)",
-                      fontSize: "0.78rem",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    PPN 11%
-                  </button>
-                </div>
+                </Field>
               </div>
 
-              <div>
-                <label className="form-label">Discount Amount (Rp)</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="5000"
-                  className="form-input"
-                  placeholder="0"
-                  value={discountAmount || ""}
-                  onChange={(e) => setDiscountAmount(Number(e.target.value))}
-                />
-              </div>
-            </div>
-
-            <div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, flexWrap: "wrap", gap: 6 }}>
-                <label className="form-label" style={{ margin: 0 }}>Payment Instructions & Notes</label>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-                  {paymentAccounts.map((acc) => (
-                    <button
-                      key={acc.id}
-                      type="button"
-                      onClick={() => setNotes(formatAccountTransferText(acc))}
-                      style={{
-                        fontSize: "0.72rem",
-                        fontWeight: 600,
-                        padding: "3px 8px",
-                        borderRadius: 6,
-                        border: "1px solid var(--border)",
-                        background: "var(--bg-glass)",
-                        color: "var(--text-secondary)",
-                        cursor: "pointer",
-                      }}
-                      title={`Select ${acc.bank_name}`}
-                    >
-                      + {acc.bank_name} ({acc.account_number})
-                    </button>
-                  ))}
-                  <Link
-                    href="/settings"
-                    style={{
-                      fontSize: "0.7rem",
-                      color: "var(--accent-cyan)",
-                      textDecoration: "none",
-                      fontWeight: 600,
-                      marginLeft: 4,
-                    }}
-                  >
-                    ⚙️ Manage
+              <div className="flex flex-col gap-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label htmlFor="invoice-notes" className="text-xs font-semibold uppercase tracking-wide text-fg-muted">
+                    Payment instructions &amp; notes
+                  </label>
+                  <Link href="/settings" className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline">
+                    <Settings size={12} /> Manage accounts
                   </Link>
                 </div>
+                {paymentAccounts.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {paymentAccounts.map((acc) => (
+                      <button
+                        key={acc.id}
+                        type="button"
+                        onClick={() => setNotes(formatAccountTransferText(acc))}
+                        className={cn(chip, chipIdle)}
+                        title={`Use ${acc.bank_name}`}
+                      >
+                        <Plus size={12} /> {acc.bank_name} ({acc.account_number})
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <TextArea
+                  id="invoice-notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Include bank transfer details or payment instructions..."
+                />
               </div>
-              <textarea
-                className="form-input"
-                style={{ minHeight: 80, resize: "vertical" }}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Include bank transfer details or payment instructions..."
-              />
+
+              {/* Totals summary */}
+              <dl className="flex flex-col gap-1.5 rounded-xl border border-line bg-inset px-4 py-3 text-sm">
+                <div className="flex justify-between gap-3 text-fg-muted">
+                  <dt>Subtotal</dt>
+                  <dd className="tabular-nums">{formatCurrency(rawSubtotal)}</dd>
+                </div>
+                {taxPercent > 0 && (
+                  <div className="flex justify-between gap-3 text-fg-muted">
+                    <dt>Tax ({taxPercent}%)</dt>
+                    <dd className="tabular-nums">{formatCurrency(taxAmount)}</dd>
+                  </div>
+                )}
+                {discountAmount > 0 && (
+                  <div className="flex justify-between gap-3 text-fg-muted">
+                    <dt>Discount</dt>
+                    <dd className="tabular-nums">− {formatCurrency(discountAmount)}</dd>
+                  </div>
+                )}
+                <div className="mt-1 flex justify-between gap-3 border-t border-line pt-2 font-bold text-fg">
+                  <dt>Grand total</dt>
+                  <dd className="tabular-nums text-accent">{formatCurrency(grandTotal)}</dd>
+                </div>
+              </dl>
             </div>
-          </div>
+          </Panel>
         </div>
 
-        {/* RIGHT COLUMN: REAL-TIME LIVE INVOICE PREVIEW SHEET */}
-        <div style={{ position: "sticky", top: 88 }}>
+        {/* RIGHT COLUMN: LIVE PREVIEW */}
+        <div className={cn("min-w-0 xl:sticky xl:top-24", activeTabMobile === "preview" ? "block" : "hidden xl:block")}>
+          <div className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-fg-muted">
+            <Eye size={14} /> Live preview
+          </div>
           <InvoiceSheet
+            compact
             invoiceNumber="PREVIEW-DRAFT"
             invoiceDate={invoiceDate}
             dueDate={dueDate}
@@ -876,65 +755,61 @@ export default function NewInvoicePage() {
 
       {/* CREATE NEW CLIENT MODAL */}
       <Modal isOpen={showNewClientModal} onClose={() => setShowNewClientModal(false)} title="Quick Add Client">
-        <form onSubmit={handleCreateClient} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div>
-            <label className="form-label">Full Name *</label>
-            <input
-              className="form-input"
+        <form onSubmit={handleCreateClient} className="flex flex-col gap-4">
+          <Field label="Full name" htmlFor="new-client-name" required>
+            <TextInput
+              id="new-client-name"
               value={newClientForm.full_name}
               onChange={(e) => setNewClientForm({ ...newClientForm, full_name: e.target.value })}
               required
               placeholder="e.g. Budi Pratama"
             />
-          </div>
-          <div>
-            <label className="form-label">Company Name</label>
-            <input
-              className="form-input"
+          </Field>
+          <Field label="Company" htmlFor="new-client-company">
+            <TextInput
+              id="new-client-company"
               value={newClientForm.company}
               onChange={(e) => setNewClientForm({ ...newClientForm, company: e.target.value })}
               placeholder="e.g. PT Media Utama"
             />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <div>
-              <label className="form-label">Email</label>
-              <input
+          </Field>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label="Email" htmlFor="new-client-email">
+              <TextInput
+                id="new-client-email"
                 type="email"
-                className="form-input"
                 value={newClientForm.email}
                 onChange={(e) => setNewClientForm({ ...newClientForm, email: e.target.value })}
                 placeholder="budi@example.com"
               />
-            </div>
-            <div>
-              <label className="form-label">Phone</label>
-              <input
-                className="form-input"
+            </Field>
+            <Field label="Phone" htmlFor="new-client-phone">
+              <TextInput
+                id="new-client-phone"
+                type="tel"
                 value={newClientForm.phone}
                 onChange={(e) => setNewClientForm({ ...newClientForm, phone: e.target.value })}
                 placeholder="08123456789"
               />
-            </div>
+            </Field>
           </div>
-          <div>
-            <label className="form-label">Address</label>
-            <textarea
-              className="form-input"
-              style={{ minHeight: 60, resize: "vertical" }}
+          <Field label="Address" htmlFor="new-client-address">
+            <TextArea
+              id="new-client-address"
+              className="min-h-16"
               value={newClientForm.address}
               onChange={(e) => setNewClientForm({ ...newClientForm, address: e.target.value })}
               placeholder="Client billing address..."
             />
-          </div>
+          </Field>
 
-          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 8 }}>
+          <div className="mt-2 flex flex-wrap justify-end gap-2.5">
             <button type="button" className="btn btn-ghost" onClick={() => setShowNewClientModal(false)}>
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={creatingClient}>
-              {creatingClient ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : <Check size={14} />}
-              Save Client & Select
+              {creatingClient ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+              Save &amp; Select Client
             </button>
           </div>
         </form>

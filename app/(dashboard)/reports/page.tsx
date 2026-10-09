@@ -6,21 +6,40 @@ import {
   TrendingUp,
   DollarSign,
   Download,
-  Calendar,
   Users,
   Clock,
-  ArrowUpRight,
   Filter,
   Search,
   ExternalLink,
   FileSpreadsheet,
   CheckCircle2,
-  AlertCircle,
   RefreshCw,
+  X,
 } from "lucide-react";
 import Link from "next/link";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Pagination, usePagination } from "@/components/ui/pagination";
 import { LoadingState } from "@/components/ui/loading-state";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { Panel } from "@/components/ui/panel";
+import { StatCard, StatGrid } from "@/components/ui/stat-card";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { TableWrap } from "@/components/ui/data-table";
+import { Field, SearchInput, SelectInput } from "@/components/ui/field";
+import { cn } from "@/lib/utils";
+
+// Recharts takes tooltip styling as props; theme tokens keep it readable in dark and light mode.
+const tooltipContentStyle = {
+  background: "var(--tooltip-bg)",
+  border: "1px solid var(--border-strong)",
+  borderRadius: 12,
+  boxShadow: "var(--shadow-card)",
+  color: "var(--text-primary)",
+  fontSize: "0.8125rem",
+};
+const tooltipLabelStyle = { color: "var(--text-secondary)", fontWeight: 600 };
+const tooltipItemStyle = { color: "var(--text-primary)" };
 
 type InvoiceItem = {
   id: string;
@@ -293,111 +312,72 @@ export default function ReportsPage() {
     setSearch("");
   }
 
+  const hasActiveFilters =
+    selectedYear !== "ALL" || selectedMonth !== "ALL" || selectedClient !== "ALL" || selectedStatus !== "ALL" || search !== "";
+
+  /** Long currency values shrink on narrow cards instead of overflowing. */
+  const kpiValue = (amount: number, className?: string) => (
+    <span className={cn("block text-lg leading-tight [overflow-wrap:anywhere] sm:text-xl xl:text-2xl", className)}>
+      {formatCurrency(amount)}
+    </span>
+  );
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
-
-      {/* HEADER */}
-      <div className="animate-fade-in-up" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        <div>
-          <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--text-primary)", margin: 0, letterSpacing: "-0.02em" }}>
-            Financial Analytics & Real Reports
-          </h1>
-          <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", margin: "4px 0 0" }}>
-            Real-time revenue reports, multi-filter client insights, and historical database analytics.
-          </p>
-        </div>
-
-        <div style={{ display: "flex", gap: 10 }}>
-          <button className="btn btn-ghost" onClick={loadData} style={{ border: "1px solid var(--border)", gap: 6 }}>
-            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-            Refresh Data
-          </button>
-          <button className="btn btn-primary" onClick={exportCSV} style={{ gap: 6 }}>
-            <Download size={14} />
-            Export Filtered CSV
-          </button>
-        </div>
-      </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="Financial Reports"
+        description="Revenue analytics, client insights and invoice history, filtered your way."
+        actions={
+          <>
+            <button className="btn btn-ghost" onClick={loadData} disabled={loading}>
+              <RefreshCw size={16} className={loading ? "animate-spin" : ""} aria-hidden />
+              Refresh
+            </button>
+            <button className="btn btn-primary" onClick={exportCSV}>
+              <Download size={16} aria-hidden />
+              Export CSV
+            </button>
+          </>
+        }
+      />
 
       {/* MULTI-FILTER BAR */}
-      <div
-        style={{
-          background: "var(--bg-glass)",
-          border: "1px solid var(--border)",
-          borderRadius: 20,
-          padding: "16px 20px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 14,
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.85rem", fontWeight: 700, color: "var(--accent-cyan)" }}>
-            <Filter size={16} /> Filter Reports & Invoices
-          </div>
-          {(selectedYear !== "ALL" || selectedMonth !== "ALL" || selectedClient !== "ALL" || selectedStatus !== "ALL" || search !== "") && (
-            <button
-              onClick={resetFilters}
-              style={{
-                fontSize: "0.75rem",
-                color: "#f87171",
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-                fontWeight: 600,
-                textDecoration: "underline",
-              }}
-            >
-              Reset All Filters
+      <Panel
+        title="Filters"
+        icon={<Filter size={16} />}
+        actions={
+          hasActiveFilters ? (
+            <button type="button" className="btn btn-ghost btn-sm" onClick={resetFilters}>
+              <X size={14} aria-hidden /> Reset filters
             </button>
-          )}
-        </div>
+          ) : undefined
+        }
+      >
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-5">
+          <Field label="Search" htmlFor="report-search" className="col-span-2 lg:col-span-1">
+            <SearchInput
+              id="report-search"
+              icon={<Search size={16} />}
+              placeholder="Invoice #, client, product..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </Field>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
-          {/* SEARCH INPUT */}
-          <div>
-            <label className="form-label" style={{ fontSize: "0.72rem", marginBottom: 4 }}>Search Keywords</label>
-            <div style={{ position: "relative" }}>
-              <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
-              <input
-                className="form-input"
-                style={{ paddingLeft: 32, fontSize: "0.82rem" }}
-                placeholder="Invoice #, Client, Product..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {/* YEAR FILTER */}
-          <div>
-            <label className="form-label" style={{ fontSize: "0.72rem", marginBottom: 4 }}>Select Year</label>
-            <select
-              className="form-input form-select"
-              style={{ fontSize: "0.82rem" }}
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
-            >
-              <option value="ALL">All Years (2023 - 2026)</option>
+          <Field label="Year" htmlFor="report-year" className="min-w-0">
+            <SelectInput id="report-year" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
+              <option value="ALL">All years</option>
               {availableYears.map((y) => (
                 <option key={y} value={y}>
-                  Year {y}
+                  {y}
                 </option>
               ))}
-            </select>
-          </div>
+            </SelectInput>
+          </Field>
 
-          {/* MONTH FILTER */}
-          <div>
-            <label className="form-label" style={{ fontSize: "0.72rem", marginBottom: 4 }}>Select Month</label>
-            <select
-              className="form-input form-select"
-              style={{ fontSize: "0.82rem" }}
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-            >
-              <option value="ALL">All Months</option>
+          <Field label="Month" htmlFor="report-month" className="min-w-0">
+            <SelectInput id="report-month" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
+              <option value="ALL">All months</option>
               {MONTH_NAMES.map((m, idx) => {
                 const pad = String(idx + 1).padStart(2, "0");
                 return (
@@ -406,363 +386,236 @@ export default function ReportsPage() {
                   </option>
                 );
               })}
-            </select>
-          </div>
+            </SelectInput>
+          </Field>
 
-          {/* CLIENT FILTER */}
-          <div>
-            <label className="form-label" style={{ fontSize: "0.72rem", marginBottom: 4 }}>Filter by Client</label>
-            <select
-              className="form-input form-select"
-              style={{ fontSize: "0.82rem" }}
-              value={selectedClient}
-              onChange={(e) => setSelectedClient(e.target.value)}
-            >
-              <option value="ALL">All Clients ({availableClients.length})</option>
+          <Field label="Client" htmlFor="report-client" className="min-w-0">
+            <SelectInput id="report-client" value={selectedClient} onChange={(e) => setSelectedClient(e.target.value)}>
+              <option value="ALL">All clients ({availableClients.length})</option>
               {availableClients.map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>
               ))}
-            </select>
-          </div>
+            </SelectInput>
+          </Field>
 
-          {/* STATUS FILTER */}
-          <div>
-            <label className="form-label" style={{ fontSize: "0.72rem", marginBottom: 4 }}>Payment Status</label>
-            <select
-              className="form-input form-select"
-              style={{ fontSize: "0.82rem" }}
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-            >
-              <option value="ALL">All Statuses</option>
-              <option value="Paid">Paid Only</option>
+          <Field label="Status" htmlFor="report-status" className="min-w-0">
+            <SelectInput id="report-status" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
+              <option value="ALL">All statuses</option>
+              <option value="Paid">Paid</option>
               <option value="Pending">Pending / Unpaid</option>
               <option value="Draft">Draft</option>
-            </select>
-          </div>
+            </SelectInput>
+          </Field>
         </div>
-      </div>
+      </Panel>
 
-      {/* KPI CARDS (LIVE COMPUTED FROM DATABASE) */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
-        <div
-          style={{
-            background: "var(--bg-glass)",
-            border: "1px solid var(--border)",
-            borderRadius: 18,
-            padding: "18px 20px",
-            borderLeft: "4px solid var(--accent-emerald)",
-          }}
+      {/* KPI CARDS (computed over the full filtered list) */}
+      <StatGrid>
+        <StatCard
+          label="Total Revenue"
+          value={kpiValue(metrics.totalRevenue)}
+          hint={`${metrics.count} matching invoices`}
+          icon={<TrendingUp size={20} />}
+          tone="accent"
+          loading={loading}
+        />
+        <StatCard
+          label={`Paid (${metrics.paidCount})`}
+          value={kpiValue(metrics.paidRevenue, "text-success")}
+          hint="Collected payments"
+          icon={<CheckCircle2 size={20} />}
+          tone="success"
+          loading={loading}
+        />
+        <StatCard
+          label={`Pending / Unpaid (${metrics.pendingCount})`}
+          value={kpiValue(metrics.pendingRevenue, "text-warning")}
+          hint="Outstanding invoices"
+          icon={<Clock size={20} />}
+          tone="warning"
+          loading={loading}
+        />
+        <StatCard
+          label="Est. PPN Tax (11%)"
+          value={kpiValue(metrics.taxEstimate, "text-purple")}
+          hint="Calculated value-added tax"
+          icon={<DollarSign size={20} />}
+          tone="purple"
+          loading={loading}
+        />
+      </StatGrid>
+
+      {/* CHART + RANKING: side by side on desktop, stacked below lg */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <Panel
+          className="lg:col-span-2"
+          title={`Monthly Revenue ${selectedYear !== "ALL" ? `(${selectedYear})` : "(All Time)"}`}
+          description="Monthly breakdown based on the active filters"
+          icon={<BarChart3 size={16} />}
+          actions={<StatusBadge tone="accent">{metrics.count} invoices</StatusBadge>}
         >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-            <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)", fontWeight: 700, textTransform: "uppercase" }}>
-              Total Filtered Revenue
-            </span>
-            <TrendingUp size={16} style={{ color: "var(--accent-emerald)" }} />
+          <div className="h-64 w-full sm:h-72" role="img" aria-label="Bar chart of revenue per month">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={monthlyChartData} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="reportsRevenueBar" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="var(--accent-cyan)" />
+                    <stop offset="100%" stopColor="var(--accent-purple)" />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} stroke="var(--border)" />
+                <XAxis
+                  dataKey="month"
+                  tick={{ fill: "var(--text-muted)", fontSize: 12 }}
+                  tickLine={false}
+                  axisLine={{ stroke: "var(--border)" }}
+                  interval={0}
+                  minTickGap={0}
+                />
+                <YAxis
+                  tick={{ fill: "var(--text-muted)", fontSize: 12 }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={44}
+                  tickFormatter={(v: number) => (v >= 1_000_000 ? `${(v / 1_000_000).toFixed(v >= 10_000_000 ? 0 : 1)}M` : String(v))}
+                />
+                <Tooltip
+                  contentStyle={tooltipContentStyle}
+                  labelStyle={tooltipLabelStyle}
+                  itemStyle={tooltipItemStyle}
+                  cursor={{ fill: "var(--bg-glass-hover)" }}
+                  formatter={(value, _name, item) => [
+                    `${formatCurrency(Number(value))} (${(item?.payload as { invoices?: number })?.invoices ?? 0} invoices)`,
+                    "Revenue",
+                  ]}
+                />
+                <Bar dataKey="revenue" fill="url(#reportsRevenueBar)" radius={[6, 6, 0, 0]} maxBarSize={40} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-          <div style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--text-primary)" }}>
-            {formatCurrency(metrics.totalRevenue)}
-          </div>
-          <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)", marginTop: 4 }}>
-            From {metrics.count} matching invoice records
-          </div>
-        </div>
+        </Panel>
 
-        <div
-          style={{
-            background: "var(--bg-glass)",
-            border: "1px solid var(--border)",
-            borderRadius: 18,
-            padding: "18px 20px",
-            borderLeft: "4px solid #3b82f6",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-            <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)", fontWeight: 700, textTransform: "uppercase" }}>
-              Paid Revenue ({metrics.paidCount})
-            </span>
-            <CheckCircle2 size={16} style={{ color: "#34d399" }} />
-          </div>
-          <div style={{ fontSize: "1.4rem", fontWeight: 800, color: "#34d399" }}>
-            {formatCurrency(metrics.paidRevenue)}
-          </div>
-          <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)", marginTop: 4 }}>
-            Successfully collected payments
-          </div>
-        </div>
-
-        <div
-          style={{
-            background: "var(--bg-glass)",
-            border: "1px solid var(--border)",
-            borderRadius: 18,
-            padding: "18px 20px",
-            borderLeft: "4px solid var(--accent-amber)",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-            <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)", fontWeight: 700, textTransform: "uppercase" }}>
-              Pending / Unpaid ({metrics.pendingCount})
-            </span>
-            <Clock size={16} style={{ color: "var(--accent-amber)" }} />
-          </div>
-          <div style={{ fontSize: "1.4rem", fontWeight: 800, color: "var(--accent-amber)" }}>
-            {formatCurrency(metrics.pendingRevenue)}
-          </div>
-          <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)", marginTop: 4 }}>
-            Outstanding invoices
-          </div>
-        </div>
-
-        <div
-          style={{
-            background: "var(--bg-glass)",
-            border: "1px solid var(--border)",
-            borderRadius: 18,
-            padding: "18px 20px",
-            borderLeft: "4px solid #7c3aed",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-            <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)", fontWeight: 700, textTransform: "uppercase" }}>
-              Est. PPN Tax (11%)
-            </span>
-            <DollarSign size={16} style={{ color: "#a78bfa" }} />
-          </div>
-          <div style={{ fontSize: "1.4rem", fontWeight: 800, color: "#a78bfa" }}>
-            {formatCurrency(metrics.taxEstimate)}
-          </div>
-          <div style={{ fontSize: "0.72rem", color: "var(--text-secondary)", marginTop: 4 }}>
-            Calculated value-added tax
-          </div>
-        </div>
-      </div>
-
-      {/* CHARTS GRID */}
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 20 }}>
-        {/* REVENUE BAR CHART */}
-        <div
-          style={{
-            background: "var(--bg-glass)",
-            border: "1px solid var(--border)",
-            borderRadius: 20,
-            padding: 24,
-            display: "flex",
-            flexDirection: "column",
-            gap: 20,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div>
-              <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
-                Monthly Revenue Trend {selectedYear !== "ALL" ? `(${selectedYear})` : "(All Time)"}
-              </h3>
-              <p style={{ fontSize: "0.78rem", color: "var(--text-secondary)", margin: "2px 0 0" }}>
-                Live monthly breakdown based on active filters
-              </p>
-            </div>
-            <span style={{ fontSize: "0.8rem", color: "var(--accent-cyan)", fontWeight: 600 }}>
-              {metrics.count} Total Invoices
-            </span>
-          </div>
-
-          {/* BAR CHART GRAPH */}
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 12, height: 210, paddingTop: 20, paddingBottom: 10, borderBottom: "1px solid var(--border)" }}>
-            {monthlyChartData.map((stat) => {
-              const heightPct = stat.revenue > 0 ? Math.max(8, Math.round((stat.revenue / maxChartRevenue) * 100)) : 2;
-
-              return (
-                <div key={stat.month} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, height: "100%", justifyContent: "flex-end" }}>
-                  <div style={{ fontSize: "0.65rem", color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}>
-                    {stat.revenue > 0 ? `${(stat.revenue / 1000000).toFixed(1)}M` : "0"}
-                  </div>
-                  <div
-                    style={{
-                      width: "100%",
-                      height: `${heightPct}%`,
-                      background: stat.revenue > 0 ? "linear-gradient(180deg, var(--accent-cyan), #7c3aed)" : "rgba(255,255,255,0.05)",
-                      borderRadius: "6px 6px 0 0",
-                      transition: "all 300ms ease",
-                      boxShadow: stat.revenue > 0 ? "0 0 10px var(--accent-cyan-dim)" : "none",
-                    }}
-                    title={`${stat.month}: ${formatCurrency(stat.revenue)} (${stat.invoices} invoices)`}
-                  />
-                  <div style={{ fontSize: "0.75rem", fontWeight: 600, color: stat.revenue > 0 ? "var(--text-primary)" : "var(--text-muted)" }}>
-                    {stat.month}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* TOP CLIENTS RANKING */}
-        <div
-          style={{
-            background: "var(--bg-glass)",
-            border: "1px solid var(--border)",
-            borderRadius: 20,
-            padding: 24,
-            display: "flex",
-            flexDirection: "column",
-            gap: 16,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
-              Top Client Ranking
-            </h3>
-            <Users size={16} style={{ color: "var(--accent-cyan)" }} />
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 10, maxHeight: 230, overflowY: "auto" }}>
-            {topClientsRanking.length === 0 ? (
-              <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", padding: 20, textAlign: "center" }}>
-                No client data available
-              </div>
-            ) : (
-              topClientsRanking.map((cl, idx) => (
-                <div
-                  key={cl.name}
-                  style={{
-                    padding: "8px 12px",
-                    borderRadius: 10,
-                    background: "rgba(255,255,255,0.03)",
-                    border: "1px solid var(--border)",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 4,
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-primary)" }}>
-                      #{idx + 1} {cl.name}
+        <Panel title="Top Clients" description="By revenue in the filtered view" icon={<Users size={16} />}>
+          {topClientsRanking.length === 0 ? (
+            <p className="py-8 text-center text-sm text-fg-subtle">No client data available</p>
+          ) : (
+            <ol className="flex max-h-72 flex-col gap-2 overflow-y-auto pr-1">
+              {topClientsRanking.map((cl, idx) => (
+                <li key={cl.name} className="flex flex-col gap-1.5 rounded-xl border border-line bg-inset px-3 py-2.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="min-w-0 text-sm font-semibold text-fg">
+                      <span className="mr-1 text-fg-subtle">#{idx + 1}</span>
+                      <span className="break-words">{cl.name}</span>
                     </span>
-                    <span style={{ fontSize: "0.8rem", fontWeight: 800, color: "#34d399" }}>
-                      {formatCurrency(cl.revenue)}
-                    </span>
+                    <span className="shrink-0 text-sm font-bold text-success">{formatCurrency(cl.revenue)}</span>
                   </div>
-
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "0.7rem", color: "var(--text-secondary)" }}>
+                  <div className="flex items-center justify-between text-xs text-fg-muted">
                     <span>{cl.count} invoices</span>
                     <span>{cl.sharePct}% share</span>
                   </div>
-
-                  {/* SHARE BAR */}
-                  <div style={{ width: "100%", height: 3, background: "rgba(255,255,255,0.08)", borderRadius: 2, overflow: "hidden" }}>
-                    <div style={{ width: `${cl.sharePct}%`, height: "100%", background: "var(--accent-cyan)" }} />
+                  <div className="h-1 w-full overflow-hidden rounded-full bg-surface-hover" aria-hidden>
+                    {/* width is a computed percentage, so it stays inline */}
+                    <div className="h-full rounded-full bg-accent" style={{ width: `${cl.sharePct}%` }} />
                   </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+                </li>
+              ))}
+            </ol>
+          )}
+        </Panel>
       </div>
 
       {/* FILTERED INVOICE DATA TABLE */}
-      <div style={{ background: "var(--bg-glass)", border: "1px solid var(--border)", borderRadius: 20, overflow: "hidden" }}>
-        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div>
-            <h3 style={{ fontSize: "1rem", fontWeight: 700, color: "var(--text-primary)", margin: 0 }}>
-              Filtered Invoices List ({filteredInvoices.length})
-            </h3>
-            <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)", margin: "2px 0 0" }}>
-              Showing invoice records matching your active filters
-            </p>
-          </div>
-          <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--text-primary)" }}>
-            Subtotal: {formatCurrency(metrics.totalRevenue)}
+      <Panel
+        padded={false}
+        title={`Filtered Invoices (${filteredInvoices.length})`}
+        description="Invoice records matching the active filters"
+        icon={<FileSpreadsheet size={16} />}
+        actions={
+          <span className="text-sm font-semibold text-fg">
+            Subtotal: <span className="text-accent">{formatCurrency(metrics.totalRevenue)}</span>
           </span>
+        }
+      >
+        <div className="border-t border-line">
+          {loading ? (
+            <LoadingState label="Loading reports data..." />
+          ) : filteredInvoices.length === 0 ? (
+            <EmptyState
+              icon={<FileSpreadsheet size={28} />}
+              title="No matching invoices"
+              description="No invoice records match your current filter selection."
+              action={
+                hasActiveFilters ? (
+                  <button type="button" className="btn btn-ghost" onClick={resetFilters}>
+                    <X size={16} aria-hidden /> Reset filters
+                  </button>
+                ) : undefined
+              }
+            />
+          ) : (
+            <TableWrap>
+              <table className="data-table min-w-[860px]">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Invoice #</th>
+                    <th>Client</th>
+                    <th>Products / Services</th>
+                    <th className="text-right!">Amount</th>
+                    <th className="text-center!">Status</th>
+                    <th className="text-right!">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageItems.map((inv) => {
+                    const amount = getInvoiceTotal(inv);
+                    const clientName = inv.clients?.company || inv.clients?.full_name || "—";
+                    const prodDesc = (inv.invoice_items || []).map((i) => i.description).join(", ") || "Item";
+
+                    return (
+                      <tr key={inv.id}>
+                        <td className="whitespace-nowrap tabular-nums">{formatShortDate(inv.invoice_date)}</td>
+                        <td>
+                          <span className="whitespace-nowrap font-mono text-sm font-semibold text-accent">{inv.invoice_number}</span>
+                        </td>
+                        <td className="font-semibold text-fg">{clientName}</td>
+                        <td className="max-w-xs truncate" title={prodDesc}>
+                          {prodDesc}
+                        </td>
+                        <td className="whitespace-nowrap text-right font-semibold text-fg">{formatCurrency(amount)}</td>
+                        <td className="text-center">
+                          <StatusBadge status={inv.status} />
+                        </td>
+                        <td className="text-right">
+                          <Link
+                            href={`/invoices/${inv.id}`}
+                            className="btn btn-ghost btn-sm"
+                            aria-label={`View invoice ${inv.invoice_number}`}
+                          >
+                            <ExternalLink size={14} aria-hidden /> View
+                          </Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </TableWrap>
+          )}
+          {!loading && (
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              pageSize={pageSize}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+            />
+          )}
         </div>
-
-        {loading ? (
-          <LoadingState label="Loading reports data..." />
-        ) : filteredInvoices.length === 0 ? (
-          <div style={{ padding: 60, textAlign: "center", color: "var(--text-secondary)" }}>
-            No invoice records match your current filter selection.
-          </div>
-        ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Invoice Number</th>
-                  <th>Client Name</th>
-                  <th>Product / Service Description</th>
-                  <th style={{ textAlign: "right" }}>Amount</th>
-                  <th style={{ textAlign: "center" }}>Status</th>
-                  <th style={{ textAlign: "right" }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageItems.map((inv) => {
-                  const amount = getInvoiceTotal(inv);
-                  const clientName = inv.clients?.company || inv.clients?.full_name || "—";
-                  const prodDesc = (inv.invoice_items || []).map((i) => i.description).join(", ") || "Item";
-
-                  return (
-                    <tr key={inv.id}>
-                      <td style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontVariantNumeric: "tabular-nums" }}>
-                        {formatShortDate(inv.invoice_date)}
-                      </td>
-                      <td>
-                        <span style={{ fontFamily: "monospace", fontSize: "0.8rem", color: "var(--accent-cyan)", fontWeight: 700 }}>
-                          {inv.invoice_number}
-                        </span>
-                      </td>
-                      <td style={{ fontWeight: 600, color: "var(--text-primary)" }}>
-                        {clientName}
-                      </td>
-                      <td style={{ fontSize: "0.8rem", color: "var(--text-secondary)", maxWidth: 300, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {prodDesc}
-                      </td>
-                      <td style={{ textAlign: "right", fontWeight: 700, color: "var(--text-primary)" }}>
-                        {formatCurrency(amount)}
-                      </td>
-                      <td style={{ textAlign: "center" }}>
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 4,
-                            padding: "2px 8px",
-                            borderRadius: 10,
-                            fontSize: "0.72rem",
-                            fontWeight: 700,
-                            background: inv.status === "Paid" ? "rgba(16, 185, 129, 0.15)" : "rgba(245, 158, 11, 0.15)",
-                            color: inv.status === "Paid" ? "#34d399" : "#fbbf24",
-                            border: `1px solid ${inv.status === "Paid" ? "rgba(16, 185, 129, 0.3)" : "rgba(245, 158, 11, 0.3)"}`,
-                          }}
-                        >
-                          {inv.status}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: "right" }}>
-                        <Link href={`/invoices/${inv.id}`} className="btn btn-ghost" style={{ padding: "4px 8px", fontSize: "0.75rem", gap: 4 }}>
-                          <ExternalLink size={12} /> View
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-        {!loading && (
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            totalItems={totalItems}
-            pageSize={pageSize}
-            onPageChange={setPage}
-            onPageSizeChange={setPageSize}
-          />
-        )}
-      </div>
+      </Panel>
     </div>
   );
 }

@@ -44,33 +44,26 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
     <ConfirmContext.Provider value={confirm}>
       {children}
       <Modal isOpen={!!options} onClose={() => close(false)} title={options?.title ?? ""} maxWidth={420} closeOnOverlayClick>
-        <div style={{ display: "flex", gap: 14, alignItems: "flex-start", marginBottom: 24 }}>
-          {danger && (
-            <div
-              style={{
-                flexShrink: 0,
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                background: "rgba(239,68,68,0.12)",
-                color: "#f87171",
-              }}
-            >
-              <AlertTriangle size={18} />
-            </div>
-          )}
-          {options?.message && (
-            <div style={{ fontSize: "0.9rem", lineHeight: 1.5, color: "var(--text-secondary)" }}>{options.message}</div>
-          )}
-        </div>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-          <button className="btn btn-ghost" onClick={() => close(false)}>
+        {(danger || options?.message) && (
+          <div className="mb-6 flex items-start gap-3.5">
+            {danger && (
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-control border border-danger-border bg-danger-bg text-danger">
+                <AlertTriangle size={18} aria-hidden />
+              </div>
+            )}
+            {options?.message && <div className="text-sm leading-relaxed text-fg-muted">{options.message}</div>}
+          </div>
+        )}
+        <div className="flex flex-col-reverse gap-2.5 sm:flex-row sm:justify-end">
+          <button type="button" className="btn btn-ghost justify-center" onClick={() => close(false)}>
             {options?.cancelLabel ?? "Cancel"}
           </button>
-          <button className={danger ? "btn btn-danger" : "btn btn-primary"} onClick={() => close(true)} autoFocus>
+          <button
+            type="button"
+            className={(danger ? "btn btn-danger" : "btn btn-primary") + " justify-center"}
+            onClick={() => close(true)}
+            autoFocus
+          >
             {options?.confirmLabel ?? "Confirm"}
           </button>
         </div>

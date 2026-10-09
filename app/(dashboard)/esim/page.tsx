@@ -9,13 +9,11 @@ import {
   Globe,
   Zap,
   CheckCircle2,
-  AlertCircle,
-  Clock,
   Trash2,
   Copy,
   Check,
-  ShieldCheck,
   Download,
+  Wallet,
 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
@@ -23,6 +21,13 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { LoadingState } from "@/components/ui/loading-state";
+import { PageHeader } from "@/components/ui/page-header";
+import { Panel } from "@/components/ui/panel";
+import { StatCard, StatGrid } from "@/components/ui/stat-card";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { FilterBar, TableWrap } from "@/components/ui/data-table";
+import { Field, SearchInput, SelectInput, TextInput } from "@/components/ui/field";
+import { cn } from "@/lib/utils";
 import { exportToCSV } from "@/lib/export-utils";
 
 type EsimProfile = {
@@ -239,94 +244,68 @@ export default function EsimPage() {
   const totalRevenue = profiles.reduce((s, p) => s + p.price, 0);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      {/* HEADER */}
-      <div className="animate-fade-in-up" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-        <div>
-          <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--text-primary)", margin: 0, letterSpacing: "-0.02em" }}>
-            eSIM Global Engine
-          </h1>
-          <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem", margin: "4px 0 0" }}>
-            Instant eSIM profile provision, ICCID tracking, and QR code activation.
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 10 }}>
-          <button className="btn btn-ghost" onClick={handleExport} title="Export CSV file">
-            <Download size={15} />
-            Export CSV
-          </button>
-          <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
-            <Plus size={16} />
-            Provision eSIM
-          </button>
-        </div>
-      </div>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title="eSIM Profiles"
+        description="Provision eSIM profiles, track ICCIDs and share QR activation codes."
+        actions={
+          <>
+            <button className="btn btn-ghost" onClick={handleExport} title="Export CSV file">
+              <Download size={16} aria-hidden />
+              Export CSV
+            </button>
+            <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+              <Plus size={16} aria-hidden />
+              Provision eSIM
+            </button>
+          </>
+        }
+      />
 
       {/* KPI STRIP */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
-        {[
-          { label: "Total Profiles", value: profiles.length, color: "var(--accent-cyan)" },
-          { label: "Active Connections", value: totalActive, color: "var(--accent-emerald)" },
-          { label: "Active Bandwidth", value: `${totalGb} GB`, color: "#7c3aed" },
-          { label: "eSIM Sales Value", value: formatCurrency(totalRevenue), color: "var(--accent-amber)" },
-        ].map((kpi) => (
-          <div
-            key={kpi.label}
-            style={{
-              background: "var(--bg-glass)",
-              border: "1px solid var(--border)",
-              borderRadius: 16,
-              padding: "16px 18px",
-              borderLeft: `3px solid ${kpi.color}`,
-            }}
-          >
-            <div style={{ fontSize: "0.7rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
-              {kpi.label}
-            </div>
-            <div style={{ fontSize: "1.35rem", fontWeight: 800, color: "var(--text-primary)" }}>
-              {kpi.value}
-            </div>
-          </div>
-        ))}
-      </div>
+      <StatGrid>
+        <StatCard label="Total Profiles" value={profiles.length} icon={<Smartphone size={20} />} tone="accent" loading={loading} />
+        <StatCard label="Active Connections" value={totalActive} icon={<CheckCircle2 size={20} />} tone="success" loading={loading} />
+        <StatCard label="Active Bandwidth" value={`${totalGb} GB`} icon={<Globe size={20} />} tone="purple" loading={loading} />
+        <StatCard label="eSIM Sales Value" value={formatCurrency(totalRevenue)} icon={<Wallet size={20} />} tone="warning" loading={loading} />
+      </StatGrid>
 
-      {/* FILTER BAR */}
-      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-        <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
-          <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
-          <input
-            className="form-input"
-            style={{ paddingLeft: 36 }}
-            placeholder="Search ICCID, user or package..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      <Panel padded={false}>
+        {/* FILTER BAR */}
+        <div className="border-b border-line p-4">
+          <FilterBar>
+            <SearchInput
+              icon={<Search size={16} />}
+              className="basis-full sm:basis-64"
+              placeholder="Search ICCID, user or package..."
+              aria-label="Search eSIM profiles"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+            <div role="group" aria-label="Filter by status" className="flex flex-wrap gap-1.5">
+              {["All", "Active", "Expired", "Pending"].map((s) => {
+                const active = statusFilter === s;
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setStatusFilter(s)}
+                    className={cn(
+                      "rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors",
+                      active
+                        ? "border-accent-border bg-accent-bg text-accent"
+                        : "border-line text-fg-muted hover:bg-surface-hover hover:text-fg"
+                    )}
+                  >
+                    {s}
+                  </button>
+                );
+              })}
+            </div>
+          </FilterBar>
         </div>
-        <div style={{ display: "flex", gap: 6 }}>
-          {["All", "Active", "Expired", "Pending"].map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              style={{
-                padding: "6px 14px",
-                borderRadius: 20,
-                border: "1px solid",
-                fontSize: "0.78rem",
-                fontWeight: 600,
-                cursor: "pointer",
-                borderColor: statusFilter === s ? "var(--border-accent)" : "var(--border)",
-                background: statusFilter === s ? "var(--accent-cyan-dim)" : "transparent",
-                color: statusFilter === s ? "var(--accent-cyan)" : "var(--text-secondary)",
-              }}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      </div>
 
-      {/* TABLE */}
-      <div style={{ background: "var(--bg-glass)", border: "1px solid var(--border)", borderRadius: 20, overflow: "hidden" }}>
         {loading ? (
           <LoadingState label="Loading eSIM profiles..." />
         ) : filtered.length === 0 ? (
@@ -336,90 +315,90 @@ export default function EsimPage() {
             description="Provision a new eSIM profile to get started."
             action={
               <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
-                <Plus size={14} /> Provision eSIM
+                <Plus size={16} aria-hidden /> Provision eSIM
               </button>
             }
           />
         ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>ICCID / User</th>
-                <th>Package Plan</th>
-                <th>Region</th>
-                <th>Quota</th>
-                <th style={{ textAlign: "right" }}>Price</th>
-                <th>Expires</th>
-                <th>Status</th>
-                <th style={{ textAlign: "right" }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((item) => (
-                <tr key={item.id}>
-                  <td>
-                    <div style={{ fontWeight: 600, color: "var(--text-primary)" }}>{item.user_name}</div>
-                    <div style={{ fontFamily: "monospace", fontSize: "0.72rem", color: "var(--text-secondary)", background: "var(--bg-glass-hover)", padding: "1px 5px", borderRadius: 4, display: "inline-block", marginTop: 2 }}>
-                      {item.iccid}
-                    </div>
-                  </td>
-                  <td style={{ fontWeight: 600, color: "var(--accent-cyan)" }}>{item.package_name}</td>
-                  <td>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "var(--text-secondary)", fontSize: "0.8rem" }}>
-                      <Globe size={12} /> {item.region}
-                    </span>
-                  </td>
-                  <td style={{ fontWeight: 700, color: "#a78bfa" }}>{item.data_gb} GB</td>
-                  <td style={{ textAlign: "right" }}>{formatCurrency(item.price)}</td>
-                  <td style={{ fontVariantNumeric: "tabular-nums" }}>{formatDate(item.expiry_date)}</td>
-                  <td>
-                    <span className={item.status === "Active" ? "badge badge-paid" : "badge badge-cancelled"}>
-                      {item.status}
-                    </span>
-                  </td>
-                  <td style={{ textAlign: "right" }}>
-                    <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                      <button
-                        className="btn btn-ghost"
-                        style={{ padding: "5px 10px", fontSize: "0.78rem" }}
-                        onClick={() => setActiveQrModal(item)}
-                      >
-                        <QrCode size={13} /> QR Code
-                      </button>
-                      <button
-                        className="btn btn-danger"
-                        style={{ padding: "5px 8px", fontSize: "0.78rem" }}
-                        onClick={() => deleteProfile(item.id)}
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  </td>
+          <TableWrap>
+            <table className="data-table min-w-[900px]">
+              <thead>
+                <tr>
+                  <th>ICCID / User</th>
+                  <th>Package Plan</th>
+                  <th>Region</th>
+                  <th>Quota</th>
+                  <th className="text-right!">Price</th>
+                  <th>Expires</th>
+                  <th>Status</th>
+                  <th className="text-right!">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.map((item) => (
+                  <tr key={item.id}>
+                    <td>
+                      <div className="font-semibold text-fg">{item.user_name}</div>
+                      <div className="mt-0.5 inline-block rounded-md border border-line bg-inset px-1.5 py-0.5 font-mono text-xs text-fg-muted">
+                        {item.iccid}
+                      </div>
+                    </td>
+                    <td className="font-semibold text-accent">{item.package_name}</td>
+                    <td>
+                      <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+                        <Globe size={14} className="shrink-0 text-fg-subtle" aria-hidden /> {item.region}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap font-semibold text-purple">{item.data_gb} GB</td>
+                    <td className="whitespace-nowrap text-right">{formatCurrency(item.price)}</td>
+                    <td className="whitespace-nowrap tabular-nums">{formatDate(item.expiry_date)}</td>
+                    <td>
+                      <StatusBadge status={item.status} />
+                    </td>
+                    <td className="text-right">
+                      <div className="flex justify-end gap-1.5">
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => setActiveQrModal(item)}
+                          aria-label={`Show QR code for ${item.user_name}`}
+                          title="QR code"
+                        >
+                          <QrCode size={14} aria-hidden /> QR Code
+                        </button>
+                        <button
+                          className="btn btn-danger btn-sm btn-icon"
+                          onClick={() => deleteProfile(item.id)}
+                          aria-label={`Remove eSIM profile for ${item.user_name}`}
+                          title="Remove"
+                        >
+                          <Trash2 size={14} aria-hidden />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableWrap>
         )}
-      </div>
+      </Panel>
 
       {/* PROVISION ESIM MODAL */}
-      <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} title="Provision New eSIM Profile">
-        <form onSubmit={handleCreateEsim} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label className="form-label">Assignee / User Name *</label>
-              <input
-                className="form-input"
+      <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} title="Provision eSIM Profile">
+        <form onSubmit={handleCreateEsim} className="flex flex-col gap-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Assignee / User Name" htmlFor="esim-user" required className="sm:col-span-2">
+              <TextInput
+                id="esim-user"
                 placeholder="e.g. Media Event Team"
                 value={form.user_name}
                 onChange={(e) => setForm({ ...form, user_name: e.target.value })}
                 required
               />
-            </div>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <label className="form-label">Package Plan *</label>
-              <select
-                className="form-input form-select"
+            </Field>
+            <Field label="Package Plan" htmlFor="esim-package" required className="sm:col-span-2">
+              <SelectInput
+                id="esim-package"
                 value={form.package_name}
                 onChange={(e) => {
                   const pName = e.target.value;
@@ -435,36 +414,31 @@ export default function EsimPage() {
                 <option value="Global Ultra 5G (50GB)">Global Ultra 5G (50GB) — Rp 650.000</option>
                 <option value="Asia-Pacific Unlimited (10GB)">Asia-Pacific Unlimited (10GB) — Rp 250.000</option>
                 <option value="Indonesia Premier 5G (20GB)">Indonesia Premier 5G (20GB) — Rp 180.000</option>
-              </select>
-            </div>
-            <div>
-              <label className="form-label">Quota (GB)</label>
-              <input className="form-input" value={form.data_gb} readOnly />
-            </div>
-            <div>
-              <label className="form-label">Price (Rp)</label>
-              <input className="form-input" value={form.price} readOnly />
-            </div>
-            <div>
-              <label className="form-label">Validity Period (Days)</label>
-              <input
+              </SelectInput>
+            </Field>
+            <Field label="Quota (GB)" htmlFor="esim-quota">
+              <TextInput id="esim-quota" value={form.data_gb} readOnly />
+            </Field>
+            <Field label="Price (Rp)" htmlFor="esim-price">
+              <TextInput id="esim-price" value={form.price} readOnly />
+            </Field>
+            <Field label="Validity Period (days)" htmlFor="esim-validity" required>
+              <TextInput
+                id="esim-validity"
                 type="number"
-                className="form-input"
                 value={form.validity_days}
                 onChange={(e) => setForm({ ...form, validity_days: e.target.value })}
                 required
               />
-            </div>
+            </Field>
           </div>
 
-          <div className="divider" style={{ margin: "4px 0" }} />
-
-          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <div className="flex flex-wrap justify-end gap-2 border-t border-line pt-4">
             <button type="button" className="btn btn-ghost" onClick={() => setShowCreateModal(false)}>
               Cancel
             </button>
             <button type="submit" className="btn btn-primary">
-              <Zap size={14} /> Provision eSIM
+              <Zap size={16} aria-hidden /> Provision eSIM
             </button>
           </div>
         </form>
@@ -473,40 +447,38 @@ export default function EsimPage() {
       {/* QR CODE MODAL */}
       <Modal isOpen={!!activeQrModal} onClose={() => setActiveQrModal(null)} title="eSIM QR Code & Activation">
         {activeQrModal && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, textAlign: "center" }}>
-            <div style={{ background: "white", padding: 16, borderRadius: 16, border: "4px solid rgba(0,212,255,0.3)" }}>
-              {/* Simulated QR Pattern */}
-              <div style={{ width: 160, height: 160, display: "grid", gridTemplateColumns: "repeat(8, 1fr)", gap: 2, background: "#0f172a", padding: 8, borderRadius: 8 }}>
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="rounded-2xl border-4 border-accent-border bg-inset p-4">
+              {/* Simulated QR pattern */}
+              <div className="grid size-40 grid-cols-8 gap-0.5 rounded-lg bg-page p-2" aria-hidden>
                 {Array.from({ length: 64 }).map((_, i) => (
                   <div
                     key={i}
-                    style={{
-                      background: (i * 13 + 7) % 3 === 0 ? "#00d4ff" : (i * 7 + 3) % 2 === 0 ? "#7c3aed" : "#0f172a",
-                      borderRadius: (i % 5 === 0) ? 2 : 0,
-                    }}
+                    className={cn(
+                      (i * 13 + 7) % 3 === 0 ? "bg-accent" : (i * 7 + 3) % 2 === 0 ? "bg-purple" : "bg-page",
+                      i % 5 === 0 && "rounded-xs"
+                    )}
                   />
                 ))}
               </div>
             </div>
 
             <div>
-              <div style={{ fontWeight: 700, color: "#f0f6ff", fontSize: "1.1rem" }}>{activeQrModal.package_name}</div>
-              <div style={{ fontSize: "0.8rem", color: "#8ba3c7", marginTop: 2 }}>{activeQrModal.user_name}</div>
+              <div className="text-lg font-bold text-fg">{activeQrModal.package_name}</div>
+              <div className="mt-0.5 text-sm text-fg-muted">{activeQrModal.user_name}</div>
             </div>
 
-            <div style={{ width: "100%", background: "rgba(255,255,255,0.03)", padding: "12px 16px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.07)", textAlign: "left" }}>
-              <div style={{ fontSize: "0.7rem", color: "#4a6080", textTransform: "uppercase", fontWeight: 700, marginBottom: 4 }}>Activation String (LPA)</div>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                <span style={{ fontFamily: "monospace", fontSize: "0.75rem", color: "#00d4ff", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {activeQrModal.activation_code}
-                </span>
+            <div className="w-full rounded-xl border border-line bg-inset px-4 py-3 text-left">
+              <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-fg-subtle">Activation String (LPA)</div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="min-w-0 truncate font-mono text-xs text-accent">{activeQrModal.activation_code}</span>
                 <button
                   type="button"
-                  className="btn btn-ghost"
-                  style={{ padding: "4px 8px", fontSize: "0.75rem" }}
+                  className="btn btn-ghost btn-sm shrink-0"
                   onClick={() => copyActivationCode(activeQrModal.activation_code)}
+                  aria-label="Copy activation code"
                 >
-                  {copiedCode ? <Check size={12} style={{ color: "#34d399" }} /> : <Copy size={12} />}
+                  {copiedCode ? <Check size={14} className="text-success" aria-hidden /> : <Copy size={14} aria-hidden />}
                   {copiedCode ? "Copied" : "Copy"}
                 </button>
               </div>

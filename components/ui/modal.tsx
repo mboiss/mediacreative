@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { X } from "lucide-react";
 
 interface ModalProps {
@@ -21,6 +21,7 @@ export function Modal({
   closeOnOverlayClick = false,
 }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
 
   // Prevent background scroll when modal is open
   useEffect(() => {
@@ -37,7 +38,7 @@ export function Modal({
   return (
     <div
       ref={overlayRef}
-      className="modal-overlay"
+      className="fixed inset-0 z-[100] flex animate-fade-in items-end justify-center overflow-y-auto bg-black/60 p-3 backdrop-blur-sm sm:items-center sm:p-6"
       onClick={(e) => {
         // Only close if closeOnOverlayClick is explicitly enabled (default is false)
         if (closeOnOverlayClick && e.target === overlayRef.current) {
@@ -45,57 +46,32 @@ export function Modal({
         }
       }}
     >
-      <div className="modal-box" style={{ maxWidth }}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="my-auto flex max-h-[calc(100dvh-1.5rem)] w-full animate-fade-in-up flex-col overflow-hidden rounded-card border border-line bg-elevated text-fg shadow-card sm:max-h-[calc(100dvh-3rem)]"
+        // maxWidth is a per-instance numeric prop, so it stays an inline style.
+        style={{ maxWidth }}
+      >
         {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 24,
-          }}
-        >
-          <h3
-            style={{
-              fontSize: "1.1rem",
-              fontWeight: 700,
-              color: "var(--text-primary)",
-              margin: 0,
-            }}
-          >
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-5 py-4 sm:px-7">
+          <h3 id={titleId} className="min-w-0 truncate text-lg font-bold text-fg">
             {title}
           </h3>
           <button
+            type="button"
             onClick={onClose}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              border: "1px solid var(--border)",
-              background: "var(--bg-glass)",
-              color: "var(--text-secondary)",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              transition: "all 150ms ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(239,68,68,0.1)";
-              e.currentTarget.style.color = "#f87171";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "var(--bg-glass)";
-              e.currentTarget.style.color = "var(--text-secondary)";
-            }}
-            title="Close Window"
+            aria-label="Close"
+            title="Close"
+            className="flex size-9 shrink-0 items-center justify-center rounded-control border border-line bg-surface text-fg-muted transition hover:border-danger-border hover:bg-danger-bg hover:text-danger focus-visible:outline-2 focus-visible:outline-accent"
           >
-            <X size={15} />
+            <X size={16} />
           </button>
         </div>
 
         {/* Content */}
-        {children}
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-7 sm:py-6">{children}</div>
       </div>
     </div>
   );
