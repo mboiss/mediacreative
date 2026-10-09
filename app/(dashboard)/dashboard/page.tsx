@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
 import { Users, FileText, TrendingUp, Clock, BarChart2, Wifi, Zap } from "lucide-react";
 import {
@@ -108,16 +107,6 @@ export default function DashboardPage() {
       <PageHeader
         title="Welcome back, Media Creative"
         description={today ? `${today} · Here's what's happening with your business today.` : "Here's what's happening with your business today."}
-        actions={
-          <Image
-            src="/logo.png"
-            alt="Media Creative Logo"
-            width={160}
-            height={52}
-            className="hidden h-auto w-[140px] object-contain sm:block"
-            priority
-          />
-        }
       />
 
       {/* KPI CARDS */}

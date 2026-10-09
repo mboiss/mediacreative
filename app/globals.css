@@ -217,6 +217,9 @@ body {
   background: var(--accent-cyan);
 }
 
+/* Component classes live in a layer so Tailwind utilities on the same element can override them
+   (e.g. `form-input pl-9` for a search box with an icon). */
+@layer components {
 /* ============================================
    GLASS CARD UTILITY
    ============================================ */
@@ -570,6 +573,7 @@ select option {
   background: var(--bg-glass) !important;
   border-color: var(--border) !important;
   color: var(--text-primary) !important;
+}
 }
 
 /* ============================================

@@ -151,7 +151,6 @@ export default function Sidebar() {
                 className="h-auto w-[130px] object-contain"
                 priority
               />
-              <div className="text-xs font-bold uppercase tracking-wide text-accent">Control Center</div>
             </div>
 
             <button
@@ -212,7 +211,6 @@ export default function Sidebar() {
               className="h-auto w-[135px] object-contain"
               priority
             />
-            <div className="whitespace-nowrap text-xs font-bold uppercase tracking-wide text-accent">Control Center</div>
           </div>
         )}
 
