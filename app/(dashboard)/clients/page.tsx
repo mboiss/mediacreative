@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Search, Plus, Trash2, Users, Loader2, Edit2, Mail, Phone, Building, Download, Save, Eye } from "lucide-react";
+import { Search, Plus, Trash2, Users, Loader2, Edit2, Mail, Phone, Building, Download, Save, Eye, FilePlus } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
@@ -18,6 +18,8 @@ import { exportToCSV } from "@/lib/export-utils";
 import { RowActions, type RowAction } from "@/components/ui/row-actions";
 import { MobileList, ListCard } from "@/components/ui/list-card";
 import { useRealtimeSync } from "@/hooks/use-realtime-sync";
+import { formatRupiah } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 type Client = {
   id: string;
@@ -27,6 +29,9 @@ type Client = {
   company: string;
   address: string;
 };
+
+/** Per-client invoice summary shown in the list. */
+type InvoiceSummary = { count: number; outstanding: number; outstandingCount: number };
 
 const EMPTY_FORM = {
   full_name: "",
@@ -70,13 +75,33 @@ export default function ClientsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [invoiceSummary, setInvoiceSummary] = useState<Record<string, InvoiceSummary>>({});
 
   const loadClients = useCallback(async () => {
     try {
-      const res = await fetch(`/api/clients?_t=${Date.now()}`, { cache: "no-store", headers: { Pragma: "no-cache" } });
+      const ts = Date.now();
+      const [res, invRes] = await Promise.all([
+        fetch(`/api/clients?_t=${ts}`, { cache: "no-store", headers: { Pragma: "no-cache" } }),
+        fetch(`/api/invoices?_t=${ts}`, { cache: "no-store", headers: { Pragma: "no-cache" } }),
+      ]);
       if (!res.ok) return;
       const data = await res.json();
       if (Array.isArray(data)) setClients(data);
+
+      // Invoice count and unpaid amount per client (the list still works if this fails).
+      const invoices = invRes.ok ? await invRes.json().catch(() => null) : null;
+      if (Array.isArray(invoices)) {
+        const summary: Record<string, InvoiceSummary> = {};
+        for (const inv of invoices as { client_id: string; status: string; total_amount?: number }[]) {
+          const entry = (summary[inv.client_id] ??= { count: 0, outstanding: 0, outstandingCount: 0 });
+          entry.count += 1;
+          if (inv.status !== "Paid" && inv.status !== "Cancelled") {
+            entry.outstanding += inv.total_amount ?? 0;
+            entry.outstandingCount += 1;
+          }
+        }
+        setInvoiceSummary(summary);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -89,7 +114,7 @@ export default function ClientsPage() {
   }, [loadClients]);
 
   // Enable Real-time sync across devices
-  useRealtimeSync(loadClients, { tables: ["clients"] });
+  useRealtimeSync(loadClients, { tables: ["clients", "invoices"] });
 
   const openCreateModal = useCallback(() => {
     setEditingClient(null);
@@ -195,7 +220,8 @@ export default function ClientsPage() {
   const { pageItems, page, setPage, pageSize, setPageSize, totalPages, totalItems } = usePagination(filtered, search);
 
   const clientActions = (client: Client): RowAction[] => [
-    { label: "View details", icon: <Eye />, href: `/clients/${client.id}` },
+    { label: "View details & invoices", icon: <Eye />, href: `/clients/${client.id}` },
+    { label: "New invoice", icon: <FilePlus />, href: `/invoices/new?client=${client.id}` },
     { label: "Edit", icon: <Edit2 />, onSelect: () => openEditModal(client) },
     {
       label: deletingId === client.id ? "Deleting..." : "Delete",
@@ -261,13 +287,14 @@ export default function ClientsPage() {
         ) : (
           <>
           <TableWrap className="hidden md:block">
-            <table className="data-table min-w-[720px]">
+            <table className="data-table min-w-[760px]">
               <thead>
                 <tr>
                   <th>Name</th>
                   <th>Company</th>
-                  <th>Email</th>
                   <th>Phone</th>
+                  <th className="text-right!">Invoices</th>
+                  <th className="text-right!">Outstanding</th>
                   <th className="text-right!"><span className="sr-only">Actions</span></th>
                 </tr>
               </thead>
@@ -281,15 +308,30 @@ export default function ClientsPage() {
                       >
                         {client.full_name}
                       </Link>
+                      {client.email && <div className="truncate text-xs text-fg-subtle">{client.email}</div>}
                     </td>
                     <td>
                       <IconCell icon={<Building size={14} />} value={client.company} />
                     </td>
                     <td>
-                      <IconCell icon={<Mail size={14} />} value={client.email} />
-                    </td>
-                    <td>
                       <IconCell icon={<Phone size={14} />} value={client.phone} />
+                    </td>
+                    <td className="text-right tabular-nums">
+                      {invoiceSummary[client.id]?.count ? (
+                        <Link href={`/clients/${client.id}`} className="font-medium text-fg hover:text-accent hover:underline">
+                          {invoiceSummary[client.id].count}
+                        </Link>
+                      ) : (
+                        <span className="text-fg-subtle">—</span>
+                      )}
+                    </td>
+                    <td
+                      className={cn(
+                        "whitespace-nowrap text-right tabular-nums",
+                        invoiceSummary[client.id]?.outstanding ? "font-semibold text-warning" : "text-fg-subtle"
+                      )}
+                    >
+                      {invoiceSummary[client.id]?.outstanding ? formatRupiah(invoiceSummary[client.id].outstanding) : "—"}
                     </td>
                     <td className="text-right">
                       <RowActions label={`Actions for ${client.full_name}`} actions={clientActions(client)} />
@@ -306,9 +348,19 @@ export default function ClientsPage() {
                 href={`/clients/${client.id}`}
                 title={client.full_name}
                 subtitle={client.company || undefined}
+                value={
+                  invoiceSummary[client.id]?.outstanding ? (
+                    <span className="text-sm text-warning">{formatRupiah(invoiceSummary[client.id].outstanding)}</span>
+                  ) : undefined
+                }
                 meta={
-                  client.email || client.phone ? (
+                  client.email || client.phone || invoiceSummary[client.id]?.count ? (
                     <>
+                      {invoiceSummary[client.id]?.count ? (
+                        <span className="whitespace-nowrap font-medium text-fg">
+                          {invoiceSummary[client.id].count} invoice{invoiceSummary[client.id].count === 1 ? "" : "s"}
+                        </span>
+                      ) : null}
                       {client.email && (
                         <span className="flex min-w-0 items-center gap-1">
                           <Mail size={12} aria-hidden className="shrink-0 text-fg-subtle" />

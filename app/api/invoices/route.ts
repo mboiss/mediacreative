@@ -38,8 +38,11 @@ async function generateInvoiceNumber(): Promise<string> {
   return `${prefix}${String(highest + 1).padStart(4, "0")}`;
 }
 
-export async function GET() {
-  const { data, error } = await supabase
+export async function GET(request: Request) {
+  // Optional ?client_id= to list one client's invoices (client detail page).
+  const clientId = new URL(request.url).searchParams.get("client_id");
+
+  let query = supabase
     .from("invoices")
     .select(`
       *,
@@ -54,6 +57,9 @@ export async function GET() {
     .order("created_at", {
       ascending: false,
     });
+  if (clientId) query = query.eq("client_id", clientId);
+
+  const { data, error } = await query;
 
   if (error) {
     return NextResponse.json(

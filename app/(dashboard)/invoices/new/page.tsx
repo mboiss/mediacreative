@@ -74,6 +74,13 @@ export default function NewInvoicePage() {
 
   // Form State
   const [clientId, setClientId] = useState("");
+
+  // "New invoice" from a client's page links here with ?client=<id> to preselect that client.
+  useEffect(() => {
+    const preselected = new URLSearchParams(window.location.search).get("client");
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (preselected) setClientId(preselected);
+  }, []);
   const [invoiceDate, setInvoiceDate] = useState(new Date().toISOString().split("T")[0]);
   const [dueDate, setDueDate] = useState(() => {
     const d = new Date();
