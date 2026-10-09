@@ -9,20 +9,33 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PU
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-function generateInvoiceNumber() {
-  const date = new Date();
+const DEFAULT_INVOICE_PREFIX = "INV-MC{YYYY}-";
 
-  const year = date.getFullYear();
+/**
+ * Next invoice number: the "Invoice Prefix" from Settings followed by a 4-digit running number.
+ * "{YYYY}" in the prefix is replaced by the current year, so "INV-MC{YYYY}-" gives INV-MC2026-0001,
+ * INV-MC2026-0002, … and automatically INV-MC2027-0001 from 1 January 2027 (numbering restarts per prefix).
+ */
+async function generateInvoiceNumber(): Promise<string> {
+  const { data: settings } = await supabase
+    .from("app_settings")
+    .select("invoice_prefix")
+    .eq("id", "default")
+    .maybeSingle();
+  const template = (settings?.invoice_prefix || "").trim() || DEFAULT_INVOICE_PREFIX;
+  const prefix = template.replaceAll("{YYYY}", String(new Date().getFullYear()));
 
-  const month = String(
-    date.getMonth() + 1
-  ).padStart(2, "0");
+  const { data: existing } = await supabase
+    .from("invoices")
+    .select("invoice_number")
+    .like("invoice_number", `${prefix.replace(/[%_]/g, "\$&")}%`);
 
-  const random = Math.floor(
-    1000 + Math.random() * 9000
-  );
+  const highest = (existing ?? []).reduce((max, row) => {
+    const n = Number.parseInt(String(row.invoice_number).slice(prefix.length), 10);
+    return Number.isFinite(n) && n > max ? n : max;
+  }, 0);
 
-  return `INV-${year}${month}-${random}`;
+  return `${prefix}${String(highest + 1).padStart(4, "0")}`;
 }
 
 export async function GET() {
@@ -123,7 +136,7 @@ export async function POST(request: Request) {
     .from("invoices")
     .insert([
       {
-        invoice_number: generateInvoiceNumber(),
+        invoice_number: await generateInvoiceNumber(),
         client_id: body.client_id,
         invoice_date: body.invoice_date,
         due_date: body.due_date || null,

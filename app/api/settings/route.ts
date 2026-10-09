@@ -12,7 +12,7 @@ const DEFAULT_SETTINGS = {
   phone: "+62 812-3456-7890",
   address: "Jl. Sudirman No. 88, Jakarta Selatan 12190",
   tax_id: "01.234.567.8-012.000",
-  invoice_prefix: "INV-2026-",
+  invoice_prefix: "INV-MC{YYYY}-",
   tax_rate: "11",
   currency: "IDR (Rp)",
   payment_terms_days: "14",
