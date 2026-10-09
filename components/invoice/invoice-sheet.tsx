@@ -215,19 +215,6 @@ export function InvoiceSheet({
                 <dd className={cn("text-right font-semibold", PAPER.ink)}>{value}</dd>
               </React.Fragment>
             ))}
-            <dt className={cn("mt-1.5 border-t pt-2 font-semibold", PAPER.rule, PAPER.ink)}>
-              {isPaid ? "Amount Paid" : "Amount Due"}
-            </dt>
-            <dd
-              className={cn(
-                "mt-1.5 border-t pt-2 text-right font-extrabold tabular-nums",
-                PAPER.rule,
-                PAPER.brand,
-                compact ? "text-sm" : "text-base"
-              )}
-            >
-              {formatRupiah(finalTotal)}
-            </dd>
           </dl>
         </div>
 
@@ -272,9 +259,50 @@ export function InvoiceSheet({
           </table>
         </div>
 
-        {/* 5. TOTALS */}
-        <div className="flex justify-end">
-          <div className={cn("w-full", compact ? "" : "sm:max-w-[300px]")}>
+        {/* 5. PAYMENT + SIGNATURE (left) · TOTALS (right) */}
+        <div className={cn("grid items-start gap-x-10 gap-y-6", compact ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-[1fr_300px]")}>
+          <div className={cn("flex flex-col gap-5", compact ? "order-last" : "order-last sm:order-first")}>
+            <div className={cn("rounded-lg border px-4 py-3", PAPER.rule, PAPER.tint)}>
+              <Label>{isPaid ? "Payment Received" : "Payment Details"}</Label>
+              {isPaid ? (
+                <div className={cn("text-xs leading-relaxed", PAPER.inkSoft)}>
+                  This invoice has been paid in full. Thank you.
+                </div>
+              ) : (
+                <>
+                  {payment || !notes?.trim() ? (
+                    <dl className={cn("grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 text-xs", PAPER.ink)}>
+                      {[
+                        ["Bank", payment?.bank ?? "BCA"],
+                        ["Account No.", payment?.accountNumber ?? "0402434901"],
+                        ["Account Name", payment?.accountName || "Mulyadi"],
+                      ].map(([k, v]) => (
+                        <React.Fragment key={k}>
+                          <dt className={PAPER.muted}>{k}</dt>
+                          <dd className={cn("font-semibold", k === "Account No." && "font-mono")}>{v}</dd>
+                        </React.Fragment>
+                      ))}
+                    </dl>
+                  ) : (
+                    <div className={cn("whitespace-pre-line text-xs font-medium leading-relaxed", PAPER.ink)}>{notes}</div>
+                  )}
+                  <div className={cn("mt-2 text-[11px] leading-snug", PAPER.muted)}>
+                    Please include <span className="font-mono font-semibold">{invoiceNumber}</span> as the transfer
+                    reference.
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="flex w-[150px] flex-col items-center">
+              {/* eslint-disable-next-line @next/next/no-img-element -- plain <img> so html2canvas captures it */}
+              <img src="/signature.png" alt="Authorized signature" className="mb-1 block h-auto max-h-[55px] w-[100px]" />
+              <div className={cn("w-full border-t pt-1 text-center text-xs font-bold", PAPER.ruleStrong, PAPER.ink)}>Mulyadi</div>
+              <div className={cn("text-center text-[11px]", PAPER.muted)}>{sender.company_name}</div>
+            </div>
+          </div>
+
+          <div className="w-full">
             <div className={cn("flex justify-between py-1.5 text-sm", PAPER.inkSoft)}>
               <span>Subtotal</span>
               <span className="tabular-nums">{formatRupiah(subtotal)}</span>
@@ -296,48 +324,6 @@ export function InvoiceSheet({
                 {formatRupiah(finalTotal)}
               </span>
             </div>
-          </div>
-        </div>
-
-        {/* 6. PAYMENT + SIGNATURE */}
-        <div className={cn("grid items-end gap-6", compact ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-[1fr_auto]")}>
-          <div className={cn("rounded-lg border px-4 py-3", PAPER.rule, PAPER.tint)}>
-            <Label>{isPaid ? "Payment Received" : "Payment Details"}</Label>
-            {isPaid ? (
-              <div className={cn("text-xs leading-relaxed", PAPER.inkSoft)}>
-                This invoice has been paid in full. Thank you.
-              </div>
-            ) : (
-              <>
-                {payment || !notes?.trim() ? (
-                  <dl className={cn("grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 text-xs", PAPER.ink)}>
-                    {[
-                      ["Bank", payment?.bank ?? "BCA"],
-                      ["Account No.", payment?.accountNumber ?? "0402434901"],
-                      ["Account Name", payment?.accountName || "Mulyadi"],
-                    ].map(([k, v]) => (
-                      <React.Fragment key={k}>
-                        <dt className={PAPER.muted}>{k}</dt>
-                        <dd className={cn("font-semibold", k === "Account No." && "font-mono")}>{v}</dd>
-                      </React.Fragment>
-                    ))}
-                  </dl>
-                ) : (
-                  <div className={cn("whitespace-pre-line text-xs font-medium leading-relaxed", PAPER.ink)}>{notes}</div>
-                )}
-                <div className={cn("mt-2 text-[11px] leading-snug", PAPER.muted)}>
-                  Please include <span className="font-mono font-semibold">{invoiceNumber}</span> as the transfer
-                  reference.
-                </div>
-              </>
-            )}
-          </div>
-
-          <div className="flex w-[150px] flex-col items-center justify-self-end">
-            {/* eslint-disable-next-line @next/next/no-img-element -- plain <img> so html2canvas captures it */}
-            <img src="/signature.png" alt="Authorized signature" className="mb-1 block h-auto max-h-[55px] w-[100px]" />
-            <div className={cn("w-full border-t pt-1 text-center text-xs font-bold", PAPER.ruleStrong, PAPER.ink)}>Mulyadi</div>
-            <div className={cn("text-center text-[11px]", PAPER.muted)}>{sender.company_name}</div>
           </div>
         </div>
 
